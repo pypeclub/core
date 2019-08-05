@@ -45,7 +45,7 @@ def add_publish_knob(node):
         divider = nuke.Text_Knob('')
         knob = nuke.Boolean_Knob("publish", "Publish")
         knob.setFlag(0x1000)
-        knob.setValue(False)
+        knob.setValue(True)
         node.addKnob(divider)
         node.addKnob(knob)
     return node
@@ -72,10 +72,10 @@ def set_avalon_knob_data(node, data={}, prefix="ak:"):
         {"name": 'AvalonTab', "value": '', "type": "Tab_Knob"},
         {"name": 'begin', "value": 'Avalon data group',
             "type": "Tab_Knob", "group": 2},
-        {"name": 'd1', "value": '', "type": "Text_Knob"},
+        {"name": '__divider__'},
         {"name": 'avalon_data', "value": 'Warning! Do not change following data!',
             "type": "Text_Knob"},
-        {"name": 'd2', "value": '', "type": "Text_Knob"},
+        {"name": '__divider__'},
         {"name": 'begin', "value": 'Avalon data group',
             "type": "Tab_Knob", "group": -1}
     ]
@@ -85,7 +85,10 @@ def set_avalon_knob_data(node, data={}, prefix="ak:"):
         # create Avalon Tab and basic knobs
         for k in knobs[:-1]:
             if not k.get("group"):
-                if k["name"] not in node.knobs().keys():
+                if "__divider__" in k["name"]:
+                    knob = nuke.Text_Knob("")
+                    node.addKnob(knob)
+                elif k["name"] not in node.knobs().keys():
                     knob = eval("nuke.{type}('{name}')".format(**k))
                     node.addKnob(knob)
                     try:
