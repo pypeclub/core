@@ -22,6 +22,19 @@ class SubsetModel(TreeModel):
         "step"
     ]
 
+    column_labels_mapping = {
+        "subset": "Subset",
+        "asset": "Asset",
+        "family": "Family",
+        "version": "Version",
+        "time": "Time",
+        "author": "Author",
+        "frames": "Frames",
+        "duration": "Duration",
+        "handles": "Handles",
+        "step": "Step"
+    }
+
     SortAscendingRole = QtCore.Qt.UserRole + 2
     SortDescendingRole = QtCore.Qt.UserRole + 3
     merged_subset_colors = [
@@ -391,3 +404,11 @@ class SubsetModel(TreeModel):
             flags |= QtCore.Qt.ItemIsEditable
 
         return flags
+
+    def headerData(self, section, orientation, role):
+        if role == QtCore.Qt.DisplayRole:
+            if section < len(self.COLUMNS):
+                key = self.COLUMNS[section]
+                return self.column_labels_mapping.get(key) or key
+
+        super(TreeModel, self).headerData(section, orientation, role)
