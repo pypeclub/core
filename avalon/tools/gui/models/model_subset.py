@@ -42,8 +42,9 @@ class SubsetModel(TreeModel):
         self._asset_ids = None
         self._sorter = None
         self._grouping = grouping
-        self._icons = {"subset": qtawesome.icon("fa.file-o",
-                                          color=style.colors.default)}
+        self._icons = {
+            "subset": qtawesome.icon("fa.file-o", color=style.colors.default)
+        }
 
     def set_assets(self, asset_ids):
         self._asset_ids = asset_ids
@@ -60,9 +61,11 @@ class SubsetModel(TreeModel):
         if index.column() == self.COLUMNS.index("version"):
             node = index.internalPointer()
             parent = node["_id"]
-            version = io.find_one({"name": value,
-                                   "type": "version",
-                                   "parent": parent})
+            version = io.find_one({
+                "name": value,
+                "type": "version",
+                "parent": parent
+            })
             self.set_version(index, version)
 
         return super(SubsetModel, self).setData(index, value, role)
@@ -78,8 +81,9 @@ class SubsetModel(TreeModel):
             return
 
         node = index.internalPointer()
-        assert version['parent'] == node['_id'], ("Version does not "
-                                                  "belong to subset")
+        assert version['parent'] == node['_id'], (
+            "Version does not belong to subset"
+        )
 
         # Get the data from the version
         version_data = version.get("data", dict())
@@ -328,7 +332,6 @@ class SubsetModel(TreeModel):
         self.endResetModel()
 
     def data(self, index, role):
-
         if not index.isValid():
             return
 
@@ -339,7 +342,6 @@ class SubsetModel(TreeModel):
                 return node.get("familyLabel", None)
 
         if role == QtCore.Qt.DecorationRole:
-
             # Add icon to subset column
             if index.column() == self.COLUMNS.index("subset"):
                 node = index.internalPointer()
@@ -361,8 +363,9 @@ class SubsetModel(TreeModel):
                 order = node["inverseOrder"]
             else:
                 prefix = "0"
-                order = str(super(SubsetModel,
-                                  self).data(index, QtCore.Qt.DisplayRole))
+                order = str(
+                    super(SubsetModel, self).data(index, QtCore.Qt.DisplayRole)
+                )
             return prefix + order
 
         if role == self.SortAscendingRole:
@@ -373,8 +376,9 @@ class SubsetModel(TreeModel):
                 order = node["order"]
             else:
                 prefix = "1"
-                order = str(super(SubsetModel,
-                                  self).data(index, QtCore.Qt.DisplayRole))
+                order = str(
+                    super(SubsetModel, self).data(index, QtCore.Qt.DisplayRole)
+                )
             return prefix + order
 
         return super(SubsetModel, self).data(index, role)
