@@ -124,7 +124,7 @@ class AssetsWidget(QtWidgets.QWidget):
         """Return the assets' ids that are selected."""
         selection = self.view.selectionModel()
         rows = selection.selectedRows()
-        return [row.data(self.model.ObjectIdRole) for row in rows]
+        return [row.data(self.model.DocumentRole) for row in rows]
 
     def select_assets(self, assets, expand=True, key="name"):
         """Select assets by name.
