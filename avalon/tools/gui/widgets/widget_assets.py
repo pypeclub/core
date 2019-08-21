@@ -169,10 +169,9 @@ class AssetsWidget(QtWidgets.QWidget):
 
         """
         # TODO: Instead of individual selection optimize for many assets
+        if not isinstance(assets, (tuple, list)):
+            assets = [assets,]
 
-        assert isinstance(
-            assets, (tuple, list)
-        ), "Assets must be list or tuple"
 
         # convert to list - tuple cant be modified
         assets = list(assets)
