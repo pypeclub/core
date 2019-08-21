@@ -43,7 +43,7 @@ class Window(QtWidgets.QDialog):
 
         container = QtWidgets.QWidget()
 
-        assets = AssetsWidget(silo_creatable=False)
+        assets = AssetsWidget(silo_creatable=False, multiselection=True)
         families = FamiliesListWidget()
         subsets = SubsetsWidget(parent=self)
         version = VersionWidget()
