@@ -34,19 +34,23 @@ class TaskModel(TreeModel):
                                     color=style.colors.default)
                 self._icons[task["name"]] = icon
 
-    def set_assets(self, asset_ids):
+    def set_assets(self, asset_ids=[], asset_entities=None):
         """Set assets to track by their database id
 
         Arguments:
             asset_ids (list): List of asset ids.
-
+            asset_entities (list): List of asset entities from MongoDB.
         """
 
         assets = list()
-        for asset_id in asset_ids:
-            asset = io.find_one({"_id": asset_id, "type": "asset"})
-            assert asset, "Asset not found by id: {0}".format(asset_id)
-            assets.append(asset)
+
+        if asset_entities:
+            assets = asset_entities
+        else:
+            for asset_id in asset_ids:
+                asset = io.find_one({"_id": asset_id, "type": "asset"})
+                assert asset, "Asset not found by id: {0}".format(asset_id)
+                assets.append(asset)
 
         self._num_assets = len(assets)
 
