@@ -131,9 +131,9 @@ class App(QtWidgets.QDialog):
         if len(selected) == 0:
             silo = self._assets.get_silo_object()
             if silo:
-                selected = [silo["_id"]]
+                selected = [silo]
 
-        self._task_model.set_assets(selected)
+        self._task_model.set_assets(asset_entities=selected)
 
         # Find task with same name
         if self._last_selected_task:
