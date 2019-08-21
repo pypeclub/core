@@ -20,7 +20,7 @@ class VersionDelegate(QtWidgets.QStyledItemDelegate):
 
     def createEditor(self, parent, option, index):
         node = index.data(SubsetsModel.NodeRole)
-        if node.get("isGroup"):
+        if node.get("isGroup") or node.get("isMerged"):
             return
 
         editor = QtWidgets.QComboBox(parent)
