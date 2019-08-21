@@ -14,3 +14,14 @@ class AssetsView(DeselectableTreeView):
         self.setIndentation(15)
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.setHeaderHidden(True)
+
+    def mousePressEvent(self, event):
+        index = self.indexAt(event.pos())
+        if not index.isValid():
+            modifiers = QtWidgets.QApplication.keyboardModifiers()
+            if modifiers == QtCore.Qt.ShiftModifier:
+                return
+            elif modifiers == QtCore.Qt.ControlModifier:
+                return
+
+        super(AssetsView, self).mousePressEvent(event)
