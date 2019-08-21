@@ -204,6 +204,10 @@ class Window(QtWidgets.QDialog):
         asset_ids = [a["_id"] for a in asset_docs]
         asset_names = [a["name"] for a in asset_docs]
         subsets_widget.model.set_assets(asset_ids)
+        subsets_widget.view.setColumnHidden(
+            subsets_widget.model.COLUMNS.index("asset"),
+            len(asset_ids) < 2
+        )
 
         # Clear the version information on asset change
         self.data['model']['version'].set_version(None)
