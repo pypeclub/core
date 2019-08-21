@@ -7,6 +7,7 @@ from . import lib
 
 from ..models import AssetModel, RecursiveSortFilterProxyModel
 from ..views import AssetsView
+from ..delegates import AssetDelegate
 
 
 class AssetsWidget(QtWidgets.QWidget):
@@ -23,7 +24,7 @@ class AssetsWidget(QtWidgets.QWidget):
     selection_changed = QtCore.Signal()  # on view selection change
     current_changed = QtCore.Signal()    # on view current index change
 
-    def __init__(self, silo_creatable=None, parent=None):
+    def __init__(self, silo_creatable=None, parent=None, multiselection=False):
         super(AssetsWidget, self).__init__(parent=parent)
         self.setContentsMargins(0, 0, 0, 0)
 
@@ -36,8 +37,14 @@ class AssetsWidget(QtWidgets.QWidget):
         proxy = RecursiveSortFilterProxyModel()
         proxy.setSourceModel(model)
         proxy.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+
         view = AssetsView()
         view.setModel(proxy)
+
+        if multiselection:
+            asset_delegate = AssetDelegate()
+            view.setSelectionMode(view.ExtendedSelection)
+            view.setItemDelegate(asset_delegate)
 
         # Header
         header = QtWidgets.QHBoxLayout()
