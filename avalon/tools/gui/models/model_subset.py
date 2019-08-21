@@ -9,15 +9,18 @@ from .. import lib as gui_lib
 
 
 class SubsetModel(TreeModel):
-    COLUMNS = ["subset",
-               "family",
-               "version",
-               "time",
-               "author",
-               "frames",
-               "duration",
-               "handles",
-               "step"]
+    COLUMNS = [
+        "subset",
+        "asset",
+        "family",
+        "version",
+        "time",
+        "author",
+        "frames",
+        "duration",
+        "handles",
+        "step"
+    ]
 
     SortAscendingRole = QtCore.Qt.UserRole + 2
     SortDescendingRole = QtCore.Qt.UserRole + 3
