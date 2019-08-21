@@ -14,7 +14,7 @@ from ..gui.models.lib import (
     refresh_group_config,
     get_active_group_config
 )
-from ..gui.widgets.lib import preserve_selection
+from ..gui.widgets.lib import preserve_selection, _iter_model_rows
 
 module = sys.modules[__name__]
 module.window = None
@@ -100,8 +100,8 @@ class Window(QtWidgets.QDialog):
                 "context": {
                     "root": None,
                     "project": None,
-                    "asset": None,
-                    "assetId": None,
+                    "assets": None,
+                    "assetIds": None,
                     "subset": None,
                     "version": None,
                     "representation": None,
@@ -189,36 +189,27 @@ class Window(QtWidgets.QDialog):
     def _assetschanged(self):
         """Selected assets have changed"""
 
-        assets_model = self.data["model"]["assets"]
-        subsets = self.data["model"]["subsets"]
-        subsets_model = subsets.model
-        subsets_model.clear()
+        assets_widget = self.data["model"]["assets"]
+        subsets_widget = self.data["model"]["subsets"]
+
+        subsets_widget.model.clear()
+
+        self.clear_assets_underlines()
 
         t1 = time.time()
-
-        asset_item = assets_model.get_active_index()
-        if asset_item is None or not asset_item.isValid():
-            documents = [doc for doc in io.find({
-                "type": "asset",
-                "data.visualParent": None
-            })]
-            if len(documents) == 0:
-                return
-            document = documents[0]
-        else:
-            document = asset_item.data(DocumentRole)
-
-        if document is None:
+        asset_docs = assets_widget.get_selected_assets()
+        if len(asset_docs) == 0:
             return
 
-        subsets_model.set_asset(document['_id'])
-
+        asset_ids = [a["_id"] for a in asset_docs]
+        asset_names = [a["name"] for a in asset_docs]
+        subsets_widget.model.set_assets(asset_ids)
 
         # Clear the version information on asset change
         self.data['model']['version'].set_version(None)
 
-        self.data["state"]["context"]["asset"] = document["name"]
-        self.data["state"]["context"]["assetId"] = document["_id"]
+        self.data["state"]["context"]["assets"] = asset_names
+        self.data["state"]["context"]["assetIds"] = asset_ids
         self.echo("Duration: %.3fs" % (time.time() - t1))
 
     def _subsetschanged(self):
@@ -386,7 +377,7 @@ class SubsetGroupingDialog(QtWidgets.QDialog):
 
         self.items = items
         self.subsets = parent.data["model"]["subsets"]
-        self.asset_id = parent.data["state"]["context"]["assetId"]
+        self.asset_ids = parent.data["state"]["context"]["assetIds"]
 
         name = QtWidgets.QLineEdit()
         name.setPlaceholderText("Remain blank to ungroup..")
@@ -427,12 +418,20 @@ class SubsetGroupingDialog(QtWidgets.QDialog):
         if group:
             group.deleteLater()
 
-        active_groups = get_active_group_config(self.asset_id,
-                                                include_predefined=True)
+        active_groups = []
+        for asset_id in self.asset_ids:
+            active_groups.extend(get_active_group_config(
+                asset_id, include_predefined=True
+            ))
+
         # Build new action group
         group = QtWidgets.QActionGroup(button)
+        group_names = []
         for data in sorted(active_groups, key=lambda x: x["order"]):
             name = data["name"]
+            if name in group_names:
+                continue
+            group_names.append(name)
             icon = data["icon"]
 
             action = group.addAction(name)
@@ -447,7 +446,7 @@ class SubsetGroupingDialog(QtWidgets.QDialog):
 
     def on_group(self):
         name = self.name.text().strip()
-        self.subsets.group_subsets(name, self.asset_id, self.items)
+        self.subsets.group_subsets(name, self.asset_ids, self.items)
 
         with preserve_selection(tree_view=self.subsets.view,
                                 current_index=False):
