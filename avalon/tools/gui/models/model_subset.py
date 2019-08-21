@@ -57,7 +57,7 @@ class SubsetModel(TreeModel):
 
         # Trigger additional edit when `version` column changed
         # because it also updates the information in other columns
-        if index.column() == 2:
+        if index.column() == self.COLUMNS.index("version"):
             node = index.internalPointer()
             parent = node["_id"]
             version = io.find_one({"name": value,
@@ -333,7 +333,7 @@ class SubsetModel(TreeModel):
             return
 
         if role == QtCore.Qt.DisplayRole:
-            if index.column() == 1:
+            if index.column() == self.COLUMNS.index("family"):
                 # Show familyLabel instead of family
                 node = index.internalPointer()
                 return node.get("familyLabel", None)
@@ -341,21 +341,21 @@ class SubsetModel(TreeModel):
         if role == QtCore.Qt.DecorationRole:
 
             # Add icon to subset column
-            if index.column() == 0:
+            if index.column() == self.COLUMNS.index("subset"):
                 node = index.internalPointer()
-                if node.get("isGroup"):
+                if node.get("isGroup") or node.get("isMerged"):
                     return node["icon"]
                 else:
                     return self._icons["subset"]
 
             # Add icon to family column
-            if index.column() == 1:
+            if index.column() == self.COLUMNS.index("family"):
                 node = index.internalPointer()
                 return node.get("familyIcon", None)
 
         if role == self.SortDescendingRole:
             node = index.internalPointer()
-            if node.get("isGroup"):
+            if node.get("isGroup") or node.get("isMerged"):
                 # Ensure groups be on top when sorting by descending order
                 prefix = "1"
                 order = node["inverseOrder"]
@@ -367,7 +367,7 @@ class SubsetModel(TreeModel):
 
         if role == self.SortAscendingRole:
             node = index.internalPointer()
-            if node.get("isGroup"):
+            if node.get("isGroup") or node.get("isMerged"):
                 # Ensure groups be on top when sorting by ascending order
                 prefix = "0"
                 order = node["order"]
