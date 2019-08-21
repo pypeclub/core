@@ -400,7 +400,7 @@ class SubsetModel(TreeModel):
         flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
 
         # Make the version column editable
-        if index.column() == 2:  # version column
+        if index.column() == self.COLUMNS.index("version"):
             flags |= QtCore.Qt.ItemIsEditable
 
         return flags
