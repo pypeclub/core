@@ -26,13 +26,16 @@ class AssetModel(TreeModel):
 
     DocumentRole = QtCore.Qt.UserRole + 2
     ObjectIdRole = QtCore.Qt.UserRole + 3
+    subsetColorsRole = QtCore.Qt.UserRole + 4
 
     def __init__(self, parent=None):
         super(AssetModel, self).__init__(parent=parent)
+        self.asset_colors = {}
         self.refresh()
 
     def _add_hierarchy(self, parent=None):
-
+        # Reset colors
+        self.asset_colors = {}
         # Find the assets under the parent
         find_data = {
             "type": "asset"
@@ -64,10 +67,13 @@ class AssetModel(TreeModel):
                 "deprecated": deprecated,
                 "_document": asset
             })
+
             self.add_child(node, parent=parent)
 
             # Add asset's children recursively
             self._add_hierarchy(node)
+
+            self.asset_colors[asset["_id"]] = []
 
     def refresh(self):
         """Refresh the data for the model."""
@@ -79,6 +85,21 @@ class AssetModel(TreeModel):
 
     def flags(self, index):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+
+    def setData(self, index, value, role=QtCore.Qt.EditRole):
+        if not index.isValid():
+            return False
+
+        if role == self.subsetColorsRole:
+            asset_id = index.data(self.ObjectIdRole)
+            self.asset_colors[asset_id] = value
+
+            # passing `list()` for PyQt5 (see PYSIDE-462)
+            self.dataChanged.emit(index, index, list())
+
+            return True
+
+        return super(AssetModel, self).setData(index, value, role)
 
     def data(self, index, role):
         if not index.isValid():
@@ -126,5 +147,11 @@ class AssetModel(TreeModel):
 
         if role == self.DocumentRole:
             return node.get("_document", None)
+
+        if role == self.subsetColorsRole:
+            asset_id = node.get("_id", None)
+            if not asset_id:
+                return []
+            return self.asset_colors.get(asset_id) or []
 
         return super(AssetModel, self).data(index, role)
