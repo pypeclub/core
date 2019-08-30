@@ -171,6 +171,13 @@ class Window(QtWidgets.QDialog):
         state["context"]["project"] = project["name"]
 
     def clear_assets_underlines(self):
+        """Clear colors from asset data to remove colored underlines
+
+        When multiple assets are selected colored underlines mark which asset
+        own selected subsets. These colors must be cleared from asset data
+        on selection change so they match current selection.
+
+        """
         last_asset_ids = self.data["state"]["context"]["assetIds"]
         if not last_asset_ids:
             return
