@@ -1,4 +1,4 @@
-from ....vendor.Qt import QtCore
+from ....vendor.Qt import QtCore, QtWidgets
 from . import DeselectableTreeView
 
 
