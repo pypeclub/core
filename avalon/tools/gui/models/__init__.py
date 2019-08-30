@@ -33,5 +33,5 @@ __all__ = [
     "RecursiveSortFilterProxyModel",
     "GroupMemberFilterProxyModel",
     "SubsetFilterProxyModel",
-    "FamiliesFilterProxyModel"
+    "FamilyFilterProxyModel"
 ]
