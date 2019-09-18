@@ -1,4 +1,5 @@
 import logging
+import collections
 
 from ....vendor import qtawesome
 from ....vendor.Qt import QtCore, QtGui
@@ -33,45 +34,50 @@ class AssetModel(TreeModel):
         self.asset_colors = {}
         self.refresh()
 
-    def _add_hierarchy(self, parent=None):
+    def _add_hierarchy(self, assets, parent=None):
+        """Add the assets that are related to the parent as children items.
+
+        This method does *not* query the database. These instead are queried
+        in a single batch upfront as an optimization to reduce database
+        queries. Resulting in up to 10x speed increase.
+
+        Args:
+            assets (dict): All assets in the currently active silo stored
+                by key/value
+
+        Returns:
+            None
+
+        """
         # Reset colors
         self.asset_colors = {}
-        # Find the assets under the parent
-        find_data = {
-            "type": "asset"
-        }
-        if parent is None:
-            find_data['$or'] = [
-                {'data.visualParent': {'$exists': False}},
-                {'data.visualParent': None}
-            ]
-        else:
-            find_data["data.visualParent"] = parent['_id']
+        
+        parent_id = parent["_id"] if parent else None
+        current_assets = assets.get(parent_id, list())
 
-        assets = io.find(find_data).sort('name', 1)
-        for asset in assets:
+        for asset in current_assets:
             # get label from data, otherwise use name
             data = asset.get("data", {})
-            label = data.get("label", asset['name'])
+            label = data.get("label", asset["name"])
             tags = data.get("tags", [])
 
             # store for the asset for optimization
             deprecated = "deprecated" in tags
 
             node = Node({
-                "_id": asset['_id'],
+                "_id": asset["_id"],
                 "name": asset["name"],
                 "label": label,
-                "type": asset['type'],
+                "type": asset["type"],
                 "tags": ", ".join(tags),
                 "deprecated": deprecated,
                 "_document": asset
             })
-
             self.add_child(node, parent=parent)
 
-            # Add asset's children recursively
-            self._add_hierarchy(node)
+            # Add asset's children recursively if it has children
+            if asset["_id"] in assets:
+                self._add_hierarchy(assets, parent=node)
 
             self.asset_colors[asset["_id"]] = []
 
@@ -80,7 +86,22 @@ class AssetModel(TreeModel):
 
         self.clear()
         self.beginResetModel()
-        self._add_hierarchy(parent=None)
+
+        db_assets = io.find({
+            "type": "asset"
+        }).sort("name", 1)
+
+        # Group the assets by their visual parent's id
+        assets_by_parent = collections.defaultdict(list)
+        for asset in db_assets:
+            parent_id = asset.get("data", {}).get("visualParent") or None
+            assets_by_parent[parent_id].append(asset)
+
+        # Build the hierarchical tree items recursively
+        self._add_hierarchy(
+            assets_by_parent, parent=None
+        )
+
         self.endResetModel()
 
     def flags(self, index):
