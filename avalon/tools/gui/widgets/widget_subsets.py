@@ -148,13 +148,9 @@ class SubsetsWidget(QtWidgets.QWidget):
                 continue
 
             elif node.get("isMerged"):
-                index = self.model.index(
-                    row_index.row(),
-                    row_index.column(),
-                    row_index.parent()
-                )
-
-                for i in range(self.model.rowCount(index)):
+                for i in range(
+                    row_index.data(self.model.NodeRole).childCount()
+                ):
                     node = row_index.child(i, 0).data(self.model.NodeRole)
                     if node not in nodes:
                         nodes.append(node)
