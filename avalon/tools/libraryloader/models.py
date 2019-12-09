@@ -464,6 +464,7 @@ class SubsetsModel(loader_models.SubsetsModel):
 
         self.endResetModel()
 
+
 class FamiliesFilterProxyModel(loader_models.FamiliesFilterProxyModel):
     """Filters to specified families"""
 
@@ -471,7 +472,6 @@ class FamiliesFilterProxyModel(loader_models.FamiliesFilterProxyModel):
         super(FamiliesFilterProxyModel, self).__init__(*args, **kwargs)
 
     def filterAcceptsRow(self, row=0, parent=QtCore.QModelIndex()):
-
         if not self._families:
             return False
 
@@ -489,18 +489,11 @@ class FamiliesFilterProxyModel(loader_models.FamiliesFilterProxyModel):
             return self.filter_accepts_group(index, model)
 
         families = item.get("families", [])
-
-        filterable_families = set()
         for name in families:
-            family_config = lib.get_family_cached_config(name)
-            if not family_config.get("hideFilter"):
-                filterable_families.add(name)
+            if name in self._families:
+                return True
 
-        if not filterable_families:
-            return True
-
-        # We want to keep the families which are not in the list
-        return filterable_families.issubset(self._families)
+        return False
 
     def sort(self, column, order):
         proxy = self.sourceModel()
