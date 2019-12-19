@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import List, Optional
 
-from . import bpy
+import bpy
 
 
 def open_file(filepath: str) -> Optional[str]:
@@ -41,7 +41,7 @@ def save_file(filepath: str, copy: bool = False) -> Optional[str]:
 
 def current_file() -> Optional[str]:
     """Return the path of the open scene file."""
-    current_filepath = bpy.data.filepath
+    current_filepath = bpy.context.blend_data.filepath
     if Path(current_filepath).is_file():
         return current_filepath
     return None
@@ -49,7 +49,7 @@ def current_file() -> Optional[str]:
 
 def has_unsaved_changes() -> bool:
     """Does the open scene file have unsaved changes?"""
-    return bpy.data.is_dirty
+    return bpy.context.blend_data.is_dirty
 
 
 def file_extensions() -> List[str]:

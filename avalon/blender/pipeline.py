@@ -2,16 +2,19 @@
 
 import importlib
 import sys
+import traceback
 from types import ModuleType
 from typing import Callable, Dict, Iterator, List, Optional
 
+import bpy
+
 import pyblish.api
 import pyblish.util
-from avalon import api, schema
 
+from .. import api, schema
 from ..lib import logger
 from ..pipeline import AVALON_CONTAINER_ID
-from . import bpy, lib, ops
+from . import lib, ops
 
 self = sys.modules[__name__]
 self._events = dict()  # Registered Blender callbacks
@@ -107,6 +110,9 @@ def install(config: ModuleType):
 
     This function is called automatically on calling `api.install(blender)`.
     """
+
+    # Override excepthook to not crash blender on exception
+    sys.excepthook = lambda *exc_info: traceback.print_exception(*exc_info)
 
     _register_callbacks()
     _register_events()
