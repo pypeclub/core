@@ -1382,6 +1382,10 @@ def format_template_with_optional_keys(data, template):
     return work_file
 
 
+class RepresentationPathNotFound(Exception):
+    pass
+
+
 def get_representation_path(representation):
     """Get filename from representation document
 
@@ -1418,6 +1422,9 @@ def get_representation_path(representation):
 
         if os.path.exists(path):
             return os.path.normpath(path)
+
+        log.warning("Path was not found: {}".format(path))
+        raise RepresentationPathNotFound()
 
     def path_from_config():
         try:
@@ -1474,6 +1481,9 @@ def get_representation_path(representation):
         if os.path.exists(path):
             return os.path.normpath(path)
 
+        log.warning("Path was not found: {}".format(path))
+        raise RepresentationPathNotFound()
+
     def path_from_data():
         if "path" not in representation["data"]:
             return None
@@ -1501,12 +1511,16 @@ def get_representation_path(representation):
         for _file in os.listdir(dir_path):
             if _file.startswith(filename_start) and _file.endswith(ext):
                 return os.path.normpath(path)
+    try:
+        return (
+            path_from_represenation() or
+            path_from_config() or
+            path_from_data()
+        )
+    except RepresentationPathNotFound:
+        pass
 
-    return (
-        path_from_represenation() or
-        path_from_config() or
-        path_from_data()
-    )
+    return None
 
 
 def get_thumbnail_binary(thumbnail_entity, thumbnail_type, dbcon=None):
