@@ -1235,28 +1235,34 @@ class SwitchAssetDialog(QtWidgets.QDialog):
     def _build_loader_menu(self, loaders):
         menu = self._accept_btn.menu()
         menu.clear()
+
+        loaders_by_label = collections.defaultdict(list)
         for loader in loaders:
             # Label
             label = getattr(loader, "label", None)
             if label is None:
                 label = loader.__name__
 
-            action = menu.addAction(label)
-            action.setData(loader)
+            loaders_by_label[label].append(loader)
 
-            # Support font-awesome icons using the `.icon` and `.color`
-            # attributes on plug-ins.
-            icon = getattr(loader, "icon", None)
-            if icon is not None:
-                try:
-                    key = "fa.{0}".format(icon)
-                    color = getattr(loader, "color", "white")
-                    action.setIcon(qtawesome.icon(key, color=color))
-                except Exception as e:
-                    print("Unable to set icon for loader "
-                          "{}: {}".format(loader, e))
+        for label in sorted(loaders_by_label.keys()):
+            for loader in loaders_by_label[label]:
+                action = menu.addAction(label)
+                action.setData(loader)
 
-            menu.addAction(action)
+                # Support font-awesome icons using the `.icon` and `.color`
+                # attributes on plug-ins.
+                icon = getattr(loader, "icon", None)
+                if icon is not None:
+                    try:
+                        key = "fa.{0}".format(icon)
+                        color = getattr(loader, "color", "white")
+                        action.setIcon(qtawesome.icon(key, color=color))
+                    except Exception as e:
+                        print("Unable to set icon for loader "
+                              "{}: {}".format(loader, e))
+
+                menu.addAction(action)
 
         menu.triggered.connect(self._on_accept)
 
