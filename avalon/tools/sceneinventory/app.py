@@ -648,9 +648,12 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
         accept_icon = qtawesome.icon("fa.check", color="white")
         accept_btn = QtWidgets.QPushButton()
+
         accept_btn.setIcon(accept_icon)
         accept_btn.setFixedWidth(24)
         accept_btn.setFixedHeight(24)
+        menu = QtWidgets.QMenu(accept_btn)
+        accept_btn.setMenu(menu)
 
         asset_layout.addWidget(self._assets_box)
         asset_layout.addWidget(self._asset_label)
@@ -693,7 +696,10 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         self.initialized = True
 
     def connections(self):
-        self._accept_btn.clicked.connect(self._on_accept)
+        self._accept_btn.clicked.connect(self.btn_clicked)
+
+    def btn_clicked(self):
+        self._accept_btn.showMenu()
 
     def on_assets_change(self):
         self.refresh(1)
@@ -977,6 +983,8 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         subset_ok = True
         lod_ok = True
         repre_ok = True
+
+        representations = []
         for item in self._items:
             _id = io.ObjectId(item["representation"])
             representation = io.find_one({
@@ -1005,6 +1013,17 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
             if repre_name is None:
                 repre_name = representation["name"]
+                representations.append(representation)
+            elif repre_name == representation["name"]:
+                representations.append(representation)
+            else:
+                _repres = io.find({
+                    "type": "representation",
+                    "parent": representation["parent"]
+                })
+                for _repre in _repres:
+                    if _repre["name"] == repre_name:
+                        representations.append(representation)
 
             if self.is_lod and self._lods_box.isVisible():
                 subsets = io.find({
@@ -1166,6 +1185,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         asset_sheet = subset_sheet = repre_sheet = lod_sheet = ""
         accept_sheet = ""
         all_ok = asset_ok and subset_ok and lod_ok and repre_ok
+        loaders = []
 
         if asset_ok is False:
             asset_sheet = error_sheet
@@ -1182,6 +1202,8 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         if all_ok:
             accept_sheet = success_sheet
 
+        self._build_loader_menu(self._get_loaders(representations))
+
         self._assets_box.setStyleSheet(asset_sheet)
         self._subsets_box.setStyleSheet(subset_sheet)
         self._lods_box.setStyleSheet(lod_sheet)
@@ -1189,6 +1211,54 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
         self._accept_btn.setEnabled(all_ok)
         self._accept_btn.setStyleSheet(accept_sheet)
+
+    def _get_loaders(self, representations):
+        if not representations:
+            return list()
+
+        available_loaders = filter(
+            lambda l: not (hasattr(l, "is_utility") and l.is_utility),
+            api.discover(api.Loader)
+        )
+
+        loaders = set()
+
+        for representation in representations:
+            for loader in api.loaders_from_representation(
+                    available_loaders,
+                    representation
+            ):
+                loaders.add(loader)
+
+        return loaders
+
+    def _build_loader_menu(self, loaders):
+        menu = self._accept_btn.menu()
+        menu.clear()
+        for loader in loaders:
+            # Label
+            label = getattr(loader, "label", None)
+            if label is None:
+                label = loader.__name__
+
+            action = menu.addAction(label)
+            action.setData(loader)
+
+            # Support font-awesome icons using the `.icon` and `.color`
+            # attributes on plug-ins.
+            icon = getattr(loader, "icon", None)
+            if icon is not None:
+                try:
+                    key = "fa.{0}".format(icon)
+                    color = getattr(loader, "color", "white")
+                    action.setIcon(qtawesome.icon(key, color=color))
+                except Exception as e:
+                    print("Unable to set icon for loader "
+                          "{}: {}".format(loader, e))
+
+            menu.addAction(action)
+
+        menu.triggered.connect(self._on_accept)
 
     def _get_assets(self):
         filtered_assets = []
@@ -1542,8 +1612,8 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
         return io.find(query).distinct("name")
 
-    def _on_accept(self):
-
+    def _on_accept(self, action):
+        selected_loader = action.data()
         # Use None when not a valid value or when placeholder value
         _asset = self._assets_box.get_valid_value() or None
         _subset = self._subsets_box.get_valid_value() or None
@@ -1551,10 +1621,6 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         _representation = self._representations_box.get_valid_value() or None
 
         if self.is_lod:
-            if not any([_asset, _subset, _lod, _representation]):
-                self.log.error("Nothing selected")
-                return
-
             for item in self._items:
                 _asset_name = _asset
                 _subset_name = _subset
@@ -1597,15 +1663,12 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                         item,
                         asset_name=_asset_name,
                         subset_name=_subset_name,
-                        representation_name=_representation_name
+                        representation_name=_representation_name,
+                        selected_loader=selected_loader
                     )
                 except Exception as e:
                     self.log.warning(e)
         else:
-            if not any([_asset, _subset, _representation]):
-                self.log.error("Nothing selected")
-                return
-
             for item in self._items:
                 _asset_name = _asset
                 _subset_name = _subset
@@ -1630,7 +1693,8 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                         item,
                         asset_name=_asset_name,
                         subset_name=_subset_name,
-                        representation_name=_representation_name
+                        representation_name=_representation_name,
+                        selected_loader=selected_loader
                     )
                 except Exception as e:
                     self.log.warning(e)
