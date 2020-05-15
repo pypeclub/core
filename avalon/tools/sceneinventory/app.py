@@ -1062,7 +1062,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                         subset_ok = False
                         continue
 
-                elif lod_name is None:
+                elif lod_name is None or lod_name == self.LOD_NOT_LOD:
                     orig_subset_name = subset["name"]
                     lod_regex_result = re.search(
                         self.LOD_REGEX, orig_subset_name
@@ -1305,9 +1305,8 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                     "type": "representation",
                     "_id": _id
                 })
-                # version, subset, asset, project = io.parenthood(representation)
                 repres = io.find({
-                    "type":"representation",
+                    "type": "representation",
                     "parent": representation["parent"]
                 })
                 merge_repres = set()
@@ -1345,7 +1344,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                 "parent": asset["_id"],
                 "name": subset_name
             })
-            #versions
+            # versions
             versions = io.find({
                 "type": "version",
                 "parent": subset["_id"]
@@ -1392,7 +1391,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                     if lod_name == self.LOD_NOT_LOD:
                         for subset in subsets:
                             lod_regex_result = re.search(
-                                self.LOD_REGEX, subs["name"]
+                                self.LOD_REGEX, subset["name"]
                             )
                             if lod_regex_result:
                                 continue
@@ -1404,7 +1403,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             # if only asset is selected
             else:
                 possible_subsets = subsets
-            #versions
+            # versions
             versions = []
             for subset in possible_subsets:
                 _versions = io.find({
@@ -1493,7 +1492,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                 subset_name = subset_text
                 lod_regex_result = re.search(self.LOD_REGEX, subs["name"])
                 if lod_regex_result:
-                     subset_name += lod_regex_result.group(0)
+                    subset_name += lod_regex_result.group(0)
                 # should find only one subset
                 subsets = io.find({
                     "type": "subset",
@@ -1564,8 +1563,8 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
                 _id = io.ObjectId(item["representation"])
                 representation = io.find_one({
-                "type": "representation",
-                "_id": _id
+                    "type": "representation",
+                    "_id": _id
                 })
                 version, subset, asset, project = io.parenthood(representation)
 
