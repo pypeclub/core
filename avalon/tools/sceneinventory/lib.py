@@ -1,10 +1,13 @@
 from ... import io, api
 
 
-def switch_item(container,
-                asset_name=None,
-                subset_name=None,
-                representation_name=None):
+def switch_item(
+    container,
+    asset_name=None,
+    subset_name=None,
+    representation_name=None,
+    selected_loader=None
+):
     """Switch container asset, subset or representation of a container by name.
 
     It'll always switch to the latest version - of course a different
@@ -69,7 +72,7 @@ def switch_item(container,
         "Could not find representation in the database with"
         " the name '%s'" % representation_name)
 
-    api.switch(container, representation)
+    api.switch(container, representation, selected_loader)
 
     return representation
 
