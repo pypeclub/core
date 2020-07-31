@@ -109,7 +109,7 @@ def launch_zip_file(filepath):
     # Launch Avalon server.
     self.server = Server(self.port)
     thread = threading.Thread(target=self.server.start)
-    thread.deamon = True
+    thread.daemon = True
     thread.start()
 
     # Save workfile path for later.
