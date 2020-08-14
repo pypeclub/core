@@ -161,7 +161,7 @@ def containerise(name,
         "loader": str(loader),
         "representation": str(context["representation"]["_id"]),
         "nodes": nodes
-        }
+    }
 
     lib.imprint(node, data)
 
