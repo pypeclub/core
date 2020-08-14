@@ -16,7 +16,7 @@ import time
 from .server import Server
 from ..vendor.Qt import QtWidgets
 from ..tools import workfiles
-from ..toonboom import setup_startup_scripts
+from ..toonboom import setup_startup_scripts, setup_libs
 
 self = sys.modules[__name__]
 self.server = None
@@ -56,6 +56,7 @@ def launch(application_path):
 
     # Launch Harmony.
     setup_startup_scripts()
+    setup_libs()
 
     if os.environ.get("AVALON_HARMONY_WORKFILES_ON_LAUNCH", False):
         workfiles.show(save=False)

@@ -1,15 +1,15 @@
-import os
-import random
-import sys
-import queue
-import shutil
-import zipfile
-import signal
-import threading
-import subprocess
+import filecmp
 import importlib
 import logging
-import filecmp
+import os
+import queue
+import random
+import shutil
+import signal
+import subprocess
+import sys
+import threading
+import zipfile
 
 from .server import Server
 from ..tools import workfiles
@@ -78,6 +78,64 @@ def setup_startup_scripts():
                 os.environ["TOONBOOM_GLOBAL_SCRIPT_LOCATION"] = avalon_dcc_dir
     else:
         os.environ["TOONBOOM_GLOBAL_SCRIPT_LOCATION"] = avalon_dcc_dir
+
+
+def setup_libs():
+    """Manages installation of QtScript libraries like OpenHarmony
+
+    If a studio already has defined "LIB_OPENHARMONY_PATH", this method will
+    gracefully continue without changing the environment or altering any files.
+    This assumes that OpenHarmony has been already installed by the pipeline
+    administrators, and will be available to include with the following:
+    >> include("OpenHarmony.js");
+
+    Otherwise, this env var will be setup to use the version of
+    OpenHarmony that is specified in the deploy.json of pype-setup.
+    As well, "avalon/harmony/OpenHarmony.js" will be copied to the
+    "TOONBOOM_GLOBAL_SCRIPT_LOCATION" directory. OpenHarmony will be available
+    to include with the following:
+    >> include("OpenHarmony.js");
+
+    Note:
+    This method must be run after setup_startup_scripts() as the env var
+    "TOONBOOM_GLOBAL_SCRIPT_LOCATION" must be properly defined.
+
+    """
+    if not os.getenv("LIB_OPENHARMONY_PATH"):
+
+        openharmony_path = os.path.join(
+            os.getenv("PYPE_SETUP"), "repos/OpenHarmony"
+        )
+
+        os.environ["LIB_OPENHARMONY_PATH"] = openharmony_path
+
+        avalon_dcc_dir = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "harmony"
+        )
+
+        avalon_openharmony_include = os.path.join(avalon_dcc_dir,
+                                                  "OpenHarmony.js")
+
+        env_openharmony_include = os.path.join(
+            os.getenv("TOONBOOM_GLOBAL_SCRIPT_LOCATION"), "OpenHarmony.js")
+
+        if os.path.exists(env_openharmony_include):
+            if filecmp.cmp(avalon_openharmony_include,
+                           env_openharmony_include):
+                return
+
+        try:
+            shutil.copy(avalon_openharmony_include,
+                        env_openharmony_include)
+        except Exception as e:
+            self.log.error(e)
+            self.log.warning(
+                "Failed to copy {0} to {1}! "
+                "OpenHarmony is a required library. "
+                "Make sure you have permission to write to the Harmony"
+                " scripts folder!"
+                    .format(avalon_openharmony_include,
+                            env_openharmony_include))
 
 
 def launch(application_path, zip_file):
