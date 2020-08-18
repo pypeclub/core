@@ -44,19 +44,6 @@ self._database = None
 self._is_installed = False
 
 log = logging.getLogger(__name__)
-PY2 = sys.version_info[0] == 2
-
-
-def extract_port_from_url(url):
-    if PY2:
-        from urlparse import urlparse
-    else:
-        from urllib.parse import urlparse
-    parsed_url = urlparse(url)
-    if parsed_url.scheme is None:
-        _url = "mongodb://{}".format(url)
-        parsed_url = urlparse(_url)
-    return parsed_url.port
 
 
 def install():
@@ -232,231 +219,80 @@ def _from_environment():
 
 
 def uninstall():
-    """Close any connection to the database"""
-    try:
-        self._mongo_client.close()
-    except AttributeError:
-        pass
-
-    self._mongo_client = None
-    self._database = None
-    self._is_installed = False
-
-
-def requires_install(f):
-    @functools.wraps(f)
-    def decorated(*args, **kwargs):
-        if not self._is_installed:
-            raise IOError("'io.%s()' requires install()" % f.__name__)
-        return f(*args, **kwargs)
-
-    return decorated
-
-
-def auto_reconnect(f):
-    """Handling auto reconnect in 3 retry times"""
-    retry_times = 3
-
-    @functools.wraps(f)
-    def decorated(*args, **kwargs):
-        for retry in range(1, retry_times + 1):
-            try:
-                return f(*args, **kwargs)
-            except pymongo.errors.AutoReconnect:
-                log.error("Reconnecting..")
-                if retry < retry_times:
-                    time.sleep(0.1)
-                else:
-                    raise
-    return decorated
+    # TODO Global context
 
 
 @requires_install
 def active_project():
-    """Return the name of the active project"""
-    return Session["AVALON_PROJECT"]
-
-
-def activate_project(project):
-    """Establish a connection to a given collection within the database"""
-    print("io.activate_project is deprecated")
+    # TODO Global context
 
 
 @requires_install
 def projects():
-    """List available projects
-
-    Returns:
-        list of project documents
-
-    """
-    @auto_reconnect
-    def find_project(project):
-        return self._database[project].find_one({"type": "project"})
-
-    @auto_reconnect
-    def collections():
-        return self._database.collection_names()
-    collection_names = collections()
-
-    for project in collection_names:
-        if project in ("system.indexes",):
-            continue
-
-        # Each collection will have exactly one project document
-        document = find_project(project)
-
-        if document is not None:
-            yield document
+    # TODO Global context
 
 
 def locate(path):
-    """Traverse a hierarchy from top-to-bottom
-
-    Example:
-        representation = locate(["hulk", "Bruce", "modelDefault", 1, "ma"])
-
-    Returns:
-        representation (ObjectId)
-
-    """
-
-    components = zip(
-        ("project", "asset", "subset", "version", "representation"),
-        path
-    )
-
-    parent = None
-    for type_, name in components:
-        latest = (type_ == "version") and name in (None, -1)
-
-        try:
-            if latest:
-                parent = find_one(
-                    filter={
-                        "type": type_,
-                        "parent": parent
-                    },
-                    projection={"_id": 1},
-                    sort=[("name", -1)]
-                )["_id"]
-            else:
-                parent = find_one(
-                    filter={
-                        "type": type_,
-                        "name": name,
-                        "parent": parent
-                    },
-                    projection={"_id": 1},
-                )["_id"]
-
-        except TypeError:
-            return None
-
-    return parent
+    # TODO Global context
 
 
 @auto_reconnect
 def insert_one(item):
-    assert isinstance(item, dict), "item must be of type <dict>"
-    schema.validate(item)
-    return self._database[Session["AVALON_PROJECT"]].insert_one(item)
+    # TODO Global context
 
 
 @auto_reconnect
 def insert_many(items, ordered=True):
-    # check if all items are valid
-    assert isinstance(items, list), "`items` must be of type <list>"
-    for item in items:
-        assert isinstance(item, dict), "`item` must be of type <dict>"
-        schema.validate(item)
-
-    return self._database[Session["AVALON_PROJECT"]].insert_many(
-        items,
-        ordered=ordered)
+    # TODO Global context
 
 
 @auto_reconnect
 def find(filter, projection=None, sort=None):
-    return self._database[Session["AVALON_PROJECT"]].find(
-        filter=filter,
-        projection=projection,
-        sort=sort
-    )
+    # TODO Global context
 
 
 @auto_reconnect
 def find_one(filter, projection=None, sort=None):
-    assert isinstance(filter, dict), "filter must be <dict>"
-
-    return self._database[Session["AVALON_PROJECT"]].find_one(
-        filter=filter,
-        projection=projection,
-        sort=sort
-    )
+    # TODO Global context
 
 
 @auto_reconnect
 def save(*args, **kwargs):
-    """Deprecated, please use `replace_one`"""
-    return self._database[Session["AVALON_PROJECT"]].save(
-        *args, **kwargs)
+    # TODO Global context
 
 
 @auto_reconnect
 def replace_one(filter, replacement):
-    return self._database[Session["AVALON_PROJECT"]].replace_one(
-        filter, replacement)
+    # TODO Global context
 
 
 @auto_reconnect
 def update_many(filter, update):
-    return self._database[Session["AVALON_PROJECT"]].update_many(
-        filter, update)
+    # TODO Global context
 
 
 @auto_reconnect
 def distinct(*args, **kwargs):
-    return self._database[Session["AVALON_PROJECT"]].distinct(
-        *args, **kwargs)
+    # TODO Global context
 
 
 @auto_reconnect
 def aggregate(*args, **kwargs):
-    return self._database[Session["AVALON_PROJECT"]].aggregate(
-        *args, **kwargs)
+    # TODO Global context
 
 
 @auto_reconnect
 def drop(*args, **kwargs):
-    return self._database[Session["AVALON_PROJECT"]].drop(
-        *args, **kwargs)
+    # TODO Global context
 
 
 @auto_reconnect
 def delete_many(*args, **kwargs):
-    return self._database[Session["AVALON_PROJECT"]].delete_many(
-        *args, **kwargs)
+    # TODO Global context
 
 
 def parenthood(document):
-    assert document is not None, "This is a bug"
-
-    parents = list()
-
-    while document.get("parent") is not None:
-        document = find_one({"_id": document["parent"]})
-
-        if document is None:
-            break
-
-        if document.get("type") == "master_version":
-            _document = self.find_one({"_id": document["version_id"]})
-            document["data"] = _document["data"]
-
-        parents.append(document)
-
-    return parents
+    # TODO Global context
 
 
 @contextlib.contextmanager
