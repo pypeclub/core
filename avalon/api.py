@@ -17,6 +17,13 @@ from .lib import (
     format_template_with_optional_keys
 )
 
+from .avalon_mongodb import (
+    extract_port_from_url,
+    requires_install,
+    auto_reconnect,
+    AvalonMongoConnection
+)
+
 from .pipeline import (
     install,
     uninstall,
@@ -72,10 +79,18 @@ from . import (
 )
 
 __all__ = [
+    # lib
     "format_template_with_optional_keys",
     "logger",
     "time",
 
+    # avalon_mongodb
+    "extract_port_from_url",
+    "requires_install",
+    "auto_reconnect",
+    "AvalonMongoConnection",
+
+    # pipeline
     "install",
     "uninstall",
 

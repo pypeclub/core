@@ -20,30 +20,39 @@ def extract_port_from_url(url):
     return parsed_url.port
 
 
-def requires_install(func):
+def requires_install(func, obj=None):
     @functools.wraps(func)
-    def decorated(obj, *args, **kwargs):
-        if not obj.installed:
+    def decorated(*args, **kwargs):
+        if obj is not None:
+            _obj = obj
+        else:
+            _obj = args[0]
+
+        if not _obj.is_installed:
             raise IOError("'{}.{}()' requires to run install() first".format(
-                obj.__class__.__name__, func.__name__
+                _obj.__class__.__name__, func.__name__
             ))
-        return func(obj, *args, **kwargs)
+        return func(*args, **kwargs)
     return decorated
 
 
-def auto_reconnect(func):
+def auto_reconnect(func, obj=None):
     """Handling auto reconnect in 3 retry times"""
     retry_times = 3
     reconnect_msg = "Reconnecting..."
 
     @functools.wraps(func)
-    def decorated(obj, *args, **kwargs):
+    def decorated(*args, **kwargs):
+        if obj is not None:
+            _obj = obj
+        else:
+            _obj = args[0]
         for retry in range(1, retry_times + 1):
             try:
-                return func(obj, *args, **kwargs)
+                return func(*args, **kwargs)
             except pymongo.errors.AutoReconnect:
-                if hasattr(obj, "log"):
-                    obj.log.warning(reconnect_msg)
+                if hasattr(_obj, "log"):
+                    _obj.log.warning(reconnect_msg)
                 else:
                     print(reconnect_msg)
 
@@ -153,6 +162,7 @@ class AvalonMongoConnection:
         return self.Session["AVALON_PROJECT"]
 
     @requires_install
+    @auto_reconnect
     def projects(self):
         """List available projects
 
@@ -160,20 +170,14 @@ class AvalonMongoConnection:
             list of project documents
 
         """
-        @auto_reconnect
-        def find_project(project_name):
-            return self._database[project_name].find_one({"type": "project"})
-
-        @auto_reconnect
-        def db_collections():
-            return self._database.collection_names()
-
-        for project in db_collections():
-            if project in ("system.indexes",):
+        for project_name in self._database.collection_names():
+            if project_name in ("system.indexes",):
                 continue
 
             # Each collection will have exactly one project document
-            document = find_project(project)
+            document = self._database[project_name].find_one({
+                "type": "project"
+            })
             if document is not None:
                 yield document
 
