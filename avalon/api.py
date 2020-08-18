@@ -25,49 +25,55 @@ from .avalon_mongodb import (
 )
 
 from .pipeline import (
-    install,
-    uninstall,
-
     Loader,
     Creator,
     Action,
     InventoryAction,
     Application,
-    discover,
+
+    HOST_WORKFILE_EXTENSIONS,
+    should_start_last_workfile,
+    last_workfile_with_version,
+    last_workfile,
+
+    ThumbnailResolver,
+    TemplateResolver,
+    BinaryThumbnail,
 
     on,
     after,
     before,
     emit,
 
+    update_current_task,
+    get_representation_path,
+    loaders_from_representation,
+
     publish,
+
+    install,
+    uninstall,
+    discover,
     create,
     load,
     update,
     switch,
     remove,
 
-    update_current_task,
-    get_representation_path,
-    loaders_from_representation,
-
     register_root,
-    register_host,
-    register_plugin_path,
-    register_plugin,
-
-    registered_host,
-    registered_config,
-    registered_plugin_paths,
     registered_root,
 
-    deregister_plugin,
-    deregister_plugin_path,
+    register_host,
+    registered_host,
 
-    HOST_WORKFILE_EXTENSIONS,
-    should_start_last_workfile,
-    last_workfile_with_version,
-    last_workfile
+    registered_config,
+
+    register_plugin,
+    deregister_plugin,
+
+    register_plugin_path,
+    registered_plugin_paths,
+    deregister_plugin_path,
 )
 
 from . import (
@@ -133,8 +139,13 @@ __all__ = [
     "deregister_plugin_path",
 
     "HOST_WORKFILE_EXTENSIONS",
+    "should_start_last_workfile",
     "last_workfile_with_version",
     "last_workfile",
+
+    "ThumbnailResolver",
+    "TemplateResolver",
+    "BinaryThumbnail",
 
     "data",
     "Session",
