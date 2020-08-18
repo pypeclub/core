@@ -333,3 +333,97 @@ class MasterVersionType(object):
 
     def __format__(self, format_spec):
         return self.version.__format__(format_spec)
+
+
+SESSION_CONTEXT_KEYS = (
+    # Root directory of projects on disk
+    "AVALON_PROJECTS",
+    # Name of current Project
+    "AVALON_PROJECT",
+    # Name of current Asset
+    "AVALON_ASSET",
+    # Name of current silo
+    "AVALON_SILO",
+    # Name of current task
+    "AVALON_TASK",
+    # Name of current app
+    "AVALON_APP",
+    # Path to working directory
+    "AVALON_WORKDIR",
+    # Optional path to scenes directory (see Work Files API)
+    "AVALON_SCENEDIR",
+    # Optional hierarchy for the current Asset. This can be referenced
+    # as `{hierarchy}` in your file templates.
+    # This will be (re-)computed when you switch the context to another
+    # asset. It is computed by checking asset['data']['parents'] and
+    # joining those together with `os.path.sep`.
+    # E.g.: ['ep101', 'scn0010'] -> 'ep101/scn0010'.
+    "AVALON_HIERARCHY"
+)
+
+
+def session_data_from_environment(*, global_keys=True, context_keys=False):
+    session_data = {}
+    if context_keys:
+        for key in SESSION_CONTEXT_KEYS:
+            value = os.environ.get(key)
+            session_data[key] = value
+
+    if not global_keys:
+        return session_data
+
+    for key, default_value in (
+        # Name of current Config
+        # TODO(marcus): Establish a suitable default config
+        ("AVALON_CONFIG", "no_config"),
+
+        # Name of Avalon in graphical user interfaces
+        # Use this to customise the visual appearance of Avalon
+        # to better integrate with your surrounding pipeline
+        ("AVALON_LABEL", "Avalon"),
+
+        # Used during any connections to the outside world
+        ("AVALON_TIMEOUT", "1000"),
+
+        # Address to Asset Database
+        ("AVALON_MONGO", "mongodb://localhost:27017"),
+
+        # Name of database used in MongoDB
+        ("AVALON_DB", "avalon"),
+
+        # Address to Sentry
+        ("AVALON_SENTRY", None),
+
+        # Address to Deadline Web Service
+        # E.g. http://192.167.0.1:8082
+        ("AVALON_DEADLINE", None),
+
+        # Enable features not necessarily stable, at the user's own risk
+        ("AVALON_EARLY_ADOPTER", None),
+
+        # Address of central asset repository, contains
+        # the following interface:
+        #   /upload
+        #   /download
+        #   /manager (optional)
+        ("AVALON_LOCATION", "http://127.0.0.1"),
+
+        # Boolean of whether to upload published material
+        # to central asset repository
+        ("AVALON_UPLOAD", None),
+
+        # Generic username and password
+        ("AVALON_USERNAME", "avalon"),
+        ("AVALON_PASSWORD", "secret"),
+
+        # Unique identifier for instances in working files
+        ("AVALON_INSTANCE_ID", "avalon.instance"),
+        ("AVALON_CONTAINER_ID", "avalon.container"),
+
+        # Enable debugging
+        ("AVALON_DEBUG", None)
+    ):
+        value = os.environ.get(key) or default_value
+        session_data[key] = value
+
+    return session_data
