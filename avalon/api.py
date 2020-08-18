@@ -11,6 +11,12 @@ and likely **unreliable** for use outside of the codebase itself.
 
 from . import schema
 
+from .lib import (
+    time,
+    logger,
+    format_template_with_optional_keys
+)
+
 from .pipeline import (
     install,
     uninstall,
@@ -21,10 +27,6 @@ from .pipeline import (
     InventoryAction,
     Application,
     discover,
-    Session,
-
-    # Deprecated
-    Session as session,
 
     on,
     after,
@@ -37,8 +39,6 @@ from .pipeline import (
     update,
     switch,
     remove,
-
-    data,
 
     update_current_task,
     get_representation_path,
@@ -59,18 +59,23 @@ from .pipeline import (
 
     HOST_WORKFILE_EXTENSIONS,
     should_start_last_workfile,
-    format_template_with_optional_keys,
     last_workfile_with_version,
     last_workfile
 )
 
-from .lib import (
-    time,
-    logger,
+from . import (
+    Session,
+
+    # Deprecated
+    Session as session,
+    data
 )
 
-
 __all__ = [
+    "format_template_with_optional_keys",
+    "logger",
+    "time",
+
     "install",
     "uninstall",
 
@@ -82,8 +87,6 @@ __all__ = [
     "InventoryAction",
     "Application",
     "discover",
-    "Session",
-    "session",
 
     "on",
     "after",
@@ -96,8 +99,6 @@ __all__ = [
     "update",
     "switch",
     "remove",
-
-    "data",
 
     "update_current_task",
     "get_representation_path",
@@ -117,10 +118,10 @@ __all__ = [
     "deregister_plugin_path",
 
     "HOST_WORKFILE_EXTENSIONS",
-    "format_template_with_optional_keys",
     "last_workfile_with_version",
     "last_workfile",
 
-    "logger",
-    "time",
+    "data",
+    "Session",
+    "session"
 ]

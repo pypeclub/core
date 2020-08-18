@@ -18,27 +18,11 @@ import importlib
 
 from collections import OrderedDict
 
-from . import (
-    io,
-    lib,
-
-    Session,
-
-    _registered_host,
-    _registered_root,
-    _registered_config,
-    _registered_plugins,
-    _registered_plugin_paths,
-    _registered_event_handlers,
-)
+from . import io, lib
 
 from .vendor import six, acre
 from pypeapp import Anatomy
 
-self = sys.modules[__name__]
-self._is_installed = False
-self._config = None
-self.data = {}
 
 log = logging.getLogger(__name__)
 
@@ -66,6 +50,7 @@ class IncompatibleLoaderError(ValueError):
 
 def install(host):
     # TODO Global context
+    pass
 
 
 def find_config():
@@ -82,11 +67,12 @@ def find_config():
 
 def uninstall():
     # TODO Global context
+    pass
 
 
 def is_installed():
     # TODO Global context
-
+    pass
 
 def publish():
     """Shorthand to publish from within host"""
@@ -661,6 +647,8 @@ class BinaryThumbnail(ThumbnailResolver):
 
 def discover(superclass):
     # TODO Global context
+    pass
+
 
 def plugin_from_module(superclass, module):
     """Return plug-ins from module
@@ -773,58 +761,72 @@ def emit(event, args=None):
 
 def register_plugin(superclass, obj):
     # TODO Global context
+    pass
 
 
+# TODO add them to global plugins
 register_plugin(ThumbnailResolver, BinaryThumbnail)
 register_plugin(ThumbnailResolver, TemplateResolver)
 
 
 def register_plugin_path(superclass, path):
     # TODO Global context
+    pass
 
 
 def registered_plugin_paths():
     # TODO Global context
+    pass
 
 
 def deregister_plugin(superclass, plugin):
     # TODO Global context
+    pass
 
 
 def deregister_plugin_path(superclass, path):
     # TODO Global context
+    pass
 
 
 def register_root(path):
     # TODO Global context
+    pass
 
 
 def registered_root():
     # TODO Global context
+    pass
 
 
 def register_host(host):
     # TODO Global context
+    pass
 
 
 def register_config(config):
     # TODO Global context
+    pass
 
 
 def deregister_config():
     # TODO Global context
+    pass
 
 
 def registered_config():
     # TODO Global context
+    pass
 
 
 def registered_host():
     # TODO Global context
+    pass
 
 
 def deregister_host():
     # TODO Global context
+    pass
 
 
 def default_host():
@@ -892,6 +894,7 @@ def debug_host():
 
 def create(name, asset, family, options=None, data=None):
     # TODO Global context
+    pass
 
 
 def get_representation_context(representation, dbcon):
@@ -909,8 +912,9 @@ def get_representation_context(representation, dbcon):
     assert representation is not None, "This is a bug"
 
     if isinstance(representation, (six.string_types, io.ObjectId)):
-        representation = dbcon.find_one(
-            {"_id": dbcon.ObjectId(str(representation))})
+        representation = dbcon.find_one({
+            "_id": dbcon.ObjectId(str(representation))
+        })
 
     version, subset, asset, project = dbcon.parenthood(representation)
 
@@ -1047,6 +1051,7 @@ def compute_session_changes(session, task=None, asset=None, app=None):
 
     return changes
 
+
 # TODO how to convert, where is used?
 def update_current_task(task=None, asset=None, app=None):
     """Update active Session to a new task work area.
@@ -1067,6 +1072,7 @@ def update_current_task(task=None, asset=None, app=None):
         Session, task=task, asset=asset, app=app
     )
 
+    # TODO do not set environments
     # Update the Session and environments. Pop from environments all keys with
     # value set to None.
     for key, value in changes.items():
@@ -1106,22 +1112,27 @@ def make_backwards_compatible_loader(Loader):
 def load(Loader, representation, namespace=None, name=None, options=None,
          **kwargs):
     # TODO Global context
+    pass
 
 
 def _get_container_loader(container):
     # TODO Global context
+    pass
 
 
 def remove(container):
     # TODO Global context
+    pass
 
 
 def update(container, version=-1):
     # TODO Global context
+    pass
 
 
 def switch(container, representation):
     # TODO Global context
+    pass
 
 
 def get_representation_path(representation, root=None, dbcon=None):

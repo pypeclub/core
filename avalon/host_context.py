@@ -11,16 +11,21 @@ from . import lib, schema, avalon_mongodb, api, pipeline
 class HostContext:
     session_schema = "avalon-core:session-2.0"
 
-    def __init__(self, context_keys_from_environ=False):
+    def __init__(
+        self, session=None, data=None, context_keys_from_environ=False
+    ):
         self._id = uuid4()
         self._is_installed = False
 
+        self.data = data or {}
+
         self.config = None
-        self.Session = lib.session_data_from_environment(
-            context_keys=context_keys_from_environ
-        )
+        if session is None:
+            session = lib.session_data_from_environment(
+                context_keys=context_keys_from_environ
+            )
+        self.Session = session
         self.Session["schema"] = self.session_schema
-        schema.validate(self.Session)
 
         self.dbcon = avalon_mongodb.AvalonMongoConnection(self.Session)
 
@@ -45,6 +50,7 @@ class HostContext:
             host (module): A Python module containing the Avalon
                 avalon host-interface.
         """
+        schema.validate(self.Session)
 
         self.dbcon.install()
 
