@@ -1124,31 +1124,6 @@ def switch(container, representation):
     # TODO Global context
 
 
-def format_template_with_optional_keys(data, template):
-    # Remove optional missing keys
-    pattern = re.compile(r"(<.*?[^{0]*>)[^0-9]*?")
-    invalid_optionals = []
-    for group in pattern.findall(template):
-        try:
-            group.format(**data)
-        except KeyError:
-            invalid_optionals.append(group)
-
-    for group in invalid_optionals:
-        template = template.replace(group, "")
-
-    work_file = template.format(**data)
-
-    # Remove optional symbols
-    work_file = work_file.replace("<", "")
-    work_file = work_file.replace(">", "")
-
-    # Remove double dots when dot for extension is in template
-    work_file = work_file.replace("..", ".")
-
-    return work_file
-
-
 def get_representation_path(representation, root=None, dbcon=None):
     """Get filename from representation document
 
@@ -1181,7 +1156,7 @@ def get_representation_path(representation, root=None, dbcon=None):
         try:
             context = representation["context"]
             context["root"] = root
-            path = format_template_with_optional_keys(context, template)
+            path = lib.format_template_with_optional_keys(context, template)
         except KeyError:
             # Template references unavailable data
             return None
@@ -1241,7 +1216,7 @@ def get_representation_path(representation, root=None, dbcon=None):
         }
 
         try:
-            path = format_template_with_optional_keys(data, template)
+            path = lib.format_template_with_optional_keys(data, template)
         except KeyError as e:
             log.debug("Template references unavailable data: %s" % e)
             return None
@@ -1380,7 +1355,7 @@ def last_workfile_with_version(workdir, file_template, fill_data, extensions):
     file_template = re.sub("<.*?>", ".*?", file_template)
     file_template = re.sub("{version.*}", "([0-9]+)", file_template)
     file_template = re.sub("{comment.*?}", ".+?", file_template)
-    partially_filled = format_template_with_optional_keys(
+    partially_filled = lib.format_template_with_optional_keys(
         fill_data,
         file_template
     )
@@ -1444,7 +1419,7 @@ def last_workfile(
         data.pop("comment", None)
         if not data.get("ext"):
             data["ext"] = extensions[0]
-        filename = format_template_with_optional_keys(data, file_template)
+        filename = lib.format_template_with_optional_keys(data, file_template)
 
     if full_path:
         return os.path.join(workdir, filename)

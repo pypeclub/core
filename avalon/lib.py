@@ -1,6 +1,7 @@
 """Helper functions"""
 
 import os
+import re
 import sys
 import json
 import logging
@@ -314,6 +315,31 @@ def find_submodule(module, submodule):
                 log_.warning(
                     "Could not find '%s' in module: %s", submodule, module
                 )
+
+
+def format_template_with_optional_keys(data, template):
+    # Remove optional missing keys
+    pattern = re.compile(r"(<.*?[^{0]*>)[^0-9]*?")
+    invalid_optionals = []
+    for group in pattern.findall(template):
+        try:
+            group.format(**data)
+        except KeyError:
+            invalid_optionals.append(group)
+
+    for group in invalid_optionals:
+        template = template.replace(group, "")
+
+    work_file = template.format(**data)
+
+    # Remove optional symbols
+    work_file = work_file.replace("<", "")
+    work_file = work_file.replace(">", "")
+
+    # Remove double dots when dot for extension is in template
+    work_file = work_file.replace("..", ".")
+
+    return work_file
 
 
 class MasterVersionType(object):
