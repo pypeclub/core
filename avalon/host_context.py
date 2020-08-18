@@ -1,6 +1,7 @@
 import os
 import sys
 import inspect
+import importlib
 import logging
 from uuid import uuid4
 from bson.objectid import ObjectId
@@ -44,6 +45,18 @@ class HostContext:
     def is_installed(self):
         return self._is_installed
 
+    def find_config(self):
+        self.log.info("Finding configuration for project..")
+
+        config = self.Session["AVALON_CONFIG"]
+        if not config:
+            raise EnvironmentError(
+                "No configuration found in the project nor environment"
+            )
+
+        self.log.info("Found config: \"{}\", loading..".format(config))
+        return importlib.import_module(config)
+
     def install(self, host, context_keys=None):
         """Install `host` into the running Python session.
         Arguments:
@@ -67,7 +80,7 @@ class HostContext:
         if project_name:
             self.log.info("Active project: {}".format(project_name))
 
-        config = pipeline.find_config()
+        config = self.find_config()
 
         # Optional host install function
         if hasattr(host, "install"):
