@@ -65,49 +65,7 @@ class IncompatibleLoaderError(ValueError):
 
 
 def install(host):
-    """Install `host` into the running Python session.
-    Arguments:
-        host (module): A Python module containing the Avalon
-            avalon host-interface.
-    """
-
-    io.install()
-
-    missing = list()
-    for key in ("AVALON_PROJECT", "AVALON_ASSET"):
-        if key not in Session:
-            missing.append(key)
-
-    assert not missing, (
-        "%s missing from environment, %s" % (
-            ", ".join(missing),
-            json.dumps(Session, indent=4, sort_keys=True)
-        ))
-
-    project = Session["AVALON_PROJECT"]
-    log.info("Activating %s.." % project)
-
-    config = find_config()
-
-    # Optional host install function
-    if hasattr(host, "install"):
-        host.install()
-
-    # Optional config.host.install()
-    host_name = host.__name__.rsplit(".", 1)[-1]
-    config_host = lib.find_submodule(config, host_name)
-    if config_host != host:
-        if hasattr(config_host, "install"):
-            config_host.install()
-
-    register_host(host)
-    register_config(config)
-
-    config.install()
-
-    self._is_installed = True
-    self._config = config
-    log.info("Successfully installed Avalon!")
+    # TODO Global context
 
 
 def find_config():
@@ -123,43 +81,11 @@ def find_config():
 
 
 def uninstall():
-    """Undo all of what `install()` did"""
-    config = registered_config()
-    host = registered_host()
-
-    # Optional config.host.uninstall()
-    host_name = host.__name__.rsplit(".", 1)[-1]
-    config_host = lib.find_submodule(config, host_name)
-    if hasattr(config_host, "uninstall"):
-        config_host.uninstall()
-
-    try:
-        host.uninstall()
-    except AttributeError:
-        pass
-
-    try:
-        config.uninstall()
-    except AttributeError:
-        pass
-
-    deregister_host()
-    deregister_config()
-
-    io.uninstall()
-
-    log.info("Successfully uninstalled Avalon!")
+    # TODO Global context
 
 
 def is_installed():
-    """Return state of installation
-
-    Returns:
-        True if installed, False otherwise
-
-    """
-
-    return self._is_installed
+    # TODO Global context
 
 
 def publish():
@@ -734,28 +660,7 @@ class BinaryThumbnail(ThumbnailResolver):
 
 
 def discover(superclass):
-    """Find and return subclasses of `superclass`"""
-
-    registered = _registered_plugins.get(superclass, list())
-    plugins = dict()
-
-    # Include plug-ins from registered paths
-    for path in _registered_plugin_paths.get(superclass, list()):
-        for module in lib.modules_from_path(path):
-            for plugin in plugin_from_module(superclass, module):
-                if plugin.__name__ in plugins:
-                    print("Duplicate plug-in found: %s" % plugin)
-                    continue
-
-                plugins[plugin.__name__] = plugin
-
-    for plugin in registered:
-        if plugin.__name__ in plugins:
-            print("Warning: Overwriting %s" % plugin.__name__)
-        plugins[plugin.__name__] = plugin
-
-    return sorted(plugins.values(), key=lambda Plugin: Plugin.__name__)
-
+    # TODO Global context
 
 def plugin_from_module(superclass, module):
     """Return plug-ins from module
@@ -867,19 +772,7 @@ def emit(event, args=None):
 
 
 def register_plugin(superclass, obj):
-    """Register an individual `obj` of type `superclass`
-
-    Arguments:
-        superclass (type): Superclass of plug-in
-        obj (object): Subclass of `superclass`
-
-    """
-
-    if superclass not in _registered_plugins:
-        _registered_plugins[superclass] = list()
-
-    if obj not in _registered_plugins[superclass]:
-        _registered_plugins[superclass].append(obj)
+    # TODO Global context
 
 
 register_plugin(ThumbnailResolver, BinaryThumbnail)
@@ -887,174 +780,51 @@ register_plugin(ThumbnailResolver, TemplateResolver)
 
 
 def register_plugin_path(superclass, path):
-    """Register a directory of one or more plug-ins
-
-    Arguments:
-        superclass (type): Superclass of plug-ins to look for during discovery
-        path (str): Absolute path to directory in which to discover plug-ins
-
-    """
-
-    if superclass not in _registered_plugin_paths:
-        _registered_plugin_paths[superclass] = list()
-
-    path = os.path.normpath(path)
-    if path not in _registered_plugin_paths[superclass]:
-        _registered_plugin_paths[superclass].append(path)
+    # TODO Global context
 
 
 def registered_plugin_paths():
-    """Return all currently registered plug-in paths"""
-
-    # Prohibit editing in-place
-    duplicate = {
-        superclass: paths[:]
-        for superclass, paths in _registered_plugin_paths.items()
-    }
-
-    return duplicate
+    # TODO Global context
 
 
 def deregister_plugin(superclass, plugin):
-    """Oppsite of `register_plugin()`"""
-    _registered_plugins[superclass].remove(plugin)
+    # TODO Global context
 
 
 def deregister_plugin_path(superclass, path):
-    """Oppsite of `register_plugin_path()`"""
-    _registered_plugin_paths[superclass].remove(path)
+    # TODO Global context
 
 
 def register_root(path):
-    """Register currently active root"""
-    log.info("Registering root: %s" % path)
-    _registered_root["_"] = path
+    # TODO Global context
 
 
 def registered_root():
-    """Return currently registered root"""
-    root = _registered_root["_"]
-    if root:
-        return root
-
-    root = Session.get("AVALON_PROJECTS")
-    if root:
-        return os.path.normpath(root)
-
-    return ""
+    # TODO Global context
 
 
 def register_host(host):
-    """Register a new host for the current process
-
-    Arguments:
-        host (ModuleType): A module implementing the
-            Host API interface. See the Host API
-            documentation for details on what is
-            required, or browse the source code.
-
-    """
-    signatures = {
-        "ls": []
-    }
-
-    _validate_signature(host, signatures)
-    _registered_host["_"] = host
+    # TODO Global context
 
 
 def register_config(config):
-    """Register a new config for the current process
-
-    Arguments:
-        config (ModuleType): A module implementing the Config API.
-
-    """
-
-    signatures = {
-        "install": [],
-        "uninstall": [],
-    }
-
-    _validate_signature(config, signatures)
-    _registered_config["_"] = config
-
-
-def _validate_signature(module, signatures):
-    # Required signatures for each member
-
-    missing = list()
-    invalid = list()
-    success = True
-
-    for member in signatures:
-        if not hasattr(module, member):
-            missing.append(member)
-            success = False
-
-        else:
-            attr = getattr(module, member)
-            if sys.version_info.major >= 3:
-                signature = inspect.getfullargspec(attr)[0]
-            else:
-                signature = inspect.getargspec(attr)[0]
-            required_signature = signatures[member]
-
-            assert isinstance(signature, list)
-            assert isinstance(required_signature, list)
-
-            if not all(member in signature
-                       for member in required_signature):
-                invalid.append({
-                    "member": member,
-                    "signature": ", ".join(signature),
-                    "required": ", ".join(required_signature)
-                })
-                success = False
-
-    if not success:
-        report = list()
-
-        if missing:
-            report.append(
-                "Incomplete interface for module: '%s'\n"
-                "Missing: %s" % (module, ", ".join(
-                    "'%s'" % member for member in missing))
-            )
-
-        if invalid:
-            report.append(
-                "'%s': One or more members were found, but didn't "
-                "have the right argument signature." % module.__name__
-            )
-
-            for member in invalid:
-                report.append(
-                    "     Found: {member}({signature})".format(**member)
-                )
-                report.append(
-                    "  Expected: {member}({required})".format(**member)
-                )
-
-        raise ValueError("\n".join(report))
+    # TODO Global context
 
 
 def deregister_config():
-    """Undo `register_config()`"""
-    _registered_config["_"] = None
+    # TODO Global context
 
 
 def registered_config():
-    """Return currently registered config"""
-    return _registered_config["_"]
+    # TODO Global context
 
 
 def registered_host():
-    """Return currently registered host"""
-    return _registered_host["_"]
+    # TODO Global context
 
 
 def deregister_host():
-    _registered_host["_"] = default_host()
+    # TODO Global context
 
 
 def default_host():
@@ -1121,62 +891,10 @@ def debug_host():
 
 
 def create(name, asset, family, options=None, data=None):
-    """Create a new instance
-
-    Associate nodes with a subset and family. These nodes are later
-    validated, according to their `family`, and integrated into the
-    shared environment, relative their `subset`.
-
-    Data relative each family, along with default data, are imprinted
-    into the resulting objectSet. This data is later used by extractors
-    and finally asset browsers to help identify the origin of the asset.
-
-    Arguments:
-        name (str): Name of subset
-        asset (str): Name of asset
-        family (str): Name of family
-        options (dict, optional): Additional options from GUI
-        data (dict, optional): Additional data from GUI
-
-    Raises:
-        NameError on `subset` already exists
-        KeyError on invalid dynamic property
-        RuntimeError on host error
-
-    Returns:
-        Name of instance
-
-    """
-
-    host = registered_host()
-
-    plugins = list()
-    for Plugin in discover(Creator):
-        has_family = family == Plugin.family
-
-        if not has_family:
-            continue
-
-        Plugin.log.info(
-            "Creating '%s' with '%s'" % (name, Plugin.__name__)
-        )
-
-        try:
-            plugin = Plugin(name, asset, options, data)
-
-            with host.maintained_selection():
-                print("Running %s" % plugin)
-                instance = plugin.process()
-        except Exception:
-            traceback.print_exception(*sys.exc_info())
-            continue
-        plugins.append(plugin)
-
-    assert plugins, "No Creator plug-ins were run, this is a bug"
-    return instance
+    # TODO Global context
 
 
-def get_representation_context(representation):
+def get_representation_context(representation, dbcon):
     """Return parenthood context for representation.
 
     Args:
@@ -1191,10 +909,10 @@ def get_representation_context(representation):
     assert representation is not None, "This is a bug"
 
     if isinstance(representation, (six.string_types, io.ObjectId)):
-        representation = io.find_one(
-            {"_id": io.ObjectId(str(representation))})
+        representation = dbcon.find_one(
+            {"_id": dbcon.ObjectId(str(representation))})
 
-    version, subset, asset, project = io.parenthood(representation)
+    version, subset, asset, project = dbcon.parenthood(representation)
 
     assert all([representation, version, subset, asset, project]), (
         "This is a bug"
@@ -1214,6 +932,7 @@ def get_representation_context(representation):
     return context
 
 
+# TODO how to convert, where is used?
 def template_data_from_session(session):
     """ Return dictionary with template from session keys.
 
@@ -1247,7 +966,7 @@ def template_data_from_session(session):
         "hierarchy": session.get("AVALON_HIERARCHY"),
     }
 
-
+# TODO how to convert, where is used?
 def compute_session_changes(session, task=None, asset=None, app=None):
     """Compute the changes for a Session object on asset, task or app switch
 
@@ -1284,8 +1003,10 @@ def compute_session_changes(session, task=None, asset=None, app=None):
             asset = asset["name"]
         else:
             # Assume asset name
-            asset_document = io.find_one({"name": asset,
-                                          "type": "asset"})
+            asset_document = io.find_one({
+                "name": asset,
+                "type": "asset"
+            })
             assert asset_document, "Asset must exist"
 
     # Detect any changes compared session
@@ -1294,8 +1015,11 @@ def compute_session_changes(session, task=None, asset=None, app=None):
         "AVALON_TASK": task,
         "AVALON_APP": app,
     }
-    changes = {key: value for key, value in mapping.items()
-               if value and value != session.get(key)}
+    changes = {
+        key: value
+        for key, value in mapping.items()
+        if value and value != session.get(key)
+    }
     if not changes:
         return changes
 
@@ -1323,7 +1047,7 @@ def compute_session_changes(session, task=None, asset=None, app=None):
 
     return changes
 
-
+# TODO how to convert, where is used?
 def update_current_task(task=None, asset=None, app=None):
     """Update active Session to a new task work area.
 
@@ -1358,7 +1082,7 @@ def update_current_task(task=None, asset=None, app=None):
     return changes
 
 
-def _make_backwards_compatible_loader(Loader):
+def make_backwards_compatible_loader(Loader):
     """Convert a old-style Loaders with `process` method to new-style Loader
 
     This will make a dynamic class inheriting the old-style loader together
@@ -1381,166 +1105,23 @@ def _make_backwards_compatible_loader(Loader):
 
 def load(Loader, representation, namespace=None, name=None, options=None,
          **kwargs):
-    """Use Loader to load a representation.
-
-    Args:
-        Loader (Loader): The loader class to trigger.
-        representation (str or io.ObjectId or dict): The representation id
-            or full representation as returned by the database.
-        namespace (str, Optional): The namespace to assign. Defaults to None.
-        name (str, Optional): The name to assign. Defaults to subset name.
-        options (dict, Optional): Additional options to pass on to the loader.
-
-    Returns:
-        The return of the `loader.load()` method.
-
-    Raises:
-        IncompatibleLoaderError: When the loader is not compatible with
-            the representation.
-
-    """
-
-    Loader = _make_backwards_compatible_loader(Loader)
-    context = get_representation_context(representation)
-
-    # Ensure the Loader is compatible for the representation
-    if not is_compatible_loader(Loader, context):
-        raise IncompatibleLoaderError("Loader {} is incompatible with "
-                                      "{}".format(Loader.__name__,
-                                                  context["subset"]["name"]))
-
-    # Ensure options is a dictionary when no explicit options provided
-    if options is None:
-        options = kwargs.get("data", dict())  # "data" for backward compat
-
-    assert isinstance(options, dict), "Options must be a dictionary"
-
-    # Fallback to subset when name is None
-    if name is None:
-        name = context["subset"]["name"]
-
-    log.info(
-        "Running '%s' on '%s'" % (Loader.__name__, context["asset"]["name"])
-    )
-
-    loader = Loader(context)
-    return loader.load(context, name, namespace, options)
+    # TODO Global context
 
 
 def _get_container_loader(container):
-    """Return the Loader corresponding to the container"""
-
-    loader = container["loader"]
-    for Plugin in discover(Loader):
-
-        # TODO: Ensure the loader is valid
-        if Plugin.__name__ == loader:
-            return Plugin
+    # TODO Global context
 
 
 def remove(container):
-    """Remove a container"""
-
-    Loader = _get_container_loader(container)
-    if not Loader:
-        raise RuntimeError("Can't remove container. See log for details.")
-
-    Loader = _make_backwards_compatible_loader(Loader)
-
-    loader = Loader(get_representation_context(container["representation"]))
-    return loader.remove(container)
+    # TODO Global context
 
 
 def update(container, version=-1):
-    """Update a container"""
-
-    # Compute the different version from 'representation'
-    current_representation = io.find_one({
-        "_id": io.ObjectId(container["representation"])
-    })
-
-    assert current_representation is not None, "This is a bug"
-
-    current_version, subset, asset, project = io.parenthood(
-        current_representation)
-
-    if version == -1:
-        new_version = io.find_one({
-            "type": "version",
-            "parent": subset["_id"]
-        }, sort=[("name", -1)])
-    else:
-        if isinstance(version, lib.MasterVersionType):
-            version_query = {
-                "parent": subset["_id"],
-                "type": "master_version"
-            }
-        else:
-            version_query = {
-                "parent": subset["_id"],
-                "type": "version",
-                "name": version
-            }
-        new_version = io.find_one(version_query)
-
-    assert new_version is not None, "This is a bug"
-
-    new_representation = io.find_one({
-        "type": "representation",
-        "parent": new_version["_id"],
-        "name": current_representation["name"]
-    })
-
-    # Run update on the Loader for this container
-    Loader = _get_container_loader(container)
-    if not Loader:
-        raise RuntimeError("Can't update container. See log for details.")
-
-    Loader = _make_backwards_compatible_loader(Loader)
-
-    loader = Loader(get_representation_context(container["representation"]))
-    return loader.update(container, new_representation)
+    # TODO Global context
 
 
 def switch(container, representation):
-    """Switch a container to representation
-
-    Args:
-        container (dict): container information
-        representation (dict): representation data from document
-
-    Returns:
-        function call
-    """
-
-    # Get the Loader for this container
-    Loader = _get_container_loader(container)
-
-    if not Loader:
-        raise RuntimeError("Can't switch container. See log for details.")
-
-    if not hasattr(Loader, "switch"):
-        # Backwards compatibility (classes without switch support
-        # might be better to just have "switch" raise NotImplementedError
-        # on the base class of Loader\
-        raise RuntimeError("Loader '{}' does not support 'switch'".format(
-            Loader.label
-        ))
-
-    # Get the new representation to switch to
-    new_representation = io.find_one({
-        "type": "representation",
-        "_id": representation["_id"],
-    })
-
-    new_context = get_representation_context(new_representation)
-    assert is_compatible_loader(Loader, new_context), ("Must be compatible "
-                                                       "Loader")
-
-    Loader = _make_backwards_compatible_loader(Loader)
-    loader = Loader(new_context)
-
-    return loader.switch(container, new_representation)
+    # TODO Global context
 
 
 def format_template_with_optional_keys(data, template):
@@ -1710,6 +1291,9 @@ def get_thumbnail_binary(thumbnail_entity, thumbnail_type, dbcon=None):
         return
 
     resolvers = discover(ThumbnailResolver)
+    if not resolvers:
+        return resolvers
+
     resolvers = sorted(resolvers, key=lambda cls: cls.priority)
     if dbcon is None:
         dbcon = io
@@ -1761,10 +1345,10 @@ def is_compatible_loader(Loader, context):
     return has_family and has_representation
 
 
-def loaders_from_representation(loaders, representation):
+def loaders_from_representation(loaders, representation, dbcon):
     """Return all compatible loaders for a representation."""
 
-    context = get_representation_context(representation)
+    context = get_representation_context(representation, dbcon)
     return [l for l in loaders if is_compatible_loader(l, context)]
 
 
