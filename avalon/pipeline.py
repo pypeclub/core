@@ -13,11 +13,12 @@ import logging
 import weakref
 import inspect
 import traceback
+import functools
 import platform
 
 from collections import OrderedDict
 
-from . import io, lib
+from . import io, lib, Session
 
 from .vendor import six, acre
 from pypeapp import Anatomy
@@ -25,7 +26,7 @@ from pypeapp import Anatomy
 
 log = logging.getLogger(__name__)
 
-
+GLOBAL_CONTEXT = None
 AVALON_CONTAINER_ID = "pyblish.avalon.container"
 
 HOST_WORKFILE_EXTENSIONS = {
@@ -40,26 +41,13 @@ HOST_WORKFILE_EXTENSIONS = {
     "premiere": [".prproj"],
     "resolve": [".drp"]
 }
+_registered_event_handlers = {}
 
 
 class IncompatibleLoaderError(ValueError):
     """Error when Loader is incompatible with a representation."""
     pass
 
-
-def install(host):
-    # TODO Global context
-    pass
-
-
-def uninstall():
-    # TODO Global context
-    pass
-
-
-def is_installed():
-    # TODO Global context
-    pass
 
 def publish():
     """Shorthand to publish from within host"""
@@ -445,12 +433,18 @@ class Application(Action):
 
     def find_tools(self, entity):
         tools = []
-        if ('data' in entity and 'tools_env' in entity['data'] and
-        len(entity['data']['tools_env']) > 0):
+        if (
+            'data' in entity
+            and 'tools_env' in entity['data']
+            and len(entity['data']['tools_env']) > 0
+        ):
             tools = entity['data']['tools_env']
 
-        elif ('data' in entity and 'visualParent' in entity['data'] and
-        entity['data']['visualParent'] is not None):
+        elif (
+            'data' in entity
+            and 'visualParent' in entity['data']
+            and entity['data']['visualParent'] is not None
+        ):
             tmp = io.find_one({
                 "_id": entity['data']['visualParent']
             })
@@ -458,8 +452,11 @@ class Application(Action):
 
         project = io.find_one({"_id": entity['parent']})
 
-        if ('data' in project and 'tools_env' in project['data'] and
-        len(project['data']['tools_env']) > 0):
+        if (
+            'data' in project
+            and 'tools_env' in project['data']
+            and len(project['data']['tools_env']) > 0
+        ):
             tools = project['data']['tools_env']
 
         return tools
@@ -632,11 +629,6 @@ class BinaryThumbnail(ThumbnailResolver):
         return thumbnail_entity["data"].get("binary_data")
 
 
-def discover(superclass):
-    # TODO Global context
-    pass
-
-
 def plugin_from_module(superclass, module):
     """Return plug-ins from module
 
@@ -746,76 +738,6 @@ def emit(event, args=None):
             log.warning(traceback.format_exc())
 
 
-def register_plugin(superclass, obj):
-    # TODO Global context
-    pass
-
-
-# TODO add them to global plugins
-register_plugin(ThumbnailResolver, BinaryThumbnail)
-register_plugin(ThumbnailResolver, TemplateResolver)
-
-
-def register_plugin_path(superclass, path):
-    # TODO Global context
-    pass
-
-
-def registered_plugin_paths():
-    # TODO Global context
-    pass
-
-
-def deregister_plugin(superclass, plugin):
-    # TODO Global context
-    pass
-
-
-def deregister_plugin_path(superclass, path):
-    # TODO Global context
-    pass
-
-
-def register_root(path):
-    # TODO Global context
-    pass
-
-
-def registered_root():
-    # TODO Global context
-    pass
-
-
-def register_host(host):
-    # TODO Global context
-    pass
-
-
-def register_config(config):
-    # TODO Global context
-    pass
-
-
-def deregister_config():
-    # TODO Global context
-    pass
-
-
-def registered_config():
-    # TODO Global context
-    pass
-
-
-def registered_host():
-    # TODO Global context
-    pass
-
-
-def deregister_host():
-    # TODO Global context
-    pass
-
-
 def default_host():
     """A default host, in place of anything better
 
@@ -879,11 +801,6 @@ def debug_host():
     return host
 
 
-def create(name, asset, family, options=None, data=None):
-    # TODO Global context
-    pass
-
-
 def get_representation_context(representation, dbcon):
     """Return parenthood context for representation.
 
@@ -937,9 +854,9 @@ def template_data_from_session(session):
         session = Session
 
     project_name = session["AVALON_PROJECT"]
-    project = io._database[project_name].find_one(
-        {"type": "project"}
-    )
+    project = io.database()[project_name].find_one({
+        "type": "project"
+    })
 
     return {
         "root": registered_root(),
@@ -956,6 +873,7 @@ def template_data_from_session(session):
         "user": session.get("AVALON_USER", getpass.getuser()),
         "hierarchy": session.get("AVALON_HIERARCHY"),
     }
+
 
 # TODO how to convert, where is used?
 def compute_session_changes(session, task=None, asset=None, app=None):
@@ -1094,32 +1012,6 @@ def make_backwards_compatible_loader(Loader):
     log.warning("Making loader backwards compatible: %s", Loader.__name__)
     from avalon.maya.compat import BackwardsCompatibleLoader
     return type(Loader.__name__, (BackwardsCompatibleLoader, Loader), {})
-
-
-def load(Loader, representation, namespace=None, name=None, options=None,
-         **kwargs):
-    # TODO Global context
-    pass
-
-
-def _get_container_loader(container):
-    # TODO Global context
-    pass
-
-
-def remove(container):
-    # TODO Global context
-    pass
-
-
-def update(container, version=-1):
-    # TODO Global context
-    pass
-
-
-def switch(container, representation):
-    # TODO Global context
-    pass
 
 
 def get_representation_path(representation, root=None, dbcon=None):
@@ -1322,7 +1214,11 @@ def loaders_from_representation(loaders, representation, dbcon):
     """Return all compatible loaders for a representation."""
 
     context = get_representation_context(representation, dbcon)
-    return [l for l in loaders if is_compatible_loader(l, context)]
+    return [
+        loader
+        for loader in loaders
+        if is_compatible_loader(loader, context)
+    ]
 
 
 def last_workfile_with_version(workdir, file_template, fill_data, extensions):
@@ -1422,3 +1318,135 @@ def last_workfile(
     if full_path:
         return os.path.join(workdir, filename)
     return filename
+
+
+def check_global_context(func):
+    @functools.wraps(func)
+    def decorated(*args, **kwargs):
+        global GLOBAL_CONTEXT
+        if GLOBAL_CONTEXT is None:
+            from . import GLOBAL_CONTEXT as _GLOBAL_CONTEXT
+            GLOBAL_CONTEXT = _GLOBAL_CONTEXT
+        return func(*args, **kwargs)
+    return decorated
+
+
+@check_global_context
+def install(host):
+    return GLOBAL_CONTEXT.install(host)
+
+
+@check_global_context
+def uninstall():
+    return GLOBAL_CONTEXT.uninstall()
+
+
+@check_global_context
+def is_installed():
+    return GLOBAL_CONTEXT.is_installed()
+
+
+@check_global_context
+def register_plugin(superclass, obj):
+    return GLOBAL_CONTEXT.register_plugin(superclass, obj)
+
+
+@check_global_context
+def deregister_plugin(superclass, plugin):
+    return GLOBAL_CONTEXT.deregister_plugin(superclass, plugin)
+
+
+@check_global_context
+def register_plugin_path(superclass, path):
+    return GLOBAL_CONTEXT.register_plugin_path(superclass, path)
+
+
+@check_global_context
+def registered_plugin_paths():
+    return GLOBAL_CONTEXT.registered_plugin_paths()
+
+
+@check_global_context
+def deregister_plugin_path(superclass, path):
+    return GLOBAL_CONTEXT.deregister_plugin_path(superclass, path)
+
+
+@check_global_context
+def register_root(path):
+    return GLOBAL_CONTEXT.register_root(path)
+
+
+@check_global_context
+def registered_root():
+    return GLOBAL_CONTEXT.registered_root()
+
+
+@check_global_context
+def register_host(host):
+    return GLOBAL_CONTEXT.register_host(host)
+
+
+@check_global_context
+def registered_host():
+    return GLOBAL_CONTEXT.registered_host()
+
+
+@check_global_context
+def deregister_host():
+    return GLOBAL_CONTEXT.deregister_host()
+
+
+@check_global_context
+def register_config(config):
+    return GLOBAL_CONTEXT.register_config(config)
+
+
+@check_global_context
+def registered_config():
+    return GLOBAL_CONTEXT.registered_config()
+
+
+@check_global_context
+def deregister_config():
+    return GLOBAL_CONTEXT.deregister_config()
+
+
+@check_global_context
+def _get_container_loader(container):
+    return GLOBAL_CONTEXT._get_container_loader(container)
+
+
+@check_global_context
+def discover(superclass):
+    return GLOBAL_CONTEXT.discover(superclass)
+
+
+@check_global_context
+def create(name, asset, family, options=None, data=None):
+    return GLOBAL_CONTEXT.create(name, asset, family, options=None, data=None)
+
+
+@check_global_context
+def load(
+    Loader, representation,
+    namespace=None, name=None, options=None, **kwargs
+):
+    return GLOBAL_CONTEXT.load(
+        Loader, representation,
+        namespace=None, name=None, options=None, **kwargs
+    )
+
+
+@check_global_context
+def remove(container):
+    return GLOBAL_CONTEXT.remove(container)
+
+
+@check_global_context
+def update(container, version=None):
+    return GLOBAL_CONTEXT.update(container, version=None)
+
+
+@check_global_context
+def switch(container, representation):
+    return GLOBAL_CONTEXT.switch(container, representation)
