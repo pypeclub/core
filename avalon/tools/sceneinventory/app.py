@@ -927,7 +927,8 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         for representation in representations:
             for loader in api.loaders_from_representation(
                 available_loaders,
-                representation
+                representation,
+                io
             ):
                 loaders.add(loader)
 

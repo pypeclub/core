@@ -220,7 +220,8 @@ class SubsetWidget(QtWidgets.QWidget):
             for representation in representations:
                 for loader in api.loaders_from_representation(
                         available_loaders,
-                        representation['_id']
+                        representation['_id'],
+                        io
                 ):
                     # skip multiple select variant if one is selected
                     if one_item_selected:
