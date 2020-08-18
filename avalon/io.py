@@ -1,17 +1,20 @@
 """Wrapper around interactions with the database"""
 
 import os
-import sys
 import errno
 import shutil
 import logging
 import tempfile
 import contextlib
+import functools
 
 from .vendor import requests
 
 # Third-party dependencies
 from bson.objectid import ObjectId, InvalidId
+
+GLOBAL_CONTEXT = None
+Session = None
 
 __all__ = [
     "ObjectId",
@@ -30,101 +33,114 @@ __all__ = [
     "drop",
     "delete_many",
     "parenthood",
+    "database"
 ]
-
-self = sys.modules[__name__]
-self._mongo_client = None
-self._sentry_client = None
-self._sentry_logging_handler = None
-self._database = None
-self._is_installed = False
 
 log = logging.getLogger(__name__)
 
 
+def check_global_context(func):
+    @functools.wraps(func)
+    def decorated(*args, **kwargs):
+        global GLOBAL_CONTEXT
+        if GLOBAL_CONTEXT is None:
+            global Session
+            from . import GLOBAL_CONTEXT as _GLOBAL_CONTEXT
+            from . import Session as _Session
+            GLOBAL_CONTEXT = _GLOBAL_CONTEXT
+            Session = _Session
+        return func(*args, **kwargs)
+    return decorated
+
+
+@check_global_context
+def database():
+    return GLOBAL_CONTEXT.dbcon.database
+
+
+@check_global_context
 def install():
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.install()
 
 
+@check_global_context
 def uninstall():
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.uninstall()
 
 
+@check_global_context
 def active_project():
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.active_project()
 
 
+@check_global_context
 def projects():
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.projects()
 
 
+@check_global_context
 def locate(path):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.locate(path)
 
 
+@check_global_context
 def insert_one(item):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.insert_one(item)
 
 
+@check_global_context
 def insert_many(items, ordered=True):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.insert_many(items, ordered=True)
 
 
+@check_global_context
 def find(filter, projection=None, sort=None):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.find(filter, projection=None, sort=None)
 
 
+@check_global_context
 def find_one(filter, projection=None, sort=None):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.find_one(filter, projection=None, sort=None)
 
 
+@check_global_context
 def save(*args, **kwargs):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.save(*args, **kwargs)
 
 
+@check_global_context
 def replace_one(filter, replacement):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.replace_one(filter, replacement)
 
 
+@check_global_context
 def update_many(filter, update):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.update_many(filter, update)
 
 
+@check_global_context
 def distinct(*args, **kwargs):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.distinct(*args, **kwargs)
 
 
+@check_global_context
 def aggregate(*args, **kwargs):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.aggregate(*args, **kwargs)
 
 
+@check_global_context
 def drop(*args, **kwargs):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.drop(*args, **kwargs)
 
 
+@check_global_context
 def delete_many(*args, **kwargs):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.delete_many(*args, **kwargs)
 
 
+@check_global_context
 def parenthood(document):
-    # TODO Global context
-    pass
+    return GLOBAL_CONTEXT.dbcon.parenthood(document)
 
 
 @contextlib.contextmanager
@@ -136,6 +152,7 @@ def tempdir():
         shutil.rmtree(tempdir)
 
 
+@check_global_context
 def download(src, dst):
     """Download `src` to `dst`
 
