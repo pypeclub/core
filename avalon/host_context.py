@@ -18,6 +18,7 @@ class HostContext:
         self._id = uuid4()
         self._is_installed = False
 
+        self.log = logging.getLogger(self.__class__.__name__)
         self.data = data or {}
 
         self.config = None
