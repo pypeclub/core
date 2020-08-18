@@ -189,10 +189,10 @@ class SubsetWidget(loader_widgets.SubsetWidget):
             })
 
             for representation in representations:
-                for loader in lib.loaders_from_representation(
-                    self.dbcon,
+                for loader in api.loaders_from_representation(
                     available_loaders,
-                    representation["_id"]
+                    representation["_id"],
+                    self.dbcon
                 ):
                     # skip multiple select variant if one is selected
                     if one_item_selected:

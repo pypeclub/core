@@ -199,51 +199,6 @@ def find_config(dbcon):
     return importlib.import_module(config)
 
 
-# loaders_from_representation
-#     - added 'dbcon' to args
-def loaders_from_representation(dbcon, loaders, representation):
-    """Return all compatible loaders for a representation."""
-    context = get_representation_context(dbcon, representation)
-    return [l for l in loaders if is_compatible_loader(l, context)]
-
-
-# get_representation_context
-#     - added 'dbcon' to args replaced 'io' in code
-def get_representation_context(dbcon, representation):
-    """Return parenthood context for representation.
-
-    Args:
-        representation (str or io.ObjectId or dict): The representation id
-            or full representation as returned by the database.
-
-    Returns:
-        dict: The full representation context.
-
-    """
-
-    assert representation is not None, "This is a bug"
-
-    if isinstance(representation, (six.string_types, ObjectId)):
-        representation = dbcon.find_one(
-            {"_id": ObjectId(str(representation))})
-
-    version, subset, asset, project = dbcon.parenthood(representation)
-
-    assert all([representation, version, subset, asset, project]), (
-        "This is a bug"
-    )
-
-    context = {
-        "project": project,
-        "asset": asset,
-        "subset": subset,
-        "version": version,
-        "representation": representation,
-    }
-
-    return context
-
-
 # load
 def load(
     dbcon, Loader, representation, namespace=None, name=None, options=None,
