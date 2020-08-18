@@ -5,7 +5,7 @@ from ... import api, style
 from ...vendor import qtawesome, six
 from ...pipeline import (
     is_compatible_loader,
-    _make_backwards_compatible_loader,
+    make_backwards_compatible_loader,
     IncompatibleLoaderError
 )
 from pypeapp import Roots
@@ -268,7 +268,7 @@ def load(
 
     """
 
-    Loader = _make_backwards_compatible_loader(Loader)
+    Loader = make_backwards_compatible_loader(Loader)
     context = get_representation_context(dbcon, representation)
 
     # Ensure the Loader is compatible for the representation
