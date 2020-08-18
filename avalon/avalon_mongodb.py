@@ -28,10 +28,15 @@ def requires_install(func, obj=None):
         else:
             _obj = args[0]
 
-        if not _obj.is_installed:
-            raise IOError("'{}.{}()' requires to run install() first".format(
-                _obj.__class__.__name__, func.__name__
-            ))
+        if not _obj.is_installed():
+            if _obj.auto_install:
+                _obj.install()
+            else:
+                raise IOError(
+                    "'{}.{}()' requires to run install() first".format(
+                        _obj.__class__.__name__, func.__name__
+                    )
+                )
         return func(*args, **kwargs)
     return decorated
 
@@ -63,11 +68,12 @@ def auto_reconnect(func, obj=None):
 
 
 class AvalonMongoConnection:
-    def __init__(self, session=None):
+    def __init__(self, session=None, auto_install=True):
         self._id = uuid4()
         self._mongo_client = None
         self._database = None
         self._is_installed = False
+        self.auto_install = auto_install
 
         if session is None:
             session = lib.session_data_from_environment(context_keys=False)
@@ -78,7 +84,10 @@ class AvalonMongoConnection:
 
     def __getattr__(self, attr_name):
         attr = None
-        if self.is_installed:
+        if self.is_installed() and self.auto_install:
+            self.install()
+
+        if self.is_installed():
             attr = getattr(
                 self._database[self.active_project()],
                 attr_name,
@@ -94,18 +103,32 @@ class AvalonMongoConnection:
             attr = auto_reconnect(attr)
         return attr
 
+    @property
+    def database(self):
+        if not self.is_installed() and self.auto_install:
+            self.install()
+
+        if self.is_installed():
+            return self._database
+
+        raise IOError(
+            "'{}.database' requires to run install() first".format(
+                self.__class__.__name__
+            )
+        )
+
     def is_installed(self):
         return self._is_installed
 
     def install(self, update_context_from_env=False):
         """Establish a persistent connection to the database"""
+        if self.is_installed():
+            return
+
         if update_context_from_env:
             self.Session.update(lib.session_data_from_environment(
                 global_keys=False, context_keys=True
             ))
-
-        if self.is_installed():
-            return
 
         timeout = int(self.Session["AVALON_TIMEOUT"])
         mongo_url = self.Session["AVALON_MONGO"]
