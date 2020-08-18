@@ -398,6 +398,9 @@ def refresh_group_config_cache():
 
     # Build pre-defined group configs
     groups = dict()
+    # Default configuration
+    groups["__default__"] = default_group_config
+
     for config in group_configs:
         name = config["name"]
         icon = "fa." + config.get("icon", "object-group")
@@ -406,9 +409,6 @@ def refresh_group_config_cache():
 
         groups[name] = {"icon": qtawesome.icon(icon, color=color),
                         "order": order}
-
-    # Default configuration
-    groups["__default__"] = default_group_config
 
     GROUP_CONFIG_CACHE.clear()
     GROUP_CONFIG_CACHE.update(groups)
@@ -429,8 +429,10 @@ def get_active_group_config(asset_id, include_predefined=False):
     orders = sorted(_orders)
 
     # Collect groups from subsets
-    group_names = set(io.distinct("data.subsetGroup",
-                                  {"type": "subset", "parent": asset_id}))
+    group_names = set(io.distinct(
+        "data.subsetGroup",
+        {"type": "subset", "parent": asset_id}
+    ))
     if include_predefined:
         # Ensure all predefined group configs will be included
         group_names.update(predefineds.keys())

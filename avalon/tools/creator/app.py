@@ -297,8 +297,7 @@ class Window(QtWidgets.QDialog):
             return
 
         # Get the asset from the database which match with the name
-        asset = io.find_one({"name": asset_name, "type": "asset"},
-                            projection={"_id": 1})
+        asset = io.find_one({"name": asset_name, "type": "asset"})
         # Get plugin
         plugin = item.data(PluginRole)
 

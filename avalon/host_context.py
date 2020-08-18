@@ -264,7 +264,6 @@ class HostContext:
         self._registered_config = config
 
     def deregister_config(self):
-        # TODO Global context
         """Undo `register_config()`"""
         self._registered_config = None
 
@@ -353,9 +352,9 @@ class HostContext:
             else:
                 os.environ[key] = value
 
-        # TODO ADD emmiting
-        # # Emit session change
-        # emit("taskChanged", changes.copy())
+        # TODO add emmiting on context level
+        # Emit session change
+        api.emit("taskChanged", changes.copy())
 
         return changes
 

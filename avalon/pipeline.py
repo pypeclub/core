@@ -840,7 +840,7 @@ def get_representation_context(representation, dbcon):
     return context
 
 
-# TODO how to convert, where is used?
+# TODO add dbcon argument or add function to host
 def template_data_from_session(session):
     """ Return dictionary with template from session keys.
 
@@ -875,7 +875,7 @@ def template_data_from_session(session):
     }
 
 
-# TODO how to convert, where is used?
+# TODO add dbcon argument or add function to host
 def compute_session_changes(session, task=None, asset=None, app=None):
     """Compute the changes for a Session object on asset, task or app switch
 
@@ -957,7 +957,7 @@ def compute_session_changes(session, task=None, asset=None, app=None):
     return changes
 
 
-# TODO how to convert, where is used?
+# TODO add dbcon argument or add function to host
 def update_current_task(task=None, asset=None, app=None):
     """Update active Session to a new task work area.
 
@@ -987,6 +987,7 @@ def update_current_task(task=None, asset=None, app=None):
         else:
             os.environ[key] = value
 
+    # TODO do this on host context level or on global level
     # Emit session change
     emit("taskChanged", changes.copy())
 
