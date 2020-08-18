@@ -95,6 +95,7 @@ class HostContext:
 
         self.register_host(host)
         self.register_config(config)
+        self.register_default_plugins()
 
         config.install()
 
@@ -152,6 +153,11 @@ class HostContext:
             plugins[plugin.__name__] = plugin
 
         return sorted(plugins.values(), key=lambda Plugin: Plugin.__name__)
+
+    def register_default_plugins(self):
+        # TODO add them to global plugins
+        self.register_plugin(api.ThumbnailResolver, api.BinaryThumbnail)
+        self.register_plugin(api.ThumbnailResolver, api.TemplateResolver)
 
     def register_plugin_path(self, superclass, path):
         """Register a directory of one or more plug-ins
