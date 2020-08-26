@@ -1,6 +1,5 @@
 import os
 import sys
-import copy
 import logging
 import collections
 from functools import partial
@@ -408,8 +407,8 @@ class View(QtWidgets.QTreeView):
             self.clearSelection()
 
         object_names = set(object_names)
-        if (self._hierarchy_view and
-                not self._selected.issuperset(object_names)):
+        if (self._hierarchy_view
+           and not self._selected.issuperset(object_names)): # noqa
             # If any container not in current cherry-picked view, update
             # view before selecting them.
             self._selected.update(object_names)
@@ -851,9 +850,9 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         self.missing_repres = missing_repres
         self.missing_docs = (
             bool(missing_assets)
-            or bool(missing_versions)
-            or bool(missing_subsets)
-            or bool(missing_repres)
+            or bool(missing_versions) # noqa
+            or bool(missing_subsets) # noqa
+            or bool(missing_repres) # noqa
         )
 
         self.archived_assets = archived_assets
@@ -1140,8 +1139,8 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         # [x] [x] [x]
         if (
             selected_asset is not None
-            and selected_subset is not None
-            and selected_repre is not None
+            and selected_subset is not None # noqa
+            and selected_repre is not None # noqa
         ):
             return _output()
 
@@ -1160,8 +1159,8 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         if selected_asset is None and selected_subset is None:
             if (
                 self.missing_versions
-                or self.missing_subsets
-                or self.archived_subsets
+                or self.missing_subsets # noqa
+                or self.archived_subsets # noqa
             ):
                 subset_ok = False
                 return _output()
@@ -1169,17 +1168,12 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         # [ ] [ ] [ ]
         if (
             selected_asset is None
-            and selected_subset is None
-            and selected_repre is None
+            and selected_subset is None # noqa
+            and selected_repre is None # noqa
         ):
             if self.missing_repres or self.archived_repres:
                 repre_ok = False
                 return _output()
-
-
-
-
-
 
         return _output()
 
