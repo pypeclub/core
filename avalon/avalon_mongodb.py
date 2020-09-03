@@ -264,7 +264,7 @@ class AvalonMongoConnection:
 
         mongo_client = pymongo.MongoClient(**kwargs)
 
-        for retry in range(3):
+        for _retry in range(3):
             try:
                 t1 = time.time()
                 mongo_client.server_info()
