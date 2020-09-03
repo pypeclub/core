@@ -2,12 +2,10 @@
 
 import os
 import sys
-import time
 import errno
 import shutil
 import logging
 import tempfile
-import functools
 import contextlib
 
 from . import schema, Session
@@ -15,7 +13,6 @@ from .vendor import requests
 from .api import AvalonMongoDB, session_data_from_environment
 
 # Third-party dependencies
-import pymongo
 from bson.objectid import ObjectId, InvalidId
 
 __all__ = [
@@ -70,7 +67,7 @@ def install():
 
 
 def _install_sentry():
-    if "AVALON_SENTRY" not in Session:
+    if not Session.get("AVALON_SENTRY"):
         return
 
     try:
