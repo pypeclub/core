@@ -1,8 +1,7 @@
-import os
 import sys
 import time
 
-from .io_nonsingleton import DbConnector
+from ...api import AvalonMongoDB
 from ...vendor.Qt import QtWidgets, QtCore
 from ... import style
 from .. import lib as tools_lib
@@ -50,7 +49,7 @@ class Window(QtWidgets.QDialog):
 
         container = QtWidgets.QWidget()
 
-        self.dbcon = DbConnector()
+        self.dbcon = AvalonMongoDB()
         self.dbcon.install()
         self.dbcon.activate_project(None)
 
