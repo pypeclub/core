@@ -185,7 +185,7 @@ class AvalonMongoConnection:
         return cls._mongo_client[os.environ["AVALON_DB"]]
 
     @classmethod
-    def connection(cls):
+    def mongo_client(cls):
         return cls._mongo_client
 
     @classmethod
@@ -321,6 +321,10 @@ class AvalonMongoDB:
         if callable(attr):
             attr = auto_reconnect(attr)
         return attr
+
+    @property
+    def mongo_client(self):
+        AvalonMongoConnection.mongo_client()
 
     @property
     def id(self):
