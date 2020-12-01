@@ -8,6 +8,7 @@
 
 from avalon import api
 from . import CommunicationWrapper
+from . pipeline import save_current_workfile_context
 
 
 def open_file(filepath):
@@ -18,8 +19,18 @@ def open_file(filepath):
 
 def save_file(filepath):
     """Save the open scene file."""
+    # Execute george script to save workfile.
     george_script = "tv_SaveProject {}".format(filepath.replace("\\", "/"))
-    return CommunicationWrapper.execute_george(george_script)
+    result = CommunicationWrapper.execute_george(george_script)
+
+    # Store context to created workfile
+    context = {
+        "project": api.Session["AVALON_PROJECT"],
+        "asset": api.Session["AVALON_ASSET"],
+        "task": api.Session["AVALON_TASK"]
+    }
+    save_current_workfile_context(context)
+    return result
 
 
 def current_file():

@@ -5,6 +5,7 @@ from .pipeline import (
     install,
     uninstall,
     maintained_selection,
+    get_current_workfile_context,
     ls,
     Creator,
     Loader
