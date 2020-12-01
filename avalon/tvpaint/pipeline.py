@@ -92,7 +92,7 @@ def maintained_selection():
         pass
 
 
-def workfile_metadata(metadata_key, default=None):
+def get_workfile_metadata(metadata_key, default=None):
     """Read metadata for specific key from current project workfile.
 
     Pipeline use function to store loaded and created instances within keys
@@ -163,7 +163,7 @@ def write_workfile_metadata(metadata_key, value):
 
 
 def list_instances():
-    return workfile_metadata(SECTION_NAME_INSTANCES)
+    return get_workfile_metadata(SECTION_NAME_INSTANCES)
 
 
 def _write_instances(data):
@@ -171,7 +171,7 @@ def _write_instances(data):
 
 
 def ls():
-    return workfile_metadata(SECTION_NAME_CONTAINERS)
+    return get_workfile_metadata(SECTION_NAME_CONTAINERS)
 
 
 class Creator(api.Creator):
