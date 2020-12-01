@@ -12,6 +12,7 @@ from ..pipeline import AVALON_CONTAINER_ID
 
 
 METADATA_SECTION = "avalon"
+SECTION_NAME_CONTEXT = "context"
 SECTION_NAME_INSTANCES = "instances"
 SECTION_NAME_CONTAINERS = "containers"
 
@@ -160,6 +161,16 @@ def write_workfile_metadata(metadata_key, value):
         "tv_writeprojectstring \"{}\" \"{}\" \"{}\""
     ).format(METADATA_SECTION, metadata_key, value)
     return lib.execute_george_through_file(george_script)
+
+
+def get_current_workfile_context():
+    """Return context in which was workfile saved."""
+    return get_workfile_metadata(SECTION_NAME_CONTEXT, {})
+
+
+def save_current_workfile_context(context):
+    """Save context which was used to create a workfile."""
+    return write_workfile_metadata(SECTION_NAME_CONTEXT, context)
 
 
 def list_instances():
