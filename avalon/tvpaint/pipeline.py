@@ -162,7 +162,25 @@ def write_workfile_metadata(metadata_key, value):
     return lib.execute_george_through_file(george_script)
 
 
+def remove_instance(instance):
+    """Remove instance from current workfile metadata."""
+    current_instances = workfile_metadata(SECTION_NAME_INSTANCES)
+    instance_id = instance.get("uuid")
+    found_idx = None
+    if instance_id:
+        for idx, _inst in enumerate(current_instances):
+            if _inst["uuid"] == instance_id:
+                found_idx = idx
+                break
+
+    if found_idx is None:
+        return
+    current_instances.pop(found_idx)
+    _write_instances(current_instances)
+
+
 def list_instances():
+    """List all created instances from current workfile."""
     return workfile_metadata(SECTION_NAME_INSTANCES)
 
 
