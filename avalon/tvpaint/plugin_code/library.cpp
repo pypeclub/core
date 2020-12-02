@@ -438,7 +438,7 @@ static char* GetLocalString( PIFilter* iFilter, int iNum, char* iDefault )
 // you should try to respect it, as this makes life easier for the end user
 // (for stacking several requesters, and so on...).
 #define REQUESTER_W  185
-#define REQUESTER_H  (18 * 7) + 5
+#define REQUESTER_H  110
 
 
 // ID's of GUI components
@@ -448,7 +448,6 @@ static char* GetLocalString( PIFilter* iFilter, int iNum, char* iDefault )
 #define ID_SCENE_INVENTORY          40
 #define ID_PUBLISH                  50
 #define ID_LIBRARY_LOADER           60
-#define ID_SUBSET_MANAGER           70
 
 /**************************************************************************************/
 //  Localisation
@@ -475,8 +474,6 @@ std::string plugin_label = label_from_evn();
 #define TXT_SCENE_INVENTORY         GetLocalString( iFilter, 10040, "Scene inventory")
 #define TXT_PUBLISH                 GetLocalString( iFilter, 10050, "Publish")
 #define TXT_LIBRARY_LOADER          GetLocalString( iFilter, 10060, "Library")
-#define TXT_SUBSET_MANAGER          GetLocalString( iFilter, 10070, "Subset Manager")
-
 
 #define TXT_WORKFILES_HELP          GetLocalString( iFilter, 20010, "Open workfiles tool")
 #define TXT_LOADER_HELP             GetLocalString( iFilter, 20020, "Open loader tool")
@@ -484,7 +481,6 @@ std::string plugin_label = label_from_evn();
 #define TXT_SCENE_INVENTORY_HELP    GetLocalString( iFilter, 20040, "Open scene inventory tool")
 #define TXT_PUBLISH_HELP            GetLocalString( iFilter, 20050, "Open publisher")
 #define TXT_LIBRARY_LOADER_HELP     GetLocalString( iFilter, 20060, "Open library loader tool")
-#define TXT_SUBSET_MANAGER_HELP     GetLocalString( iFilter, 20070, "Open subset manager tool")
 
 #define TXT_REQUESTER_ERROR         GetLocalString( iFilter, 30001, "Can't Open Requester !" )
 
@@ -615,8 +611,6 @@ int FAR PASCAL PI_Parameters( PIFilter* iFilter, char* iArg )
             y_pos += y_offset;
             TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_CREATOR, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_CREATOR );
             y_pos += y_offset;
-            TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_SUBSET_MANAGER, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_SUBSET_MANAGER );
-            y_pos += y_offset;
             TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_SCENE_INVENTORY, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_SCENE_INVENTORY );
             y_pos += y_offset;
             TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_PUBLISH, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_PUBLISH );
@@ -629,7 +623,6 @@ int FAR PASCAL PI_Parameters( PIFilter* iFilter, char* iArg )
             TVSetButtonInfoText( iFilter, Data.mReq, ID_LOADER, TXT_LOADER_HELP );
             TVSetButtonInfoText( iFilter, Data.mReq, ID_PUBLISH, TXT_PUBLISH_HELP );
             TVSetButtonInfoText( iFilter, Data.mReq, ID_CREATOR, TXT_CREATOR_HELP );
-            TVSetButtonInfoText( iFilter, Data.mReq, ID_SUBSET_MANAGER, TXT_SUBSET_MANAGER_HELP );
             TVSetButtonInfoText( iFilter, Data.mReq, ID_SCENE_INVENTORY, TXT_SCENE_INVENTORY_HELP );
             TVSetButtonInfoText( iFilter, Data.mReq, ID_LIBRARY_LOADER, TXT_LIBRARY_LOADER_HELP );
         }
@@ -672,11 +665,6 @@ int FAR PASCAL PI_Msg( PIFilter* iFilter, INTPTR iEvent, INTPTR iReq, INTPTR* iA
 
                 case ID_CREATOR:
                     communication.call_method("creator_tool", nlohmann::json::array());
-                    TVExecute( iFilter );
-                    break;
-
-                case ID_SUBSET_MANAGER:
-                    communication.call_method("subset_manager_tool", nlohmann::json::array());
                     TVExecute( iFilter );
                     break;
 

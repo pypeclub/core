@@ -5,8 +5,6 @@ from .pipeline import (
     install,
     uninstall,
     maintained_selection,
-    remove_instance,
-    list_instances,
     ls,
     Creator,
     Loader
@@ -31,8 +29,6 @@ __all__ = (
     "install",
     "uninstall",
     "maintained_selection",
-    "remove_instance",
-    "list_instances",
     "ls",
     "Creator",
     "Loader",
