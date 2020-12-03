@@ -86,6 +86,7 @@ def _load_fonts():
         "opensans/OpenSans-Regular.ttf",
         "opensans/OpenSans-Semibold.ttf",
         "opensans/OpenSans-SemiboldItalic.ttf",
+        "fontawesome/fontawesome-webfont.ttf"
     ]
 
     for font in fonts:
