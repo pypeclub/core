@@ -21,7 +21,8 @@ from .lib import (
     save_scene,
     save_scene_as,
     remove,
-    find_node_by_name
+    find_node_by_name,
+    signature
 )
 
 from .workio import (
@@ -51,6 +52,7 @@ __all__ = [
     "save_scene_as",
     "remove",
     "find_node_by_name",
+    "signature",
 
     # Workfiles API
     "open_file",

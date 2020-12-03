@@ -10,6 +10,7 @@ import subprocess
 import importlib
 import logging
 import filecmp
+from uuid import uuid4
 
 from .server import Server
 from ..tools import workfiles
@@ -28,6 +29,8 @@ self.application_name = None
 # Setup logging.
 self.log = logging.getLogger(__name__)
 self.log.setLevel(logging.DEBUG)
+
+signature = str(uuid4()).replace("-", "_")
 
 
 def execute_in_main_thread(func_to_call_from_main_thread):
@@ -78,6 +81,38 @@ def setup_startup_scripts():
                 os.environ["TOONBOOM_GLOBAL_SCRIPT_LOCATION"] = avalon_dcc_dir
     else:
         os.environ["TOONBOOM_GLOBAL_SCRIPT_LOCATION"] = avalon_dcc_dir
+
+
+def check_libs():
+    """Check if `OpenHarmony`_ is available.
+
+    Avalon expects either path in `LIB_OPENHARMONY_PATH` or `openHarmony.js`
+    present in `TOONBOOM_GLOBAL_SCRIPT_LOCATION`.
+
+    Throws:
+        RuntimeError: If openHarmony is not found.
+
+    .. _OpenHarmony:
+        https://github.com/cfourney/OpenHarmony
+
+    """
+    if not os.getenv("LIB_OPENHARMONY_PATH"):
+
+        if os.getenv("TOONBOOM_GLOBAL_SCRIPT_LOCATION"):
+            if os.path.exists(
+                os.path.join(
+                    os.getenv("TOONBOOM_GLOBAL_SCRIPT_LOCATION"),
+                    "openHarmony.js")):
+
+                os.environ["LIB_OPENHARMONY_PATH"] = \
+                    os.getenv("TOONBOOM_GLOBAL_SCRIPT_LOCATION")
+                return
+
+        else:
+            self.log.error(("Cannot find OpenHarmony library. "
+                            "Please set path to it in LIB_OPENHARMONY_PATH "
+                            "environment variable."))
+            raise RuntimeError("Missing OpenHarmony library.")
 
 
 def launch(application_path, zip_file):
@@ -294,7 +329,7 @@ def save_scene():
     """
     # Need to turn off the backgound watcher else the communication with
     # the server gets spammed with two requests at the same time.
-    func = """function func()
+    func = """function %s_func()
     {
         var app = QCoreApplication.instance();
         app.avalon_on_file_changed = false;
@@ -303,19 +338,19 @@ def save_scene():
             scene.currentProjectPath() + "/" + scene.currentVersionName()
         );
     }
-    func
-    """
+    %s_func
+    """ % (signature, signature)
     scene_path = self.send({"function": func})["result"] + "." + self.extension
 
     # Manually update the remote file.
     self.on_file_changed(scene_path)
 
     # Re-enable the background watcher.
-    func = """function func()
+    func = """function %s_func()
     {
         var app = QCoreApplication.instance();
         app.avalon_on_file_changed = true;
     }
-    func
-    """
+    %s_func
+    """ % (signature, signature)
     self.send({"function": func})

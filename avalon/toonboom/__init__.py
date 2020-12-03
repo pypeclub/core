@@ -10,7 +10,8 @@ from .lib import (
     send,
     show,
     save_scene,
-    setup_startup_scripts
+    setup_startup_scripts,
+    check_libs
 )
 
 __all__ = [
@@ -26,5 +27,6 @@ __all__ = [
     "send",
     "show",
     "save_scene",
-    "setup_startup_scripts"
+    "setup_startup_scripts",
+    "check_libs"
 ]

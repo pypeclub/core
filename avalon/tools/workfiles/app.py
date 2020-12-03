@@ -5,6 +5,7 @@ import getpass
 import shutil
 import logging
 
+from ...vendor import Qt
 from ...vendor.Qt import QtWidgets, QtCore
 from ... import style, io, api, pipeline
 
@@ -226,13 +227,13 @@ class TasksWidget(QtWidgets.QWidget):
 
     task_changed = QtCore.Signal()
 
-    def __init__(self):
-        super(TasksWidget, self).__init__()
+    def __init__(self, parent=None):
+        super(TasksWidget, self).__init__(parent)
         self.setContentsMargins(0, 0, 0, 0)
 
         view = QtWidgets.QTreeView()
         view.setIndentation(0)
-        model = TasksModel()
+        model = TasksModel(io)
         view.setModel(model)
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -563,10 +564,12 @@ class FilesWidget(QtWidgets.QWidget):
         filter = "Work File (*{0})".format(filter)
         kwargs = {
             "caption": "Work Files",
-            "directory": self.root,
-            "dir": self.root,
             "filter": filter
         }
+        if Qt.__binding__ in ("PySide", "PySide2"):
+            kwargs["dir"] = self.root
+        else:
+            kwargs["directory"] = self.root
         work_file = QtWidgets.QFileDialog.getOpenFileName(**kwargs)[0]
 
         if not work_file:
@@ -710,7 +713,7 @@ class Window(QtWidgets.QMainWindow):
         widgets = {
             "pages": QtWidgets.QStackedWidget(),
             "body": QtWidgets.QWidget(),
-            "assets": AssetWidget(),
+            "assets": AssetWidget(io),
             "tasks": TasksWidget(),
             "files": FilesWidget()
         }
@@ -770,10 +773,15 @@ class Window(QtWidgets.QMainWindow):
 
         if "asset" in context:
             asset = context["asset"]
-            asset_document = io.find_one({
-                "name": asset,
-                "type": "asset"
-            })
+            asset_document = io.find_one(
+                {
+                    "name": asset,
+                    "type": "asset"
+                },
+                {
+                    "data.tasks": 1
+                }
+            )
 
             # Select the asset
             self.widgets["assets"].select_assets([asset], expand=True)
@@ -820,6 +828,31 @@ class Window(QtWidgets.QMainWindow):
         files.refresh()
 
 
+def validate_host_requirements(host):
+    if host is None:
+        raise RuntimeError("No registered host.")
+
+    # Verify the host has implemented the api for Work Files
+    required = [
+        "open_file",
+        "save_file",
+        "current_file",
+        "has_unsaved_changes",
+        "work_root",
+        "file_extensions",
+    ]
+    missing = []
+    for name in required:
+        if not hasattr(host, name):
+            missing.append(name)
+    if missing:
+        raise RuntimeError(
+            "Host is missing required Work Files interfaces: "
+            "%s (host: %s)" % (", ".join(missing), host)
+        )
+    return True
+
+
 def show(root=None, debug=False, parent=None, use_context=True, save=True):
     """Show Work Files GUI"""
     # todo: remove `root` argument to show()
@@ -831,24 +864,7 @@ def show(root=None, debug=False, parent=None, use_context=True, save=True):
         pass
 
     host = api.registered_host()
-    if host is None:
-        raise RuntimeError("No registered host.")
-
-    # Verify the host has implemented the api for Work Files
-    required = ["open_file",
-                "save_file",
-                "current_file",
-                "has_unsaved_changes",
-                "work_root",
-                "file_extensions",
-                ]
-    missing = []
-    for name in required:
-        if not hasattr(host, name):
-            missing.append(name)
-    if missing:
-        raise RuntimeError("Host is missing required Work Files interfaces: "
-                           "%s (host: %s)" % (", ".join(missing), host))
+    validate_host_requirements(host)
 
     if debug:
         api.Session["AVALON_ASSET"] = "Mock"

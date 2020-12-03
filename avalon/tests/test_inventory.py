@@ -19,12 +19,12 @@ PROJECT_NAME = "hulk"
 
 self = sys.modules[__name__]
 self._project = {
-    "schema": "avalon-core:project-2.0",
+    "schema": "avalon-core:project-2.1",
     "type": "project",
     "name": PROJECT_NAME,
     "config": {
         "template": {},
-        "tasks": [],
+        "tasks": {},
         "apps": [],
         "copy": {}
     },
@@ -36,10 +36,10 @@ self._config = {
         {"name": "app1"},
         {"name": "app2"},
     ],
-    "tasks": [
-        {"name": "task1"},
-        {"name": "task2"},
-    ],
+    "tasks": {
+        {"Animation": {"short_name": "anim"}},
+        {"Modeling": {"short_name": "mdl"}},
+    },
     "template": {
         "work":
             "{root}/{project}/{silo}/{asset}/work/"
@@ -122,10 +122,10 @@ def test_save():
             {"name": "app1"},
             {"name": "app2"},
         ],
-        "tasks": [
-            {"name": "task1"},
-            {"name": "task2"},
-        ],
+        "tasks": {
+            {"Animation": {"short_name": "anim"}},
+            {"Modeling": {"short_name": "mdl"}},
+        },
         "template": {
             "work":
                 "{root}/{project}/{silo}/{asset}/work/"

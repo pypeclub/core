@@ -37,7 +37,8 @@ QWidget
     background-clip: border;
     border-image: none;
     outline: 0;
-    font-size: 12px;
+    /*font-size: 12px;*/
+    font-size: 9pt;
 }
 
 QWidget:item:hover
@@ -1249,4 +1250,21 @@ QSplitter::handle:horizontal:hover {
 
 QSplitter {
     border: 0px;
+}
+
+#IconView[mode="icon"] {
+    /*font-size: 11px;*/
+    font-size: 8pt;
+    border: 0px;
+    padding: 0px;
+    margin: 0px;
+}
+
+#IconView[mode="icon"]::item  {
+    margin-top: 6px;
+    border: 0px;
+}
+
+#IconView[mode="icon"]::icon {
+    top: 3px;
 }

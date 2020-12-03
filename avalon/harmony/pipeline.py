@@ -1,8 +1,17 @@
+from pathlib import Path
+
 from .. import api, pipeline
 from . import lib
-from ..vendor import Qt
 
 import pyblish.api
+
+
+def inject_avalon_js():
+    """Inject AvalonHarmony.js into Harmony."""
+    avalon_harmony_js = Path(__file__).parent.joinpath("js/AvalonHarmony.js")
+    script = avalon_harmony_js.read_text()
+    # send AvalonHarmony.js to Harmony
+    lib.send({"script": script})
 
 
 def install():
@@ -12,6 +21,7 @@ def install():
     """
     print("Installing Avalon Harmony...")
     pyblish.api.register_host("harmony")
+    api.on("application.launched", inject_avalon_js)
 
 
 def ls():
@@ -24,14 +34,14 @@ def ls():
     Yields:
         dict: container
     """
-    objects = lib.get_scene_data()
+    objects = lib.get_scene_data() or {}
     for _, data in objects.items():
         # Skip non-tagged objects.
         if not data:
             continue
 
         # Filter to only containers.
-        if "container" not in data["id"]:
+        if "container" not in data.get("id"):
             continue
 
         yield data
@@ -49,62 +59,36 @@ class Creator(api.Creator):
     node_type = "COMPOSITE"
 
     def setup_node(self, node):
-        func = """function func(args)
-        {
-            node.setTextAttr(args[0], "COMPOSITE_MODE", 1, "Pass Through");
-        }
-        func
+        """Prepare node as container.
+
+        Args:
+            node (str): Path to node.
         """
         lib.send(
-            {"function": func, "args": [node]}
+            {
+                "function": "AvalonHarmony.setupNodeForCreator",
+                "args": node
+            }
         )
 
     def process(self):
-        func = """function func(args)
-        {
-            var nodes = node.getNodes([args[0]]);
-            var node_names = [];
-            for (var i = 0; i < nodes.length; ++i)
-            {
-              node_names.push(node.getName(nodes[i]));
-            }
-            return node_names
-        }
-        func
-        """
-
+        """Plugin entry point."""
         existing_node_names = lib.send(
-            {"function": func, "args": [self.node_type]}
-        )["result"]
+            {
+                "function": "AvalonHarmony.getNodesNamesByType",
+                "args": self.node_type
+            })["result"]
 
         # Dont allow instances with the same name.
-        message_box = Qt.QtWidgets.QMessageBox()
-        message_box.setIcon(Qt.QtWidgets.QMessageBox.Warning)
         msg = "Instance with name \"{}\" already exists.".format(self.name)
-        message_box.setText(msg)
         for name in existing_node_names:
             if self.name.lower() == name.lower():
-                message_box.exec_()
-                return False
-
-        func = """function func(args)
-        {
-            var result_node = node.add("Top", args[0], args[1], 0, 0, 0);
-
-
-            if (args.length > 2)
-            {
-                node.link(args[2], 0, result_node, 0, false, true);
-                node.setCoord(
-                    result_node,
-                    node.coordX(args[2]),
-                    node.coordY(args[2]) + 70
+                lib.send(
+                    {
+                        "function": "AvalonHarmony.message", "args": msg
+                    }
                 )
-            }
-            return result_node
-        }
-        func
-        """
+                return False
 
         with lib.maintained_selection() as selection:
             node = None
@@ -112,14 +96,14 @@ class Creator(api.Creator):
             if (self.options or {}).get("useSelection") and selection:
                 node = lib.send(
                     {
-                        "function": func,
+                        "function": "AvalonHarmony.createContainer",
                         "args": [self.name, self.node_type, selection[-1]]
                     }
                 )["result"]
             else:
                 node = lib.send(
                     {
-                        "function": func,
+                        "function": "AvalonHarmony.createContainer",
                         "args": [self.name, self.node_type]
                     }
                 )["result"]
@@ -161,7 +145,7 @@ def containerise(name,
         "loader": str(loader),
         "representation": str(context["representation"]["_id"]),
         "nodes": nodes
-        }
+    }
 
     lib.imprint(node, data)
 

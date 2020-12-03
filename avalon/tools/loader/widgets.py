@@ -1,11 +1,13 @@
 import os
+import sys
 import datetime
 import pprint
 import inspect
+import traceback
+import collections
 
 from ...vendor.Qt import QtWidgets, QtCore, QtGui, QtSvg
 from ...vendor import qtawesome
-from ... import io
 from ... import api
 from ... import pipeline
 from ... import style
@@ -14,12 +16,76 @@ from ...lib import MasterVersionType
 from .. import lib as tools_lib
 from ..delegates import VersionDelegate, PrettyTimeDelegate
 from ..widgets import OptionalMenu, OptionalAction, OptionDialog
+from ..views import TreeViewSpinner
 
 from .model import (
     SubsetsModel,
     SubsetFilterProxyModel,
     FamiliesFilterProxyModel,
 )
+
+
+class LoadErrorMessageBox(QtWidgets.QDialog):
+    def __init__(self, messages, parent=None):
+        super(LoadErrorMessageBox, self).__init__(parent)
+        self.setWindowTitle("Loading failed")
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
+        body_layout = QtWidgets.QVBoxLayout(self)
+
+        main_label = (
+            "<span style='font-size:18pt;'>Failed to load items</span>"
+        )
+        main_label_widget = QtWidgets.QLabel(main_label, self)
+        body_layout.addWidget(main_label_widget)
+
+        item_name_template = (
+            "<span style='font-weight:bold;'>Subset:</span> {}<br>"
+            "<span style='font-weight:bold;'>Version:</span> {}<br>"
+            "<span style='font-weight:bold;'>Representation:</span> {}<br>"
+        )
+        exc_msg_template = "<span style='font-weight:bold'>{}</span>"
+
+        for exc_msg, tb, repre, subset, version in messages:
+            line = self._create_line()
+            body_layout.addWidget(line)
+
+            item_name = item_name_template.format(subset, version, repre)
+            item_name_widget = QtWidgets.QLabel(
+                item_name.replace("\n", "<br>"), self
+            )
+            body_layout.addWidget(item_name_widget)
+
+            exc_msg = exc_msg_template.format(exc_msg.replace("\n", "<br>"))
+            message_label_widget = QtWidgets.QLabel(exc_msg, self)
+            body_layout.addWidget(message_label_widget)
+
+            if tb:
+                tb_widget = QtWidgets.QLabel(tb.replace("\n", "<br>"), self)
+                tb_widget.setTextInteractionFlags(
+                    QtCore.Qt.TextBrowserInteraction
+                )
+                body_layout.addWidget(tb_widget)
+
+        footer_widget = QtWidgets.QWidget(self)
+        footer_layout = QtWidgets.QHBoxLayout(footer_widget)
+        buttonBox = QtWidgets.QDialogButtonBox(QtCore.Qt.Vertical)
+        buttonBox.setStandardButtons(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok
+        )
+        buttonBox.accepted.connect(self._on_accept)
+        footer_layout.addWidget(buttonBox, alignment=QtCore.Qt.AlignRight)
+        body_layout.addWidget(footer_widget)
+
+    def _on_accept(self):
+        self.close()
+
+    def _create_line(self):
+        line = QtWidgets.QFrame(self)
+        line.setFixedHeight(2)
+        line.setFrameShape(QtWidgets.QFrame.HLine)
+        line.setFrameShadow(QtWidgets.QFrame.Sunken)
+        return line
 
 
 class SubsetWidget(QtWidgets.QWidget):
@@ -41,12 +107,28 @@ class SubsetWidget(QtWidgets.QWidget):
         ("step", 50)
     )
 
-    def __init__(self, enable_grouping=True, parent=None):
+    def __init__(
+        self,
+        dbcon,
+        groups_config,
+        family_config_cache,
+        enable_grouping=True,
+        tool_name=None,
+        parent=None
+    ):
         super(SubsetWidget, self).__init__(parent=parent)
 
-        model = SubsetsModel(grouping=enable_grouping)
+        self.dbcon = dbcon
+        self.tool_name = tool_name
+
+        model = SubsetsModel(
+            dbcon,
+            groups_config,
+            family_config_cache,
+            grouping=enable_grouping
+        )
         proxy = SubsetFilterProxyModel()
-        family_proxy = FamiliesFilterProxyModel()
+        family_proxy = FamiliesFilterProxyModel(family_config_cache)
         family_proxy.setSourceModel(proxy)
 
         filter = QtWidgets.QLineEdit()
@@ -59,7 +141,7 @@ class SubsetWidget(QtWidgets.QWidget):
         top_bar_layout.addWidget(filter)
         top_bar_layout.addWidget(groupable)
 
-        view = SubsetTreeView()
+        view = TreeViewSpinner()
         view.setObjectName("SubsetView")
         view.setIndentation(20)
         view.setStyleSheet("""
@@ -71,7 +153,7 @@ class SubsetWidget(QtWidgets.QWidget):
         view.setAllColumnsShowFocus(True)
 
         # Set view delegates
-        version_delegate = VersionDelegate()
+        version_delegate = VersionDelegate(self.dbcon)
         column = model.Columns.index("version")
         view.setItemDelegateForColumn(column, version_delegate)
 
@@ -153,6 +235,62 @@ class SubsetWidget(QtWidgets.QWidget):
         view.is_loading = loading
         view.is_empty = empty
 
+    def _repre_contexts_for_loaders_filter(self, items):
+        version_docs_by_id = {
+            item["version_document"]["_id"]: item["version_document"]
+            for item in items
+        }
+        version_docs_by_subset_id = collections.defaultdict(list)
+        for item in items:
+            subset_id = item["version_document"]["parent"]
+            version_docs_by_subset_id[subset_id].append(
+                item["version_document"]
+            )
+
+        subset_docs = list(self.dbcon.find(
+            {
+                "_id": {"$in": list(version_docs_by_subset_id.keys())},
+                "type": "subset"
+            },
+            {
+                "schema": 1,
+                "data.families": 1
+            }
+        ))
+        subset_docs_by_id = {
+            subset_doc["_id"]: subset_doc
+            for subset_doc in subset_docs
+        }
+        version_ids = list(version_docs_by_id.keys())
+        repre_docs = self.dbcon.find(
+            # Query all representations for selected versions at once
+            {
+                "type": "representation",
+                "parent": {"$in": version_ids}
+            },
+            # Query only name and parent from representation
+            {
+                "name": 1,
+                "parent": 1
+            }
+        )
+        repre_docs_by_version_id = {
+            version_id: []
+            for version_id in version_ids
+        }
+        repre_context_by_id = {}
+        for repre_doc in repre_docs:
+            version_id = repre_doc["parent"]
+            repre_docs_by_version_id[version_id].append(repre_doc)
+
+            version_doc = version_docs_by_id[version_id]
+            repre_context_by_id[repre_doc["_id"]] = {
+                "representation": repre_doc,
+                "version": version_doc,
+                "subset": subset_docs_by_id[version_doc["parent"]]
+            }
+        return repre_context_by_id, repre_docs_by_version_id
+
     def on_context_menu(self, point):
         """Shows menu with loader actions on Right-click.
 
@@ -179,17 +317,11 @@ class SubsetWidget(QtWidgets.QWidget):
                 continue
 
             elif item.get("isMerged"):
-                # TODO use `for` loop of index's rowCount
-                # instead of `while` loop
-                idx = 0
-                while idx < 2000:
+                for idx in range(row_index.model().rowCount(row_index)):
                     child_index = row_index.child(idx, 0)
-                    if not child_index.isValid():
-                        break
                     item = child_index.data(self.model.ItemRole)
                     if item not in items:
                         items.append(item)
-                    idx += 1
 
             else:
                 if item not in items:
@@ -198,6 +330,15 @@ class SubsetWidget(QtWidgets.QWidget):
         # Get all representation->loader combinations available for the
         # index under the cursor, so we can list the user the options.
         available_loaders = api.discover(api.Loader)
+        if self.tool_name:
+            for loader in available_loaders:
+                if hasattr(loader, "tool_names"):
+                    if not (
+                        "*" in loader.tool_names or
+                        self.tool_name in loader.tool_names
+                    ):
+                        available_loaders.remove(loader)
+
         loaders = list()
 
         # Bool if is selected only one subset
@@ -208,32 +349,31 @@ class SubsetWidget(QtWidgets.QWidget):
         found_combinations = None
 
         is_first = True
+        repre_context_by_id, repre_docs_by_version_id = (
+            self._repre_contexts_for_loaders_filter(items)
+        )
         for item in items:
             _found_combinations = []
-
-            version_id = item['version_document']['_id']
-            representations = io.find({
-                "type": "representation",
-                "parent": version_id
-            })
-
-            for representation in representations:
-                for loader in api.loaders_from_representation(
-                        available_loaders,
-                        representation['_id']
+            version_id = item["version_document"]["_id"]
+            repre_docs = repre_docs_by_version_id[version_id]
+            for repre_doc in repre_docs:
+                repre_context = repre_context_by_id[repre_doc["_id"]]
+                for loader in pipeline.loaders_from_repre_context(
+                    available_loaders,
+                    repre_context
                 ):
                     # skip multiple select variant if one is selected
                     if one_item_selected:
-                        loaders.append((representation, loader))
+                        loaders.append((repre_doc, loader))
                         continue
 
                     # store loaders of first subset
                     if is_first:
-                        first_loaders.append((representation, loader))
+                        first_loaders.append((repre_doc, loader))
 
                     # store combinations to compare with other subsets
                     _found_combinations.append(
-                        (representation["name"].lower(), loader)
+                        (repre_doc["name"].lower(), loader)
                     )
 
             # skip multiple select variant if one is selected
@@ -307,7 +447,7 @@ class SubsetWidget(QtWidgets.QWidget):
                         icon = None
 
                 # Optional action
-                use_option = one_item_selected and hasattr(loader, "options")
+                use_option = hasattr(loader, "options")
                 action = OptionalAction(label, icon, use_option, menu)
                 if use_option:
                     # Add option box tip
@@ -350,27 +490,59 @@ class SubsetWidget(QtWidgets.QWidget):
         # same representation available
 
         # Trigger
+        repre_ids = []
         for item in items:
-            version_id = item["version_document"]["_id"]
-            representation = io.find_one({
-                "type": "representation",
-                "name": representation_name,
-                "parent": version_id
-            })
+            representation = self.dbcon.find_one(
+                {
+                    "type": "representation",
+                    "name": representation_name,
+                    "parent": item["version_document"]["_id"]
+                },
+                {"_id": 1}
+            )
             if not representation:
                 self.echo("Subset '{}' has no representation '{}'".format(
                     item["subset"], representation_name
                 ))
                 continue
+            repre_ids.append(representation["_id"])
 
+        error_info = []
+        repre_contexts = pipeline.get_repres_contexts(repre_ids, self.dbcon)
+        for repre_context in repre_contexts.values():
             try:
-                api.load(Loader=loader,
-                         representation=representation,
-                         options=options)
+                pipeline.load_with_repre_context(
+                    loader,
+                    repre_context,
+                    options=options
+                )
 
             except pipeline.IncompatibleLoaderError as exc:
                 self.echo(exc)
-                continue
+                error_info.append((
+                    "Incompatible Loader",
+                    None,
+                    representation["name"],
+                    item["subset"],
+                    item["version_document"]["name"]
+                ))
+
+            except Exception as exc:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                formatted_traceback = "".join(traceback.format_exception(
+                    exc_type, exc_value, exc_traceback
+                ))
+                error_info.append((
+                    str(exc),
+                    formatted_traceback,
+                    representation["name"],
+                    item["subset"],
+                    item["version_document"]["name"]
+                ))
+
+        if error_info:
+            box = LoadErrorMessageBox(error_info)
+            box.show()
 
     def selected_subsets(self, _groups=False, _merged=False, _other=True):
         selection = self.view.selectionModel()
@@ -421,48 +593,10 @@ class SubsetWidget(QtWidgets.QWidget):
                 "parent": asset_id,
                 "name": {"$in": subsets},
             }
-            io.update_many(filter, update)
+            self.dbcon.update_many(filter, update)
 
     def echo(self, message):
         print(message)
-
-
-class SubsetTreeView(QtWidgets.QTreeView):
-
-    def __init__(self, parent=None):
-        super(SubsetTreeView, self).__init__(parent=parent)
-        loading_gif = os.path.dirname(style.__file__) + "/svg/spinner-200.svg"
-        spinner = QtSvg.QSvgRenderer(loading_gif)
-        self.spinner = spinner
-        self.is_loading = False
-        self.is_empty = True
-
-    def paint_loading(self, event):
-        size = 160
-        rect = event.rect()
-        rect = QtCore.QRectF(rect.topLeft(), rect.bottomRight())
-        rect.moveTo(rect.x() + rect.width() / 2 - size / 2,
-                    rect.y() + rect.height() / 2 - size / 2)
-        rect.setSize(QtCore.QSizeF(size, size))
-        painter = QtGui.QPainter(self.viewport())
-        self.spinner.render(painter, rect)
-
-    def paint_empty(self, event):
-        painter = QtGui.QPainter(self.viewport())
-        rect = event.rect()
-        rect = QtCore.QRectF(rect.topLeft(), rect.bottomRight())
-        qtext_opt = QtGui.QTextOption(
-            QtCore.Qt.AlignHCenter | QtCore.Qt.AlignVCenter
-        )
-        painter.drawText(rect, "No Data", qtext_opt)
-
-    def paintEvent(self, event):
-        if self.is_loading:
-            self.paint_loading(event)
-        elif self.is_empty:
-            self.paint_empty(event)
-        else:
-            super(SubsetTreeView, self).paintEvent(event)
 
 
 class VersionTextEdit(QtWidgets.QTextEdit):
@@ -473,8 +607,9 @@ class VersionTextEdit(QtWidgets.QTextEdit):
     to clipboard.
 
     """
-    def __init__(self, parent=None):
+    def __init__(self, dbcon, parent=None):
         super(VersionTextEdit, self).__init__(parent=parent)
+        self.dbcon = dbcon
 
         self.data = {
             "source": None,
@@ -485,6 +620,7 @@ class VersionTextEdit(QtWidgets.QTextEdit):
         self.set_version(None)
 
     def set_version(self, version_doc=None, version_id=None):
+        # TODO expect only filling data (do not query them here!)
         if not version_doc and not version_id:
             # Reset state to empty
             self.data = {
@@ -500,14 +636,14 @@ class VersionTextEdit(QtWidgets.QTextEdit):
         print("Querying..")
 
         if not version_doc:
-            version_doc = io.find_one({
+            version_doc = self.dbcon.find_one({
                 "_id": version_id,
                 "type": {"$in": ["version", "master_version"]}
             })
             assert version_doc, "Not a valid version id"
 
         if version_doc["type"] == "master_version":
-            _version_doc = io.find_one({
+            _version_doc = self.dbcon.find_one({
                 "_id": version_doc["version_id"],
                 "type": "version"
             })
@@ -516,7 +652,7 @@ class VersionTextEdit(QtWidgets.QTextEdit):
                 _version_doc["name"]
             )
 
-        subset = io.find_one({
+        subset = self.dbcon.find_one({
             "_id": version_doc["parent"],
             "type": "subset"
         })
@@ -614,10 +750,8 @@ class ThumbnailWidget(QtWidgets.QLabel):
     aspect_ratio = (16, 9)
     max_width = 300
 
-    def __init__(self, dbcon=None, parent=None):
+    def __init__(self, dbcon, parent=None):
         super(ThumbnailWidget, self).__init__(parent)
-        if dbcon is None:
-            dbcon = io
         self.dbcon = dbcon
 
         self.current_thumb_id = None
@@ -711,13 +845,13 @@ class ThumbnailWidget(QtWidgets.QLabel):
 
 class VersionWidget(QtWidgets.QWidget):
     """A Widget that display information about a specific version"""
-    def __init__(self, parent=None):
+    def __init__(self, dbcon, parent=None):
         super(VersionWidget, self).__init__(parent=parent)
 
         layout = QtWidgets.QVBoxLayout(self)
 
         label = QtWidgets.QLabel("Version", self)
-        data = VersionTextEdit()
+        data = VersionTextEdit(dbcon, self)
         data.setReadOnly(True)
 
         layout.addWidget(label)
@@ -735,8 +869,11 @@ class FamilyListWidget(QtWidgets.QListWidget):
     NameRole = QtCore.Qt.UserRole + 1
     active_changed = QtCore.Signal(list)
 
-    def __init__(self, parent=None):
+    def __init__(self, dbcon, family_config_cache, parent=None):
         super(FamilyListWidget, self).__init__(parent=parent)
+
+        self.family_config_cache = family_config_cache
+        self.dbcon = dbcon
 
         multi_select = QtWidgets.QAbstractItemView.ExtendedSelection
         self.setSelectionMode(multi_select)
@@ -755,8 +892,8 @@ class FamilyListWidget(QtWidgets.QListWidget):
 
         """
 
-        family = io.distinct("data.family")
-        families = io.distinct("data.families")
+        family = self.dbcon.distinct("data.family")
+        families = self.dbcon.distinct("data.families")
         unique_families = list(set(family + families))
 
         # Rebuild list
@@ -764,7 +901,7 @@ class FamilyListWidget(QtWidgets.QListWidget):
         self.clear()
         for name in sorted(unique_families):
 
-            family = tools_lib.get_family_cached_config(name)
+            family = self.family_config_cache.family_config(name)
             if family.get("hideFilter"):
                 continue
 

@@ -66,19 +66,22 @@ class View(QtWidgets.QTreeView):
             if item_id not in repre_ids:
                 repre_ids.append(item_id)
 
-        repre_entities = io.find({
-            "type": "representation",
-            "_id": {"$in": repre_ids}
-        })
+        repre_docs = io.find(
+            {
+                "type": "representation",
+                "_id": {"$in": repre_ids}
+            },
+            {"parent": 1}
+        )
 
-        parent_ids = []
-        for repre in repre_entities:
-            parent_id = repre["parent"]
-            if parent_id not in parent_ids:
-                parent_ids.append(parent_id)
+        version_ids = []
+        for repre_doc in repre_docs:
+            version_id = repre_doc["parent"]
+            if version_id not in version_ids:
+                version_ids.append(version_id)
 
         loaded_versions = io.find({
-            "_id": {"$in": parent_ids},
+            "_id": {"$in": version_ids},
             "type": {"$in": ["version", "master_version"]}
         })
 
@@ -130,23 +133,29 @@ class View(QtWidgets.QTreeView):
                     if item_id not in repre_ids:
                         repre_ids.append(item_id)
 
-                repre_entities = io.find({
-                    "type": "representation",
-                    "_id": {"$in": repre_ids}
-                })
+                repre_docs = io.find(
+                    {
+                        "type": "representation",
+                        "_id": {"$in": repre_ids}
+                    },
+                    {"parent": 1}
+                )
 
                 version_ids = []
                 version_id_by_repre_id = {}
-                for repre in repre_entities:
-                    version_id = repre["parent"]
-                    version_id_by_repre_id[repre["_id"]] = version_id
+                for repre_doc in repre_docs:
+                    version_id = repre_doc["parent"]
+                    version_id_by_repre_id[repre_doc["_id"]] = version_id
                     if version_id not in version_ids:
                         version_ids.append(version_id)
 
-                master_versions = list(io.find({
-                    "_id": {"$in": version_ids},
-                    "type": "master_version"
-                }))
+                master_versions = io.find(
+                    {
+                        "_id": {"$in": version_ids},
+                        "type": "master_version"
+                    },
+                    {"version_id": 1}
+                )
 
                 version_ids = set()
                 for master_version in master_versions:
@@ -159,13 +168,16 @@ class View(QtWidgets.QTreeView):
                         if _version_id == master_version_id:
                             version_id_by_repre_id[_repre_id] = version_id
 
-                version_docs = io.find({
-                    "_id": {"$in": list(version_ids)},
-                    "type": "version"
-                })
+                version_docs = io.find(
+                    {
+                        "_id": {"$in": list(version_ids)},
+                        "type": "version"
+                    },
+                    {"name": 1}
+                )
                 version_name_by_id = {}
-                for version in version_docs:
-                    version_name_by_id[version["_id"]] = version["name"]
+                for version_doc in version_docs:
+                    version_name_by_id[version["_id"]] = version_doc["name"]
 
                 for item in items:
                     repre_id = io.ObjectId(item["representation"])
@@ -1434,14 +1446,15 @@ class Window(QtWidgets.QDialog):
         control_layout.addWidget(refresh_button)
 
         # endregion control
+        self.family_config_cache = tools_lib.global_family_cache()
 
-        model = InventoryModel()
+        model = InventoryModel(self.family_config_cache)
         proxy = FilterProxyModel()
         view = View()
         view.setModel(proxy)
 
         # apply delegates
-        version_delegate = VersionDelegate(self)
+        version_delegate = VersionDelegate(io, self)
         column = model.Columns.index("version")
         view.setItemDelegateForColumn(column, version_delegate)
 
@@ -1481,7 +1494,7 @@ class Window(QtWidgets.QDialog):
         self.view.setColumnWidth(3, 150)  # family
         self.view.setColumnWidth(4, 100)  # namespace
 
-        tools_lib.refresh_family_config_cache()
+        self.family_config_cache.refresh()
 
     def keyPressEvent(self, event):
         """Custom keyPressEvent.

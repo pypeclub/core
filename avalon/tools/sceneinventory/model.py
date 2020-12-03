@@ -24,9 +24,11 @@ class InventoryModel(TreeModel):
 
     UniqueRole = QtCore.Qt.UserRole + 2     # unique label role
 
-    def __init__(self, parent=None):
+    def __init__(self, family_config_cache, parent=None):
         super(InventoryModel, self).__init__(parent)
         self.log = logging.getLogger(self.__class__.__name__)
+
+        self.family_config_cache = family_config_cache
 
         self._hierarchy_view = False
 
@@ -310,7 +312,7 @@ class InventoryModel(TreeModel):
                     prim_family = families[0] if families else no_family
 
             # Get the label and icon for the family if in configuration
-            family_config = tools_lib.get_family_cached_config(prim_family)
+            family_config = self.family_config_cache.family_config(prim_family)
             family = family_config.get("label", prim_family)
             family_icon = family_config.get("icon", None)
 

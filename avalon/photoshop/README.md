@@ -1,13 +1,5 @@
 # Photoshop Integration
 
-`NOTE: This integration is only tested on Windows.`
-
-This integration requires the third part library `pywin32` which can be installed with:
-
-```
-pip install pywin32
-```
-
 ## Setup
 
 The Photoshop integration requires two components to work; `extension` and `server`.
@@ -30,23 +22,12 @@ python -c ^"import avalon.photoshop;avalon.photoshop.launch(""C:\Program Files\A
 
 `avalon.photoshop.launch` launches the application and server, and also closes the server when Photoshop exists.
 
-You can also run the server separately with:
-
-```
-python -c "from avalon.tools import html_server;html_server.app.start_server(5000)"
-```
-
 ## Usage
 
 The Photoshop extension can be found under `Window > Extensions > Avalon`. Once launched you should be presented with a panel like this:
 
 ![Avalon Panel](panel.PNG "Avalon Panel")
 
-If the server is not running you will get a page failure:
-
-![Avalon Panel Failure](panel_failure.PNG "Avalon Panel Failure")
-
-Start the server and hit `Refresh`.
 
 ## Developing
 
@@ -84,8 +65,6 @@ class CreateImage(photoshop.Creator):
 ```python
 import pythoncom
 
-from avalon import photoshop
-
 import pyblish.api
 
 
@@ -102,14 +81,20 @@ class CollectInstances(pyblish.api.ContextPlugin):
     label = "Instances"
     order = pyblish.api.CollectorOrder
     hosts = ["photoshop"]
+    families_mapping = {
+        "image": []
+    }
 
     def process(self, context):
         # Necessary call when running in a different thread which pyblish-qml
         # can be.
         pythoncom.CoInitialize()
 
-        for layer in photoshop.get_layers_in_document():
-            layer_data = photoshop.read(layer)
+        photoshop_client = PhotoshopClientStub()
+        layers = photoshop_client.get_layers()
+        layers_meta = photoshop_client.get_layers_metadata()
+        for layer in layers:
+            layer_data = photoshop_client.read(layer, layers_meta)
 
             # Skip layers without metadata.
             if layer_data is None:
@@ -119,14 +104,19 @@ class CollectInstances(pyblish.api.ContextPlugin):
             if "container" in layer_data["id"]:
                 continue
 
-            child_layers = [*layer.Layers]
-            if not child_layers:
-                self.log.info("%s skipped, it was empty." % layer.Name)
-                continue
+            # child_layers = [*layer.Layers]
+            # self.log.debug("child_layers {}".format(child_layers))
+            # if not child_layers:
+            #     self.log.info("%s skipped, it was empty." % layer.Name)
+            #     continue
 
-            instance = context.create_instance(layer.Name)
+            instance = context.create_instance(layer.name)
             instance.append(layer)
             instance.data.update(layer_data)
+            instance.data["families"] = self.families_mapping[
+                layer_data["family"]
+            ]
+            instance.data["publish"] = layer.visible
 
             # Produce diagnostic message for any graphical
             # user interface interested in visualising it.
@@ -137,74 +127,76 @@ class CollectInstances(pyblish.api.ContextPlugin):
 ```python
 import os
 
-import pyblish.api
-from avalon import photoshop, Session
+import pype.api
+from avalon import photoshop
 
 
-class ExtractImage(pyblish.api.InstancePlugin):
+class ExtractImage(pype.api.Extractor):
     """Produce a flattened image file from instance
 
     This plug-in takes into account only the layers in the group.
     """
 
     label = "Extract Image"
-    order = pyblish.api.ExtractorOrder
     hosts = ["photoshop"]
     families = ["image"]
+    formats = ["png", "jpg"]
 
     def process(self, instance):
 
-        dirname = os.path.join(
-            os.path.normpath(
-                Session["AVALON_WORKDIR"]
-            ).replace("\\", "/"),
-            instance.data["name"]
-        )
-
-        try:
-            os.makedirs(dirname)
-        except OSError:
-            pass
-
-        # Store reference for integration
-        if "files" not in instance.data:
-            instance.data["files"] = list()
-
-        path = os.path.join(dirname, instance.data["name"])
+        staging_dir = self.staging_dir(instance)
+        self.log.info("Outputting image to {}".format(staging_dir))
 
         # Perform extraction
+        stub = photoshop.stub()
+        files = {}
         with photoshop.maintained_selection():
             self.log.info("Extracting %s" % str(list(instance)))
             with photoshop.maintained_visibility():
                 # Hide all other layers.
-                extract_ids = [
-                    x.id for x in photoshop.get_layers_in_layers([instance[0]])
-                ]
-                for layer in photoshop.get_layers_in_document():
-                    if layer.id not in extract_ids:
-                        layer.Visible = False
+                extract_ids = set([ll.id for ll in stub.
+                                   get_layers_in_layers([instance[0]])])
 
-                save_options = {
-                    "png": photoshop.com_objects.PNGSaveOptions(),
-                    "jpg": photoshop.com_objects.JPEGSaveOptions()
-                }
+                for layer in stub.get_layers():
+                    # limit unnecessary calls to client
+                    if layer.visible and layer.id not in extract_ids:
+                        stub.set_visible(layer.id, False)
 
-                for extension, save_option in save_options.items():
-                    photoshop.app().ActiveDocument.SaveAs(
-                        path, save_option, True
-                    )
-                    instance.data["files"].append(
-                        "{}.{}".format(path, extension)
-                    )
+                save_options = []
+                if "png" in self.formats:
+                    save_options.append('png')
+                if "jpg" in self.formats:
+                    save_options.append('jpg')
 
-        instance.data["stagingDir"] = dirname
+                file_basename = os.path.splitext(
+                    stub.get_active_document_name()
+                )[0]
+                for extension in save_options:
+                    _filename = "{}.{}".format(file_basename, extension)
+                    files[extension] = _filename
 
-        self.log.info("Extracted {instance} to {path}".format(**locals()))
+                    full_filename = os.path.join(staging_dir, _filename)
+                    stub.saveAs(full_filename, extension, True)
+
+        representations = []
+        for extension, filename in files.items():
+            representations.append({
+                "name": extension,
+                "ext": extension,
+                "files": filename,
+                "stagingDir": staging_dir
+            })
+        instance.data["representations"] = representations
+        instance.data["stagingDir"] = staging_dir
+
+        self.log.info(f"Extracted {instance} to {staging_dir}")
 ```
 
 #### Loader Plugin
 ```python
 from avalon import api, photoshop
+
+stub = photoshop.stub()
 
 
 class ImageLoader(api.Loader):
@@ -218,7 +210,7 @@ class ImageLoader(api.Loader):
 
     def load(self, context, name=None, namespace=None, data=None):
         with photoshop.maintained_selection():
-            layer = photoshop.import_smart_object(self.fname)
+            layer = stub.import_smart_object(self.fname)
 
         self[:] = [layer]
 
@@ -234,11 +226,11 @@ class ImageLoader(api.Loader):
         layer = container.pop("layer")
 
         with photoshop.maintained_selection():
-            photoshop.replace_smart_object(
+            stub.replace_smart_object(
                 layer, api.get_representation_path(representation)
             )
 
-        photoshop.imprint(
+        stub.imprint(
             layer, {"representation": str(representation["_id"])}
         )
 
@@ -248,7 +240,10 @@ class ImageLoader(api.Loader):
     def switch(self, container, representation):
         self.update(container, representation)
 ```
-
+For easier debugging of Javascript:
+https://community.adobe.com/t5/download-install/adobe-extension-debuger-problem/td-p/10911704?page=1
+Add --enable-blink-features=ShadowDOMV0,CustomElementsV0 when starting Chrome
+then localhost:
 ## Resources
   - https://github.com/lohriialo/photoshop-scripting-python
   - https://www.adobe.com/devnet/photoshop/scripting.html

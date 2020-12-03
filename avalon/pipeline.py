@@ -47,15 +47,18 @@ AVALON_CONTAINER_ID = "pyblish.avalon.container"
 
 HOST_WORKFILE_EXTENSIONS = {
     "blender": [".blend"],
+    "celaction": [".scn"],
+    "tvpaint": [".tvpp"],
     "fusion": [".comp"],
     "harmony": [".zip"],
     "houdini": [".hip", ".hiplc", ".hipnc"],
     "maya": [".ma", ".mb"],
     "nuke": [".nk"],
-    "nukestudio": [".hrox"],
+    "hiero": [".hrox"],
     "photoshop": [".psd"],
     "premiere": [".prproj"],
-    "resolve": [".drp"]
+    "resolve": [".drp"],
+    "aftereffects": [".aep"]
 }
 
 
@@ -190,7 +193,8 @@ class Loader(list):
         representation = context['representation']
         project_doc = context.get("project")
         root = None
-        if project_doc and project_doc["name"] != Session["AVALON_PROJECT"]:
+        session_project = Session.get("AVALON_PROJECT")
+        if project_doc and project_doc["name"] != session_project:
             anatomy = Anatomy(project_doc["name"])
             root = anatomy.roots_obj
 
@@ -1176,6 +1180,91 @@ def create(name, asset, family, options=None, data=None):
     return instance
 
 
+def get_repres_contexts(representation_ids, dbcon=None):
+    """Return parenthood context for representation.
+
+    Args:
+        representation_ids (list): The representation ids.
+        dbcon (AvalonMongoDB): Mongo connection object. `avalon.io` used when
+            not entered.
+
+    Returns:
+        dict: The full representation context by representation id.
+
+    """
+    if not dbcon:
+        dbcon = io
+
+    contexts = {}
+    if not representation_ids:
+        return contexts
+
+    _representation_ids = []
+    for repre_id in representation_ids:
+        if isinstance(repre_id, six.string_types):
+            repre_id = io.ObjectId(repre_id)
+        _representation_ids.append(repre_id)
+
+    repre_docs = dbcon.find({
+        "type": "representation",
+        "_id": {"$in": _representation_ids}
+    })
+    repre_docs_by_id = {}
+    version_ids = set()
+    for repre_doc in repre_docs:
+        version_ids.add(repre_doc["parent"])
+        repre_docs_by_id[repre_doc["_id"]] = repre_doc
+
+    version_docs = dbcon.find({
+        "type": "version",
+        "_id": {"$in": list(version_ids)}
+    })
+    version_docs_by_id = {}
+    subset_ids = set()
+    for version_doc in version_docs:
+        version_docs_by_id[version_doc["_id"]] = version_doc
+        subset_ids.add(version_doc["parent"])
+
+    subset_docs = dbcon.find({
+        "type": "subset",
+        "_id": {"$in": list(subset_ids)}
+    })
+    subset_docs_by_id = {}
+    asset_ids = set()
+    for subset_doc in subset_docs:
+        subset_docs_by_id[subset_doc["_id"]] = subset_doc
+        asset_ids.add(subset_doc["parent"])
+
+    asset_docs = dbcon.find({
+        "type": "asset",
+        "_id": {"$in": list(asset_ids)}
+    })
+    asset_docs_by_id = {
+        asset_doc["_id"]: asset_doc
+        for asset_doc in asset_docs
+    }
+
+    project_doc = dbcon.find_one({"type": "project"})
+
+    for repre_id, repre_doc in repre_docs_by_id.items():
+        version_doc = version_docs_by_id[repre_doc["parent"]]
+        subset_doc = subset_docs_by_id[version_doc["parent"]]
+        asset_doc = asset_docs_by_id[subset_doc["parent"]]
+        context = {
+            "project": {
+                "name": project_doc["name"],
+                "code": project_doc["data"].get("code")
+            },
+            "asset": asset_doc,
+            "subset": subset_doc,
+            "version": version_doc,
+            "representation": repre_doc,
+        }
+        contexts[repre_id] = context
+
+    return contexts
+
+
 def get_representation_context(representation):
     """Return parenthood context for representation.
 
@@ -1379,6 +1468,39 @@ def _make_backwards_compatible_loader(Loader):
     return type(Loader.__name__, (BackwardsCompatibleLoader, Loader), {})
 
 
+def load_with_repre_context(
+    Loader, repre_context, namespace=None, name=None, options=None, **kwargs
+):
+    Loader = _make_backwards_compatible_loader(Loader)
+
+    # Ensure the Loader is compatible for the representation
+    if not is_compatible_loader(Loader, repre_context):
+        raise IncompatibleLoaderError(
+            "Loader {} is incompatible with {}".format(
+                Loader.__name__, repre_context["subset"]["name"]
+            )
+        )
+
+    # Ensure options is a dictionary when no explicit options provided
+    if options is None:
+        options = kwargs.get("data", dict())  # "data" for backward compat
+
+    assert isinstance(options, dict), "Options must be a dictionary"
+
+    # Fallback to subset when name is None
+    if name is None:
+        name = repre_context["subset"]["name"]
+
+    log.info(
+        "Running '%s' on '%s'" % (
+            Loader.__name__, repre_context["asset"]["name"]
+        )
+    )
+
+    loader = Loader(repre_context)
+    return loader.load(repre_context, name, namespace, options)
+
+
 def load(Loader, representation, namespace=None, name=None, options=None,
          **kwargs):
     """Use Loader to load a representation.
@@ -1400,31 +1522,15 @@ def load(Loader, representation, namespace=None, name=None, options=None,
 
     """
 
-    Loader = _make_backwards_compatible_loader(Loader)
     context = get_representation_context(representation)
-
-    # Ensure the Loader is compatible for the representation
-    if not is_compatible_loader(Loader, context):
-        raise IncompatibleLoaderError("Loader {} is incompatible with "
-                                      "{}".format(Loader.__name__,
-                                                  context["subset"]["name"]))
-
-    # Ensure options is a dictionary when no explicit options provided
-    if options is None:
-        options = kwargs.get("data", dict())  # "data" for backward compat
-
-    assert isinstance(options, dict), "Options must be a dictionary"
-
-    # Fallback to subset when name is None
-    if name is None:
-        name = context["subset"]["name"]
-
-    log.info(
-        "Running '%s' on '%s'" % (Loader.__name__, context["asset"]["name"])
+    return load_with_repre_context(
+        Loader,
+        context,
+        namespace=namespace,
+        name=name,
+        options=options,
+        **kwargs
     )
-
-    loader = Loader(context)
-    return loader.load(context, name, namespace, options)
 
 
 def _get_container_loader(container):
@@ -1761,11 +1867,21 @@ def is_compatible_loader(Loader, context):
     return has_family and has_representation
 
 
+def loaders_from_repre_context(loaders, repre_context):
+    """Return compatible loaders for by representaiton's context."""
+
+    return [
+        loader
+        for loader in loaders
+        if is_compatible_loader(loader, repre_context)
+    ]
+
+
 def loaders_from_representation(loaders, representation):
     """Return all compatible loaders for a representation."""
 
     context = get_representation_context(representation)
-    return [l for l in loaders if is_compatible_loader(l, context)]
+    return loaders_from_repre_context(loaders, context)
 
 
 def last_workfile_with_version(workdir, file_template, fill_data, extensions):
@@ -1793,14 +1909,6 @@ def last_workfile_with_version(workdir, file_template, fill_data, extensions):
 
     # Build template without optionals, version to digits only regex
     # and comment to any definable value.
-    file_template = re.sub("<.*?>", ".*?", file_template)
-    file_template = re.sub("{version.*}", "([0-9]+)", file_template)
-    file_template = re.sub("{comment.*?}", ".+?", file_template)
-    partially_filled = format_template_with_optional_keys(
-        fill_data,
-        file_template
-    )
-
     _ext = []
     for ext in extensions:
         if not ext.startswith("."):
@@ -1808,10 +1916,19 @@ def last_workfile_with_version(workdir, file_template, fill_data, extensions):
         # Escape dot for regex
         ext = "\\" + ext
         _ext.append(ext)
+    ext_expression = "(?:" + "|".join(_ext) + ")"
 
-    # Add or regex expression for extensions
-    partially_filled += "(?:" + "|".join(_ext) + ")"
-    file_template = "^" + partially_filled + "$"
+    # Replace `.{ext}` with `{ext}` so we are sure there is not dot at the end
+    file_template = re.sub(r"\.?{ext}", ext_expression, file_template)
+    # Replace optional keys with optional content regex
+    file_template = re.sub(r"<.*?>", r".*?", file_template)
+    # Replace `{version}` with group regex
+    file_template = re.sub(r"{version.*?}", r"([0-9]+)", file_template)
+    file_template = re.sub(r"{comment.*?}", r".+?", file_template)
+    file_template = format_template_with_optional_keys(
+        fill_data,
+        file_template
+    )
 
     # Match with ignore case on Windows due to the Windows
     # OS not being case-sensitive. This avoids later running
@@ -1822,15 +1939,34 @@ def last_workfile_with_version(workdir, file_template, fill_data, extensions):
         kwargs["flags"] = re.IGNORECASE
 
     # Get highest version among existing matching files
-    output_filename = None
     version = None
+    output_filenames = []
     for filename in sorted(filenames):
         match = re.match(file_template, filename, **kwargs)
-        if match:
-            file_version = int(match.group(1))
-            if version is None or file_version >= version:
-                version = file_version
-                output_filename = filename
+        if not match:
+            continue
+
+        file_version = int(match.group(1))
+        if version is None or file_version > version:
+            output_filenames[:] = []
+            version = file_version
+
+        if file_version == version:
+            output_filenames.append(filename)
+
+    output_filename = None
+    if output_filenames:
+        if len(output_filenames) == 1:
+            output_filename = output_filenames[0]
+        else:
+            last_time = None
+            for _output_filename in output_filenames:
+                full_path = os.path.join(workdir, _output_filename)
+                mod_time = os.path.getmtime(full_path)
+                if last_time is None or last_time < mod_time:
+                    output_filename = _output_filename
+                    last_time = mod_time
+
     return output_filename, version
 
 

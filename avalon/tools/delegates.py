@@ -4,7 +4,6 @@ import logging
 import numbers
 
 from ..vendor.Qt import QtWidgets, QtCore, QtGui
-from .. import io
 from . import lib
 from ..lib import MasterVersionType
 from .models import TreeModel
@@ -18,6 +17,10 @@ class VersionDelegate(QtWidgets.QStyledItemDelegate):
     version_changed = QtCore.Signal()
     first_run = False
     lock = False
+
+    def __init__(self, dbcon, *args, **kwargs):
+        self.dbcon = dbcon
+        super(VersionDelegate, self).__init__(*args, **kwargs)
 
     def displayText(self, value, locale):
         if isinstance(value, MasterVersionType):
@@ -37,41 +40,39 @@ class VersionDelegate(QtWidgets.QStyledItemDelegate):
             else:
                 fg_color = None
 
-        if fg_color:
-            if option.widget:
-                style = option.widget.style()
-            else:
-                style = QtWidgets.QApplication.style()
+        if not fg_color:
+            return super(VersionDelegate, self).paint(painter, option, index)
 
-            style.drawControl(
-                style.CE_ItemViewItem, option, painter, option.widget
-            )
+        if option.widget:
+            style = option.widget.style()
+        else:
+            style = QtWidgets.QApplication.style()
 
-            painter.save()
+        style.drawControl(
+            style.CE_ItemViewItem, option, painter, option.widget
+        )
 
-            text = self.displayText(
-                index.data(QtCore.Qt.DisplayRole), option.locale
-            )
-            pen = painter.pen()
-            pen.setColor(fg_color)
-            painter.setPen(pen)
+        painter.save()
 
-            text_rect = style.subElementRect(style.SE_ItemViewItemText, option)
-            text_margin = style.proxy().pixelMetric(
-                style.PM_FocusFrameHMargin, option, option.widget
-            ) + 1
+        text = self.displayText(
+            index.data(QtCore.Qt.DisplayRole), option.locale
+        )
+        pen = painter.pen()
+        pen.setColor(fg_color)
+        painter.setPen(pen)
 
-            painter.drawText(
-                text_rect.adjusted(text_margin, 0, - text_margin, 0),
-                option.displayAlignment,
-                text
-            )
+        text_rect = style.subElementRect(style.SE_ItemViewItemText, option)
+        text_margin = style.proxy().pixelMetric(
+            style.PM_FocusFrameHMargin, option, option.widget
+        ) + 1
 
-            painter.restore()
+        painter.drawText(
+            text_rect.adjusted(text_margin, 0, - text_margin, 0),
+            option.displayAlignment,
+            text
+        )
 
-            return
-
-        super(VersionDelegate, self).paint(painter, option, index)
+        painter.restore()
 
     def createEditor(self, parent, option, index):
         item = index.data(TreeModel.ItemRole)
@@ -108,7 +109,7 @@ class VersionDelegate(QtWidgets.QStyledItemDelegate):
 
         # Add all available versions to the editor
         parent_id = item["version_document"]["parent"]
-        versions = list(io.find(
+        version_docs = list(self.dbcon.find(
             {
                 "type": "version",
                 "parent": parent_id
@@ -116,45 +117,49 @@ class VersionDelegate(QtWidgets.QStyledItemDelegate):
             sort=[("name", 1)]
         ))
 
-        master_version = io.find_one({
-            "type": "master_version",
-            "parent": parent_id
-        })
+        master_version_doc = self.dbcon.find_one(
+            {
+                "type": "master_version",
+                "parent": parent_id
+            }, {
+                "name": 1,
+                "data.tags": 1
+            }
+        )
 
         doc_for_master_version = None
 
         selected = None
         items = []
-        for version in versions:
-            version_tags = version["data"].get("tags") or []
+        for version_doc in version_docs:
+            version_tags = version_doc["data"].get("tags") or []
             if "deleted" in version_tags:
                 continue
 
             if (
-                master_version
+                master_version_doc
                 and doc_for_master_version is None
-                and master_version["version_id"] == version["_id"]
+                and master_version_doc["version_id"] == version_doc["_id"]
             ):
-                doc_for_master_version = version
+                doc_for_master_version = version_doc
 
-            label = lib.format_version(version["name"])
+            label = lib.format_version(version_doc["name"])
             item = QtGui.QStandardItem(label)
-            item.setData(version, QtCore.Qt.UserRole)
+            item.setData(version_doc, QtCore.Qt.UserRole)
             items.append(item)
 
-            if version["name"] == value:
+            if version_doc["name"] == value:
                 selected = item
 
-        if master_version and doc_for_master_version:
+        if master_version_doc and doc_for_master_version:
             version_name = doc_for_master_version["name"]
             label = lib.format_version(version_name, True)
             if isinstance(value, MasterVersionType):
-                index = len(versions)
-            master_version["data"] = doc_for_master_version["data"]
-            master_version["name"] = MasterVersionType(version_name)
+                index = len(version_docs)
+            master_version_doc["name"] = MasterVersionType(version_name)
 
             item = QtGui.QStandardItem(label)
-            item.setData(master_version, QtCore.Qt.UserRole)
+            item.setData(master_version_doc, QtCore.Qt.UserRole)
             items.append(item)
 
         # Reverse items so latest versions be upper

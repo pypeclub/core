@@ -28,6 +28,10 @@ class Window(QtWidgets.QDialog):
             "Asset Loader 2.1 - {}".format(api.Session.get("AVALON_PROJECT"))
         )
 
+        # Groups config
+        self.groups_config = lib.GroupsConfig(io)
+        self.family_config_cache = lib.global_family_cache()
+
         # Enable minimize and maximize for app
         self.setWindowFlags(QtCore.Qt.Window)
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
@@ -38,11 +42,16 @@ class Window(QtWidgets.QDialog):
 
         container = QtWidgets.QWidget()
 
-        assets = AssetWidget(multiselection=True, parent=self)
-        families = FamilyListWidget()
-        subsets = SubsetWidget(parent=self)
-        version = VersionWidget()
-        thumbnail = ThumbnailWidget()
+        assets = AssetWidget(io, multiselection=True, parent=self)
+        families = FamilyListWidget(io, self.family_config_cache, self)
+        subsets = SubsetWidget(
+            io,
+            self.groups_config,
+            self.family_config_cache,
+            parent=self
+        )
+        version = VersionWidget(io)
+        thumbnail = ThumbnailWidget(io)
 
         thumb_ver_body = QtWidgets.QWidget()
         thumb_ver_layout = QtWidgets.QVBoxLayout(thumb_ver_body)
@@ -86,12 +95,10 @@ class Window(QtWidgets.QDialog):
         self.data = {
             "widgets": {
                 "families": families,
-                "thumbnail": thumbnail
-            },
-            "model": {
                 "assets": assets,
                 "subsets": subsets,
                 "version": version,
+                "thumbnail": thumbnail
             },
             "label": {
                 "message": message,
@@ -103,12 +110,13 @@ class Window(QtWidgets.QDialog):
 
         families.active_changed.connect(subsets.set_family_filters)
         assets.selection_changed.connect(self.on_assetschanged)
+        assets.refresh_triggered.connect(self.on_assetschanged)
         assets.view.clicked.connect(self.on_assetview_click)
         subsets.active_changed.connect(self.on_subsetschanged)
         subsets.version_changed.connect(self.on_versionschanged)
 
-        lib.refresh_family_config_cache()
-        lib.refresh_group_config_cache()
+        self.family_config_cache.refresh()
+        self.groups_config.refresh()
 
         self._refresh()
         self._assetschanged()
@@ -121,7 +129,7 @@ class Window(QtWidgets.QDialog):
     # -------------------------------
 
     def on_assetview_click(self, *args):
-        subsets_widget = self.data["model"]["subsets"]
+        subsets_widget = self.data["widgets"]["subsets"]
         selection_model = subsets_widget.view.selectionModel()
         if selection_model.selectedIndexes():
             selection_model.clearSelection()
@@ -153,12 +161,12 @@ class Window(QtWidgets.QDialog):
         """Load assets from database"""
 
         # Ensure a project is loaded
-        project = io.find_one({"type": "project"})
+        project = io.find_one({"type": "project"}, {"type": 1})
         assert project, "Project was not found! This is a bug"
 
-        assets_model = self.data["model"]["assets"]
-        assets_model.refresh()
-        assets_model.setFocus()
+        assets_widget = self.data["widgets"]["assets"]
+        assets_widget.refresh()
+        assets_widget.setFocus()
 
         families = self.data["widgets"]["families"]
         families.refresh()
@@ -173,7 +181,7 @@ class Window(QtWidgets.QDialog):
         if not last_asset_ids:
             return
 
-        assets_widget = self.data["model"]["assets"]
+        assets_widget = self.data["widgets"]["assets"]
         id_role = assets_widget.model.ObjectIdRole
 
         for index in lib.iter_model_rows(assets_widget.model, 0):
@@ -188,8 +196,8 @@ class Window(QtWidgets.QDialog):
         """Selected assets have changed"""
         t1 = time.time()
 
-        assets_widget = self.data["model"]["assets"]
-        subsets_widget = self.data["model"]["subsets"]
+        assets_widget = self.data["widgets"]["assets"]
+        subsets_widget = self.data["widgets"]["subsets"]
         subsets_model = subsets_widget.model
 
         subsets_model.clear()
@@ -220,7 +228,7 @@ class Window(QtWidgets.QDialog):
         )
 
         # Clear the version information on asset change
-        self.data["model"]["version"].set_version(None)
+        self.data["widgets"]["version"].set_version(None)
         self.data["widgets"]["thumbnail"].set_thumbnail(asset_docs)
 
         self.data["state"]["assetIds"] = asset_ids
@@ -232,7 +240,7 @@ class Window(QtWidgets.QDialog):
             self._versionschanged()
             return
 
-        subsets = self.data["model"]["subsets"]
+        subsets = self.data["widgets"]["subsets"]
         selected_subsets = subsets.selected_subsets(_merged=True, _other=False)
 
         asset_models = {}
@@ -254,7 +262,7 @@ class Window(QtWidgets.QDialog):
 
         self.clear_assets_underlines()
 
-        assets_widget = self.data["model"]["assets"]
+        assets_widget = self.data["widgets"]["assets"]
         indexes = assets_widget.view.selectionModel().selectedRows()
 
         for index in indexes:
@@ -272,7 +280,7 @@ class Window(QtWidgets.QDialog):
 
     def _versionschanged(self):
 
-        subsets = self.data["model"]["subsets"]
+        subsets = self.data["widgets"]["subsets"]
         selection = subsets.view.selectionModel()
 
         # Active must be in the selected rows otherwise we
@@ -304,11 +312,11 @@ class Window(QtWidgets.QDialog):
                     continue
                 version_docs.append(item["version_document"])
 
-        self.data["model"]["version"].set_version(version_doc)
+        self.data["widgets"]["version"].set_version(version_doc)
 
         thumbnail_docs = version_docs
         if not thumbnail_docs:
-            assets_widget = self.data["model"]["assets"]
+            assets_widget = self.data["widgets"]["assets"]
             asset_docs = assets_widget.get_selected_assets()
             if len(asset_docs) > 0:
                 thumbnail_docs = asset_docs
@@ -346,7 +354,7 @@ class Window(QtWidgets.QDialog):
             # scheduled refresh and the silo tabs are not shown.
             self._refresh()
 
-        asset_widget = self.data["model"]["assets"]
+        asset_widget = self.data["widgets"]["assets"]
         asset_widget.select_assets(asset)
 
     def echo(self, message):
@@ -383,17 +391,30 @@ class Window(QtWidgets.QDialog):
         event.setAccepted(True)  # Avoid interfering other widgets
 
     def show_grouping_dialog(self):
-        subsets = self.data["model"]["subsets"]
+        subsets = self.data["widgets"]["subsets"]
         if not subsets.is_groupable():
             self.echo("Grouping not enabled.")
             return
 
-        selected = subsets.selected_subsets()
+        selected = []
+        merged_items = []
+        for item in subsets.selected_subsets(_merged=True):
+            if item.get("isMerged"):
+                merged_items.append(item)
+            else:
+                selected.append(item)
+
+        for merged_item in merged_items:
+            for child_item in merged_item.children():
+                selected.append(child_item)
+
         if not selected:
             self.echo("No selected subset.")
             return
 
-        dialog = SubsetGroupingDialog(items=selected, parent=self)
+        dialog = SubsetGroupingDialog(
+            items=selected, groups_config=self.groups_config, parent=self
+        )
         dialog.grouped.connect(self._assetschanged)
         dialog.show()
 
@@ -402,14 +423,15 @@ class SubsetGroupingDialog(QtWidgets.QDialog):
 
     grouped = QtCore.Signal()
 
-    def __init__(self, items, parent=None):
+    def __init__(self, items, groups_config, parent=None):
         super(SubsetGroupingDialog, self).__init__(parent=parent)
         self.setWindowTitle("Grouping Subsets")
         self.setMinimumWidth(250)
         self.setModal(True)
 
         self.items = items
-        self.subsets = parent.data["model"]["subsets"]
+        self.groups_config = groups_config
+        self.subsets = parent.data["widgets"]["subsets"]
         self.asset_ids = parent.data["state"]["assetIds"]
 
         name = QtWidgets.QLineEdit()
@@ -451,11 +473,7 @@ class SubsetGroupingDialog(QtWidgets.QDialog):
         if group:
             group.deleteLater()
 
-        active_groups = list()
-        for asset_id in self.asset_ids:
-            active_groups.extend(lib.get_active_group_config(
-                asset_id, include_predefined=True
-            ))
+        active_groups = self.groups_config.active_groups(self.asset_ids)
 
         # Build new action group
         group = QtWidgets.QActionGroup(button)
@@ -531,11 +549,6 @@ def show(debug=False, parent=None, use_context=False):
         module.project = any_project["name"]
 
     with lib.application():
-
-        # TODO: Global state, remove these
-        lib.refresh_family_config_cache()
-        lib.refresh_group_config_cache()
-
         window = Window(parent)
         window.setStyleSheet(style.load_stylesheet())
         window.show()

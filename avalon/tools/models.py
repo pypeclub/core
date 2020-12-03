@@ -1,10 +1,10 @@
 import re
+import time
 import logging
 import collections
 
 from ..vendor.Qt import QtCore, QtGui
 from ..vendor import Qt, qtawesome
-from .. import io
 from .. import style
 from . import lib
 
@@ -112,10 +112,10 @@ class TreeModel(QtCore.QAbstractItemModel):
 
         return self.createIndex(parent_item.row(), 0, parent_item)
 
-    def index(self, row, column, parent):
+    def index(self, row, column, parent=None):
         """Return index for row/column under parent"""
 
-        if not parent.isValid():
+        if parent is None or not parent.isValid():
             parent_item = self._root_item
         else:
             parent_item = parent.internalPointer()
@@ -189,6 +189,7 @@ class Item(dict):
         if self._parent is not None:
             siblings = self.parent().children()
             return siblings.index(self)
+        return -1
 
     def add_child(self, child):
         """Add a child to this item"""
@@ -201,28 +202,35 @@ class TasksModel(TreeModel):
 
     Columns = ["name", "count"]
 
-    def __init__(self, parent=None):
+    def __init__(self, dbcon, parent=None):
         super(TasksModel, self).__init__(parent=parent)
+        self.dbcon = dbcon
         self._num_assets = 0
         self._icons = {
-            "__default__": qtawesome.icon("fa.male",
-                                          color=style.colors.default),
-            "__no_task__": qtawesome.icon("fa.exclamation-circle",
-                                          color=style.colors.mid)
+            "__default__": qtawesome.icon(
+                "fa.male",
+                color=style.colors.default
+            ),
+            "__no_task__": qtawesome.icon(
+                "fa.exclamation-circle",
+                color=style.colors.mid
+            )
         }
 
-        self._get_task_icons()
+        self._refresh_task_icons()
 
-    def _get_task_icons(self):
+    def _refresh_task_icons(self):
         # Get the project configured icons from database
-        project = io.find_one({"type": "project"})
-        tasks = project["config"].get("tasks", [])
-        for task in tasks:
+        project = self.dbcon.find_one({"type": "project"}, {"config.tasks"})
+        tasks = project["config"].get("tasks", {})
+        for task_name, task in tasks.items():
             icon_name = task.get("icon", None)
             if icon_name:
-                icon = qtawesome.icon("fa.{}".format(icon_name),
-                                      color=style.colors.default)
-                self._icons[task["name"]] = icon
+                icon = qtawesome.icon(
+                    "fa.{}".format(icon_name),
+                    color=style.colors.default
+                )
+                self._icons[task_name] = icon
 
     def set_assets(self, asset_ids=None, asset_docs=None):
         """Set assets to track by their database id
@@ -236,9 +244,10 @@ class TasksModel(TreeModel):
         if asset_docs is None and asset_ids is not None:
             # prepare filter query
             _filter = {"type": "asset", "_id": {"$in": asset_ids}}
+            _projection = {"data.tasks"}
 
             # find assets in db by query
-            asset_docs = list(io.find(_filter))
+            asset_docs = list(self.dbcon.find(_filter, _projection))
             db_assets_ids = [asset["_id"] for asset in asset_docs]
 
             # check if all assets were found
@@ -257,8 +266,8 @@ class TasksModel(TreeModel):
 
         tasks = collections.Counter()
         for asset_doc in asset_docs:
-            asset_tasks = asset_doc.get("data", {}).get("tasks", [])
-            tasks.update(asset_tasks)
+            asset_tasks = asset_doc.get("data", {}).get("tasks", {})
+            tasks.update(asset_tasks.keys())
 
         self.clear()
         self.beginResetModel()
@@ -291,7 +300,6 @@ class TasksModel(TreeModel):
         self.endResetModel()
 
     def headerData(self, section, orientation, role):
-
         # Override header for count column to show amount of assets
         # it is listing the tasks for
         if role == QtCore.Qt.DisplayRole:
@@ -304,7 +312,6 @@ class TasksModel(TreeModel):
         return super(TasksModel, self).headerData(section, orientation, role)
 
     def data(self, index, role):
-
         if not index.isValid():
             return
 
@@ -334,9 +341,44 @@ class AssetModel(TreeModel):
     ObjectIdRole = QtCore.Qt.UserRole + 3
     subsetColorsRole = QtCore.Qt.UserRole + 4
 
-    def __init__(self, parent=None):
+    doc_fetched = QtCore.Signal(bool)
+    refreshed = QtCore.Signal(bool)
+
+    # Asset document projection
+    asset_projection = {
+        "type": 1,
+        "schema": 1,
+        "name": 1,
+        "silo": 1,
+        "data.visualParent": 1,
+        "data.label": 1,
+        "data.tags": 1,
+        "data.icon": 1,
+        "data.color": 1,
+        "data.deprecated": 1
+    }
+
+    def __init__(self, dbcon=None, parent=None, asset_projection=None):
         super(AssetModel, self).__init__(parent=parent)
+        if dbcon is None:
+            dbcon = io
+        self.dbcon = dbcon
         self.asset_colors = {}
+
+        # Projections for Mongo queries
+        # - let ability to modify them if used in tools that require more than
+        #   defaults
+        if asset_projection:
+            self.asset_projection = asset_projection
+
+        self.asset_projection = asset_projection
+
+        self._doc_fetching_thread = None
+        self._doc_fetching_stop = False
+        self._doc_payload = {}
+
+        self.doc_fetched.connect(self.on_doc_fetched)
+
         self.refresh()
 
     def _add_hierarchy(self, assets, parent=None, silos=None):
@@ -400,15 +442,51 @@ class AssetModel(TreeModel):
 
             self.asset_colors[asset["_id"]] = []
 
-    def refresh(self):
-        """Refresh the data for the model."""
+    def on_doc_fetched(self, was_stopped):
+        if was_stopped:
+            self.stop_fetch_thread()
+            return
 
-        self.clear()
         self.beginResetModel()
 
+        assets_by_parent = self._doc_payload.get("assets_by_parent")
+        silos = self._doc_payload.get("silos")
+        if assets_by_parent is not None:
+            # Build the hierarchical tree items recursively
+            self._add_hierarchy(
+                assets_by_parent,
+                parent=None,
+                silos=silos
+            )
+
+        self.endResetModel()
+
+        has_content = bool(assets_by_parent) or bool(silos)
+        self.refreshed.emit(has_content)
+
+        self.stop_fetch_thread()
+
+    def fetch(self):
+        self._doc_payload = self._fetch() or {}
+        # Emit doc fetched only if was not stopped
+        self.doc_fetched.emit(self._doc_fetching_stop)
+
+    def _fetch(self):
+        if not self.dbcon.Session.get("AVALON_PROJECT"):
+            return
+
+        project_doc = self.dbcon.find_one(
+            {"type": "project"},
+            {"config.template"}
+        )
+        if not project_doc:
+            return
+
         # Get all assets sorted by name
-        db_assets = io.find({"type": "asset"}).sort("name", 1)
-        project_doc = io.find_one({"type": "project"})
+        db_assets = self.dbcon.find(
+            {"type": "asset"},
+            self.asset_projection
+        ).sort("name", 1)
 
         silos = None
         if lib.project_use_silo(project_doc):
@@ -417,19 +495,45 @@ class AssetModel(TreeModel):
         # Group the assets by their visual parent's id
         assets_by_parent = collections.defaultdict(list)
         for asset in db_assets:
+            if self._doc_fetching_stop:
+                return
             parent_id = asset.get("data", {}).get("visualParent")
             if parent_id is None and silos is not None:
                 parent_id = asset.get("silo")
             assets_by_parent[parent_id].append(asset)
 
-        # Build the hierarchical tree items recursively
-        self._add_hierarchy(
-            assets_by_parent,
-            parent=None,
-            silos=silos
-        )
+        return {
+            "assets_by_parent": assets_by_parent,
+            "silos": silos
+        }
 
-        self.endResetModel()
+    def stop_fetch_thread(self):
+        if self._doc_fetching_thread is not None:
+            self._doc_fetching_stop = True
+            while self._doc_fetching_thread.isRunning():
+                time.sleep(0.001)
+            self._doc_fetching_thread = None
+
+    def refresh(self, force=False):
+        """Refresh the data for the model."""
+        # Skip fetch if there is already other thread fetching documents
+        if self._doc_fetching_thread is not None:
+            if not force:
+                return
+            self.stop_fetch_thread()
+
+        # Clear model items
+        self.clear()
+
+        if not self.dbcon.Session.get("AVALON_PROJECT"):
+            return
+
+        # Fetch documents from mongo
+        # Restart payload
+        self._doc_payload = {}
+        self._doc_fetching_stop = False
+        self._doc_fetching_thread = lib.create_qthread(self.fetch)
+        self._doc_fetching_thread.start()
 
     def flags(self, index):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
@@ -453,7 +557,6 @@ class AssetModel(TreeModel):
         return super(AssetModel, self).setData(index, value, role)
 
     def data(self, index, role):
-
         if not index.isValid():
             return
 

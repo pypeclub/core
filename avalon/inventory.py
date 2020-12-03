@@ -34,7 +34,7 @@ __all__ = [
 
 DEFAULTS = {
     "config": {
-        "schema": "avalon-core:config-1.0",
+        "schema": "avalon-core:config-1.1",
         "apps": [
             {
                 "name": "shell",
@@ -98,7 +98,7 @@ def create_project(name):
         raise RuntimeError("%s already exists" % name)
 
     return io.insert_one({
-        "schema": "avalon-core:project-2.0",
+        "schema": "avalon-core:project-2.1",
         "type": "project",
         "name": name,
         "data": dict(),

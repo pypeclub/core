@@ -1,4 +1,6 @@
-from ... import io, style
+import copy
+
+from ... import style
 from ...vendor.Qt import QtCore, QtGui
 from ...vendor import qtawesome
 
@@ -64,14 +66,53 @@ class SubsetsModel(TreeModel):
     ]
     not_last_master_brush = QtGui.QBrush(QtGui.QColor(254, 121, 121))
 
-    def __init__(self, grouping=True, parent=None):
+    # Should be minimum of required asset document keys
+    asset_doc_projection = {
+        "name": 1,
+        "label": 1
+    }
+    # Should be minimum of required subset document keys
+    subset_doc_projection = {
+        "name": 1,
+        "parent": 1,
+        "schema": 1,
+        "families": 1,
+        "data.subsetGroup": 1
+    }
+
+    def __init__(
+        self,
+        dbcon,
+        groups_config,
+        family_config_cache,
+        grouping=True,
+        parent=None,
+        asset_doc_projection=None,
+        subset_doc_projection=None
+    ):
         super(SubsetsModel, self).__init__(parent=parent)
+
+        self.dbcon = dbcon
+
+        # Projections for Mongo queries
+        # - let ability to modify them if used in tools that require more than
+        #   defaults
+        if asset_doc_projection:
+            self.asset_doc_projection = asset_doc_projection
+
+        if subset_doc_projection:
+            self.subset_doc_projection = subset_doc_projection
+
+        self.asset_doc_projection = asset_doc_projection
+        self.subset_doc_projection = subset_doc_projection
 
         self.columns_index = dict(
             (key, idx) for idx, key in enumerate(self.Columns)
         )
         self._asset_ids = None
 
+        self.groups_config = groups_config
+        self.family_config_cache = family_config_cache
         self._sorter = None
         self._grouping = grouping
         self._icons = {
@@ -93,14 +134,13 @@ class SubsetsModel(TreeModel):
         self.on_doc_fetched()
 
     def setData(self, index, value, role=QtCore.Qt.EditRole):
-
         # Trigger additional edit when `version` column changed
         # because it also updates the information in other columns
         if index.column() == self.columns_index["version"]:
             item = index.internalPointer()
             parent = item["_id"]
             if isinstance(value, MasterVersionType):
-                versions = list(io.find({
+                versions = list(self.dbcon.find({
                     "type": {"$in": ["version", "master_version"]},
                     "parent": parent
                 }, sort=[("name", -1)]))
@@ -129,7 +169,7 @@ class SubsetsModel(TreeModel):
                 )
 
             else:
-                version = io.find_one({
+                version = self.dbcon.find_one({
                     "name": value,
                     "type": "version",
                     "parent": parent
@@ -196,7 +236,7 @@ class SubsetsModel(TreeModel):
             families = version_data.get("families", [None])
 
         family = families[0]
-        family_config = lib.get_family_cached_config(family)
+        family_config = self.family_config_cache.family_config(family)
 
         item.update({
             "version": version["name"],
@@ -216,20 +256,27 @@ class SubsetsModel(TreeModel):
         })
 
     def _fetch(self):
-        asset_docs = io.find({
-            "type": "asset",
-            "_id": {"$in": self._asset_ids}
-        })
+        asset_docs = self.dbcon.find(
+            {
+                "type": "asset",
+                "_id": {"$in": self._asset_ids}
+            },
+            self.asset_doc_projection
+        )
         asset_docs_by_id = {
             asset_doc["_id"]: asset_doc
             for asset_doc in asset_docs
         }
 
         subset_docs_by_id = {}
-        for subset in io.find({
-            "type": "subset",
-            "parent": {"$in": self._asset_ids}
-        }):
+        subset_docs = self.dbcon.find(
+            {
+                "type": "subset",
+                "parent": {"$in": self._asset_ids}
+            },
+            self.subset_doc_projection
+        )
+        for subset in subset_docs:
             if self._doc_fetching_stop:
                 return
             subset_docs_by_id[subset["_id"]] = subset
@@ -255,14 +302,14 @@ class SubsetsModel(TreeModel):
             }}
         ]
         last_versions_by_subset_id = dict()
-        for doc in io.aggregate(_pipeline):
+        for doc in self.dbcon.aggregate(_pipeline):
             if self._doc_fetching_stop:
                 return
             doc["parent"] = doc["_id"]
             doc["_id"] = doc.pop("_version_id")
             last_versions_by_subset_id[doc["parent"]] = doc
 
-        master_versions = io.find({
+        master_versions = self.dbcon.find({
             "type": "master_version",
             "parent": {"$in": subset_ids}
         })
@@ -274,7 +321,7 @@ class SubsetsModel(TreeModel):
 
         missing_versions_by_id = {}
         if missing_versions:
-            missing_version_docs = io.find({
+            missing_version_docs = self.dbcon.find({
                 "type": "version",
                 "_id": {"$in": missing_versions}
             })
@@ -337,12 +384,6 @@ class SubsetsModel(TreeModel):
         self.clear()
         self.beginResetModel()
 
-        active_groups = []
-        for asset_id in self._asset_ids:
-            result = lib.get_active_group_config(asset_id)
-            if result:
-                active_groups.extend(result)
-
         asset_docs_by_id = self._doc_payload.get(
             "asset_docs_by_id"
         )
@@ -362,174 +403,130 @@ class SubsetsModel(TreeModel):
             self.refreshed.emit(False)
             return
 
-        # Prepare data if is selected more than one asset
-        process_only_single_asset = len(self._asset_ids) == 1
-        if not process_only_single_asset:
-            all_subset_names = []
-            multiple_asset_names = []
+        self._fill_subset_items(
+            asset_docs_by_id, subset_docs_by_id, last_versions_by_subset_id
+        )
 
-            for subset_id, subset_doc in subset_docs_by_id.items():
-                # No published version for the subset
-                if not last_versions_by_subset_id[subset_id]:
-                    continue
+    def create_multiasset_group(
+        self, subset_name, asset_ids, subset_counter, parent_item=None
+    ):
+        subset_color = self.merged_subset_colors[
+            subset_counter % len(self.merged_subset_colors)
+        ]
+        merge_group = Item()
+        merge_group.update({
+            "subset": "{} ({})".format(subset_name, len(asset_ids)),
+            "isMerged": True,
+            "childRow": 0,
+            "subsetColor": subset_color,
+            "assetIds": list(asset_ids),
+            "icon": qtawesome.icon(
+                "fa.circle",
+                color="#{0:02x}{1:02x}{2:02x}".format(*subset_color)
+            )
+        })
 
-                name = subset_doc["name"]
-                if name not in all_subset_names:
-                    all_subset_names.append(name)
+        subset_counter += 1
+        self.add_child(merge_group, parent_item)
+
+        return merge_group
+
+    def _fill_subset_items(
+        self, asset_docs_by_id, subset_docs_by_id, last_versions_by_subset_id
+    ):
+        _groups_tuple = self.groups_config.split_subsets_for_groups(
+            subset_docs_by_id.values(), self._grouping
+        )
+        groups, subset_docs_without_group, subset_docs_by_group = _groups_tuple
+
+        group_item_by_name = {}
+        for group_data in groups:
+            group_name = group_data["name"]
+            group_item = Item()
+            group_item.update({
+                "subset": group_name,
+                "isGroup": True,
+                "childRow": 0
+            })
+            group_item.update(group_data)
+
+            self.add_child(group_item)
+
+            group_item_by_name[group_name] = {
+                "item": group_item,
+                "index": self.index(group_item.row(), 0)
+            }
+
+        subset_counter = 0
+        for group_name, subset_docs_by_name in subset_docs_by_group.items():
+            parent_item = group_item_by_name[group_name]["item"]
+            parent_index = group_item_by_name[group_name]["index"]
+            for subset_name in sorted(subset_docs_by_name.keys()):
+                subset_docs = subset_docs_by_name[subset_name]
+                asset_ids = [
+                    subset_doc["parent"] for subset_doc in subset_docs
+                ]
+                if len(subset_docs) > 1:
+                    _parent_item = self.create_multiasset_group(
+                        subset_name, asset_ids, subset_counter, parent_item
+                    )
+                    _parent_index = self.index(
+                        _parent_item.row(), 0, parent_index
+                    )
+                    subset_counter += 1
                 else:
-                    # process_only_single_asset = False
-                    if name not in multiple_asset_names:
-                        multiple_asset_names.append(name)
-        # Process subsets
-        row = 0
-        group_items = dict()
+                    _parent_item = parent_item
+                    _parent_index = parent_index
 
-        single_asset_subsets = {}
-        multi_asset_subsets = {}
+                for subset_doc in subset_docs:
+                    asset_id = subset_doc["parent"]
 
-        # When only one asset is selected
-        if process_only_single_asset:
-            if self._grouping:
-                # Generate subset group items
-                group_names = []
-                for data in active_groups:
-                    name = data.pop("name")
-                    if name in group_names:
-                        continue
-                    group_names.append(name)
+                    data = copy.deepcopy(subset_doc)
+                    data["subset"] = subset_name
+                    data["asset"] = asset_docs_by_id[asset_id]["name"]
 
-                    group = Item()
-                    group.update({
-                        "subset": name,
-                        "isGroup": True,
-                        "childRow": 0
-                    })
-                    group.update(data)
+                    last_version = last_versions_by_subset_id.get(
+                        subset_doc["_id"]
+                    )
+                    data["last_version"] = last_version
 
-                    group_items[name] = group
-                    self.add_child(group)
+                    item = Item()
+                    item.update(data)
+                    self.add_child(item, _parent_item)
 
-            row = len(group_items)
-            single_asset_subsets = subset_docs_by_id
+                    index = self.index(item.row(), 0, _parent_index)
+                    self.set_version(index, last_version)
 
-        # When multiple assets are selected
-        else:
-            for subset_id, subset_doc in subset_docs_by_id.items():
-                last_version = last_versions_by_subset_id.get(subset_id)
-                if not last_version:
-                    continue
+        for subset_name in sorted(subset_docs_without_group.keys()):
+            subset_docs = subset_docs_without_group[subset_name]
+            asset_ids = [subset_doc["parent"] for subset_doc in subset_docs]
+            parent_item = None
+            parent_index = None
+            if len(subset_docs) > 1:
+                parent_item = self.create_multiasset_group(
+                    subset_name, asset_ids, subset_counter
+                )
+                parent_index = self.index(parent_item.row(), 0)
+                subset_counter += 1
 
-                subset_name = subset_doc["name"]
-                if subset_name not in multiple_asset_names:
-                    single_asset_subsets[subset_id] = subset_doc
-                    continue
-
+            for subset_doc in subset_docs:
                 asset_id = subset_doc["parent"]
 
-                data = subset_doc.copy()
+                data = copy.deepcopy(subset_doc)
                 data["subset"] = subset_name
                 data["asset"] = asset_docs_by_id[asset_id]["name"]
 
-                if subset_name not in multi_asset_subsets:
-                    multi_asset_subsets[subset_name] = {}
-                multi_asset_subsets[subset_name][asset_id] = {
-                    "data": data,
-                    "last_version": last_version
-                }
-
-        if not single_asset_subsets and not multi_asset_subsets:
-            self.endResetModel()
-            self.refreshed.emit(False)
-            return
-
-        color_count = len(self.merged_subset_colors)
-        subset_counter = 0
-        total = len(multi_asset_subsets)
-        str_order_temp = "%0{}d".format(len(str(total)))
-
-        for subset_name, per_asset_data in multi_asset_subsets.items():
-            subset_color = self.merged_subset_colors[
-                subset_counter % color_count
-            ]
-            inverse_order = total - subset_counter
-
-            merge_group = Item()
-            merge_group.update({
-                "subset": "{} ({})".format(
-                    subset_name, str(len(per_asset_data))
-                ),
-                "isMerged": True,
-                "childRow": 0,
-                "subsetColor": subset_color,
-                "assetIds": list(per_asset_data.keys()),
-
-                "icon": qtawesome.icon(
-                    "fa.circle",
-                    color="#{0:02x}{1:02x}{2:02x}".format(*subset_color)
-                ),
-                "order": "0{}".format(subset_name),
-                "inverseOrder": str_order_temp % inverse_order
-            })
-
-            subset_counter += 1
-            row += 1
-            group_items[subset_name] = merge_group
-            self.add_child(merge_group)
-
-            merge_group_index = self.createIndex(0, 0, merge_group)
-
-            for asset_subset_data in per_asset_data.values():
-                last_version = asset_subset_data["last_version"]
-                data = asset_subset_data["data"]
-
-                row_ = merge_group["childRow"]
-                merge_group["childRow"] += 1
+                last_version = last_versions_by_subset_id.get(
+                    subset_doc["_id"]
+                )
+                data["last_version"] = last_version
 
                 item = Item()
                 item.update(data)
+                self.add_child(item, parent_item)
 
-                self.add_child(item, parent=merge_group)
-
-                # Set the version information
-                index = self.index(row_, 0, parent=merge_group_index)
+                index = self.index(item.row(), 0, parent_index)
                 self.set_version(index, last_version)
-
-        for subset_id, subset_doc in single_asset_subsets.items():
-            last_version = last_versions_by_subset_id[subset_id]
-            if not last_version:
-                continue
-
-            data = subset_doc.copy()
-            data["subset"] = subset_doc["name"]
-            data["asset"] = asset_docs_by_id[subset_doc["parent"]]["name"]
-
-            group_name = subset_doc["data"].get("subsetGroup")
-            if process_only_single_asset:
-                if self._grouping and group_name:
-                    group = group_items[group_name]
-                    parent = group
-                    parent_index = self.createIndex(0, 0, group)
-                    row_ = group["childRow"]
-                    group["childRow"] += 1
-                else:
-                    parent = None
-                    parent_index = QtCore.QModelIndex()
-                    row_ = row
-                    row += 1
-            else:
-                parent = None
-                parent_index = QtCore.QModelIndex()
-                row_ = row
-                row += 1
-
-            item = Item()
-            item.update(data)
-
-            self.add_child(item, parent=parent)
-
-            # Set the version information
-            index = self.index(row_, 0, parent=parent_index)
-            self.set_version(index, last_version)
 
         self.endResetModel()
         self.refreshed.emit(True)
@@ -540,12 +537,15 @@ class SubsetsModel(TreeModel):
 
         if role == self.SortDescendingRole:
             item = index.internalPointer()
-            if item.get("isGroup") or item.get("isMerged"):
+            if item.get("isGroup"):
                 # Ensure groups be on top when sorting by descending order
-                prefix = "1"
-                order = item["inverseOrder"]
+                prefix = "2"
+                order = item["order"]
             else:
-                prefix = "0"
+                if item.get("isMerged"):
+                    prefix = "1"
+                else:
+                    prefix = "0"
                 order = str(super(SubsetsModel, self).data(
                     index, QtCore.Qt.DisplayRole
                 ))
@@ -553,12 +553,15 @@ class SubsetsModel(TreeModel):
 
         if role == self.SortAscendingRole:
             item = index.internalPointer()
-            if item.get("isGroup") or item.get("isMerged"):
+            if item.get("isGroup"):
                 # Ensure groups be on top when sorting by ascending order
                 prefix = "0"
                 order = item["order"]
             else:
-                prefix = "1"
+                if item.get("isMerged"):
+                    prefix = "1"
+                else:
+                    prefix = "2"
                 order = str(super(SubsetsModel, self).data(
                     index, QtCore.Qt.DisplayRole
                 ))
@@ -646,27 +649,24 @@ class GroupMemberFilterProxyModel(QtCore.QSortFilterProxyModel):
 
 
 class SubsetFilterProxyModel(GroupMemberFilterProxyModel):
-
     def filterAcceptsRow(self, row, parent):
-
         model = self.sourceModel()
-        index = model.index(row,
-                            self.filterKeyColumn(),
-                            parent)
+        index = model.index(row, self.filterKeyColumn(), parent)
         item = index.internalPointer()
         if item.get("isGroup"):
             return self.filter_accepts_group(index, model)
-        else:
-            return super(SubsetFilterProxyModel,
-                         self).filterAcceptsRow(row, parent)
+        return super(
+            SubsetFilterProxyModel, self
+        ).filterAcceptsRow(row, parent)
 
 
 class FamiliesFilterProxyModel(GroupMemberFilterProxyModel):
     """Filters to specified families"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, family_config_cache, *args, **kwargs):
         super(FamiliesFilterProxyModel, self).__init__(*args, **kwargs)
         self._families = set()
+        self.family_config_cache = family_config_cache
 
     def familyFilter(self):
         return self._families
@@ -699,7 +699,7 @@ class FamiliesFilterProxyModel(GroupMemberFilterProxyModel):
 
         filterable_families = set()
         for name in families:
-            family_config = lib.get_family_cached_config(name)
+            family_config = self.family_config_cache.family_config(name)
             if not family_config.get("hideFilter"):
                 filterable_families.add(name)
 

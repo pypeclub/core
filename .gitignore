@@ -12,3 +12,10 @@ _site
 build
 *.patch
 *.diff
+
+# Node JS packages
+##################
+node_modules/
+package-lock.json
+
+Thumbs.db
