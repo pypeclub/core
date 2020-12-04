@@ -168,8 +168,6 @@ class Window(QtWidgets.QDialog):
         projects = self.get_filtered_projects()
 
         project_name = self.combo_projects.currentText()
-        if default:
-            project_name = self.get_default_project()
 
         self.combo_projects.clear()
         if len(projects) > 0:
@@ -223,27 +221,6 @@ class Window(QtWidgets.QDialog):
         title = "{} - {}".format(self.tool_title, project_name)
         self.setWindowTitle(title)
 
-    def get_default_project(self):
-        # looks into presets if any default library is set
-        # - returns name of library from presets if exists in db
-        # - if was not found or not set then returns first existing project
-        # - returns `None` if any project was found in db
-        name = None
-        presets = config.get_presets().get("tools", {}).get(
-            "library_loader", {}
-        )
-        if self.show_projects:
-            name = presets.get("default_project")
-        if self.show_libraries and not name:
-            name = presets.get("default_library")
-
-        projects = self.get_filtered_projects()
-
-        if name and name in projects:
-            return name
-        elif len(projects) > 0:
-            return projects[0]
-        return None
 
     @property
     def current_project(self):

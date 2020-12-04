@@ -10,7 +10,7 @@ from ... import api, io, style
 
 from .widgets import CreateErrorMessageBox
 from .. import lib
-from pype.api import config
+from pype.api import get_current_project_settings
 
 module = sys.modules[__name__]
 module.window = None
@@ -451,12 +451,18 @@ class Window(QtWidgets.QDialog):
             item.setData(QtCore.Qt.ItemIsEnabled, False)
             listing.addItem(item)
 
-        config_data = config.get_presets()["tools"]["creator"]
+        pype_project_setting = (
+            get_current_project_settings()
+            ["global"]
+            ["tools"]
+            ["creator"]
+            ["families_smart_select"]
+        )
         item = None
         family_type = None
         task_name = io.Session.get('AVALON_TASK', None)
         if task_name:
-            for key, value in config_data.items():
+            for key, value in pype_project_setting.items():
                 for t_name in value:
                     if t_name in task_name.lower():
                         family_type = key
