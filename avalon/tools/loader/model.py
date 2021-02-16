@@ -237,7 +237,11 @@ class SubsetsModel(TreeModel):
         if schema_maj_version < 3:
             families = version_data.get("families", [None])
         else:
-            families = item["data"]["families"]
+            # PYPE specific Backwards compatibility
+            families = tuple(
+                set(item["data"].get("families") or [])
+                | set(version_data.get("families", []))
+            )
 
         family = None
         if families:
