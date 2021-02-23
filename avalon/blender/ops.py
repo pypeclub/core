@@ -73,7 +73,7 @@ def _has_visible_windows(app: QtWidgets.QApplication) -> bool:
         except RuntimeError:
             continue
 
-    return False
+    return is_visible
 
 
 def _process_app_events(app: QtWidgets.QApplication) -> Optional[float]:
