@@ -122,5 +122,22 @@ def reset_resolution():
 
     print(msg.format(resolution_width, resolution_height))
 
-    cmds.setAttr("defaultResolution.width", resolution_width)
-    cmds.setAttr("defaultResolution.height", resolution_height)
+    # set for different renderers
+    # arnold, vray, redshift, renderman
+
+    renderer = cmds.getAttr("defaultRenderGlobals.currentRenderer").lower()
+    # handle various renderman names
+    if renderer.startswith("renderman"):
+        renderer = "renderman"
+
+    # default attributes are usable for Arnold, Renderman and Redshift
+    width_attr_name = "defaultResolution.width"
+    height_attr_name = "defaultResolution.height"
+
+    # Vray has its own way
+    if renderer == "vray":
+        width_attr_name = "vraySettings.width"
+        height_attr_name = "vraySettings.height"
+
+    cmds.setAttr(width_attr_name, resolution_width)
+    cmds.setAttr(height_attr_name, resolution_height)
