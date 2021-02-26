@@ -237,7 +237,11 @@ class SubsetsModel(TreeModel):
         if schema_maj_version < 3:
             families = version_data.get("families", [None])
         else:
-            families = item["data"]["families"]
+            # PYPE specific Backwards compatibility
+            families = tuple(
+                set(item["data"].get("families") or [])
+                | set(version_data.get("families", []))
+            )
 
         family = None
         if families:
@@ -517,15 +521,19 @@ class SubsetsModel(TreeModel):
                 subset_counter += 1
 
             for subset_doc in subset_docs:
+                last_version = last_versions_by_subset_id.get(
+                    subset_doc["_id"]
+                )
+                # Skip subsets without version
+                if not last_version:
+                    continue
+
                 asset_id = subset_doc["parent"]
 
                 data = copy.deepcopy(subset_doc)
                 data["subset"] = subset_name
                 data["asset"] = asset_docs_by_id[asset_id]["name"]
 
-                last_version = last_versions_by_subset_id.get(
-                    subset_doc["_id"]
-                )
                 data["last_version"] = last_version
 
                 item = Item()

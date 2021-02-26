@@ -1875,7 +1875,10 @@ def is_compatible_loader(Loader, context):
     if maj_version < 3:
         families = context["version"]["data"].get("families", [])
     else:
-        families = context["subset"]["data"]["families"]
+        # PYPE specific Backwards compatibility
+        families = set(context["subset"]["data"].get("families") or [])
+        for _family in context["version"]["data"].get("families", []):
+            families.add(_family)
 
     representation = context["representation"]
     has_family = ("*" in Loader.families or
