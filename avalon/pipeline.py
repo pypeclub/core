@@ -276,6 +276,15 @@ class Creator(object):
 
         self.data.update(data or {})
 
+    @classmethod
+    def get_subset_name(cls, user_text, task_name, asset_id, project_name):
+        # Capitalize first letter of user input
+        if user_text:
+            user_text = user_text[0].capitalize() + user_text[1:]
+
+        family = cls.family.rsplit(".", 1)[-1]
+        return "{}{}".format(family, user_text)
+
     def process(self):
         pass
 
