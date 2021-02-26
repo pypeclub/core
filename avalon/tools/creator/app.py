@@ -301,12 +301,30 @@ class Window(QtWidgets.QDialog):
             return
 
         # Get the asset from the database which match with the name
-        asset = io.find_one({"name": asset_name, "type": "asset"},
-                            projection={"_id": 1})
+        asset_doc = io.find_one(
+            {"name": asset_name, "type": "asset"},
+            projection={"_id": 1}
+        )
         # Get plugin
         plugin = item.data(PluginRole)
+        if asset_doc and plugin:
+            project_name = io.Session["AVALON_PROJECT"]
+            asset_id = asset_doc["_id"]
+            task_name = io.Session["AVALON_TASK"]
 
-        if asset and plugin:
+            # Calculate subset name with Creator plugin
+            subset_name = plugin.get_subset_name(
+                user_input_text, task_name, asset_id, project_name
+            )
+            # Force replacement of prohibited symbols
+            # QUESTION should Creator care about this and here should be only
+            #   validated with schema regex?
+            subset_name = re.sub(
+                "[^{}]+".format(SubsetAllowedSymbols),
+                "",
+                subset_name
+            )
+            result.setText(subset_name)
 
             # Get all subsets of the current asset
 
