@@ -23,11 +23,14 @@ PluginRole = QtCore.Qt.UserRole + 5
 
 Separator = "---separator---"
 
+# TODO regex should be defined by schema
+SubsetAllowedSymbols = "a-zA-Z0-9_."
+
 
 class SubsetNameValidator(QtGui.QRegExpValidator):
 
     invalid = QtCore.Signal(set)
-    pattern = "^[a-zA-Z0-9_.]*$"
+    pattern = "^[{}]*$".format(SubsetAllowedSymbols)
 
     def __init__(self):
         reg = QtCore.QRegExp(self.pattern)
