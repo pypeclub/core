@@ -282,14 +282,13 @@ class Window(QtWidgets.QDialog):
         name.setText(action.text())
 
     def _on_data_changed(self):
-
         listing = self.data["Listing"]
         asset_name = self.data["Asset"]
         subset = self.data["Subset"]
         result = self.data["Result"]
 
         item = listing.currentItem()
-        subset_name = subset.text()
+        user_input_text = subset.text()
         asset_name = asset_name.text()
 
         # Early exit if no asset name
@@ -327,13 +326,53 @@ class Window(QtWidgets.QDialog):
             result.setText(subset_name)
 
             # Get all subsets of the current asset
+            subset_docs = io.find(
+                {
+                    "type": "subset",
+                    "parent": asset_id
+                },
+                {"name": 1}
+            )
+            existing_subset_names = set(subset_docs.distinct("name"))
+            existing_subset_names_low = set(
+                _name.lower()
+                for _name in existing_subset_names
+            )
 
+            # Defaults to dropdown
+            defaults = []
+            # Check if Creator plugin has set defaults
+            if (
+                plugin.defaults
+                and isinstance(plugin.defaults, (list, tuple, set))
+            ):
+                defaults = list(plugin.defaults)
+
+            # Replace
+            compare_regex = re.compile(
+                subset_name.replace(user_input_text, "(.+)")
+            )
+            subset_hints = set()
+            if user_input_text:
+                for _name in existing_subset_names:
+                    _result = compare_regex.search(_name)
+                    if _result:
+                        subset_hints |= set(_result.groups())
+
+            subset_hints = subset_hints - set(defaults)
+            if subset_hints:
+                if defaults:
+                    defaults.append(Separator)
+                defaults.extend(subset_hints)
             self._build_menu(defaults)
 
             # Indicate subset existence
-            if not subset_name:
+            if not user_input_text:
                 subset.as_empty()
-            elif subset_name in existed_subsets:
+            elif subset_name.lower() in existing_subset_names_low:
+                # validate existence of subset name with lowered text
+                #   - "renderMain" vs. "rensermain" mean same path item for
+                #   windows
                 subset.as_exists()
             else:
                 subset.as_new()
@@ -341,6 +380,7 @@ class Window(QtWidgets.QDialog):
             item.setData(ExistsRole, True)
 
         else:
+            subset_name = user_input_text
             self._build_menu([])
             item.setData(ExistsRole, False)
 
