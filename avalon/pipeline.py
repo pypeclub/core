@@ -280,6 +280,26 @@ class Creator(object):
     def get_subset_name(
         cls, user_text, task_name, asset_id, project_name, host_name=None
     ):
+        """Return subset name created with entered arguments.
+
+        Logic extracted from Creator tool. This method should give ability
+        to get subset name without the tool.
+
+        TODO: Maybe change `user_text` variable.
+
+        By default is output concatenated family with user text.
+
+        Args:
+            user_text (str): What is entered by user in creator tool.
+            task_name (str): Context's task name.
+            asset_id (ObjectId): Mongo ID of context's asset.
+            project_name (str): Context's project name.
+            host_name (str): Name of host.
+
+        Returns:
+            str: Formatted subset name with entered arguments. Should match
+                config's logic.
+        """
         # Capitalize first letter of user input
         if user_text:
             user_text = user_text[0].capitalize() + user_text[1:]
