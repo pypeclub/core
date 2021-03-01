@@ -277,7 +277,9 @@ class Creator(object):
         self.data.update(data or {})
 
     @classmethod
-    def get_subset_name(cls, user_text, task_name, asset_id, project_name):
+    def get_subset_name(
+        cls, user_text, task_name, asset_id, project_name, host_name=None
+    ):
         # Capitalize first letter of user input
         if user_text:
             user_text = user_text[0].capitalize() + user_text[1:]
