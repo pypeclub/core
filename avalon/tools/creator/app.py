@@ -359,7 +359,6 @@ class Window(QtWidgets.QDialog):
                     if _result:
                         subset_hints |= set(_result.groups())
 
-            subset_hints = subset_hints - set(defaults)
             if subset_hints:
                 if defaults:
                     defaults.append(Separator)
