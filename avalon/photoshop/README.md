@@ -243,7 +243,7 @@ class ImageLoader(api.Loader):
 For easier debugging of Javascript:
 https://community.adobe.com/t5/download-install/adobe-extension-debuger-problem/td-p/10911704?page=1
 Add --enable-blink-features=ShadowDOMV0,CustomElementsV0 when starting Chrome
-then localhost:
+then localhost:8078 (port set in `photoshop\extension\.debug`)
 ## Resources
   - https://github.com/lohriialo/photoshop-scripting-python
   - https://www.adobe.com/devnet/photoshop/scripting.html

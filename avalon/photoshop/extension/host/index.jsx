@@ -177,6 +177,9 @@ function saveAs(output_path, ext, as_copy){
         saveOptions = null;
         return app.activeDocument.saveAs(new File(saveName));       
     }
+    if (ext == 'psb'){
+        return savePSB(output_path);
+    }
 
     return app.activeDocument.saveAs(new File(saveName), saveOptions, as_copy);   
     
@@ -399,11 +402,24 @@ function _undo() {
     executeAction(charIDToTypeID("undo", undefined, DialogModes.NO));
 };
 
+function savePSB(output_path){
+    /***
+     * Saves file as .psb to 'output_path'
+     * 
+     * output_path (str)
+     **/
+    var desc1 = new ActionDescriptor(); 
+    var desc2 = new ActionDescriptor(); 
+    desc2.putBoolean( stringIDToTypeID('maximizeCompatibility'), true );        
+    desc1.putObject( charIDToTypeID('As  '), charIDToTypeID('Pht8'), desc2 );        
+    desc1.putPath( charIDToTypeID('In  '), new File(output_path) );       
+    desc1.putBoolean( charIDToTypeID('LwCs'), true );        
+    executeAction( charIDToTypeID('save'), desc1, DialogModes.NO );      
+}
 
 // triggers when panel is opened, good for debugging 
 //log(getActiveDocumentName()); 
 //log.show();
-
 
 
 
