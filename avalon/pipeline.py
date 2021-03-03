@@ -56,7 +56,7 @@ HOST_WORKFILE_EXTENSIONS = {
     "maya": [".ma", ".mb"],
     "nuke": [".nk"],
     "hiero": [".hrox"],
-    "photoshop": [".psd"],
+    "photoshop": [".psd", ".psb"],
     "premiere": [".prproj"],
     "resolve": [".drp"],
     "aftereffects": [".aep"]
