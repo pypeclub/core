@@ -53,6 +53,65 @@ def ls():
         yield data
 
 
+def list_instances():
+    """
+        List all created instances from current workfile.
+
+        Pulls from File > File Info
+
+        Returns:
+            (list) of dictionaries matching instances format
+    """
+    stub = _get_stub()
+
+    if not stub:
+        return []
+
+    instances = []
+    layers_meta = stub.get_layers_metadata()
+    if layers_meta:
+        for key, instance in layers_meta.items():
+            instance['uuid'] = key
+            instances.append(instance)
+
+    return instances
+
+
+def remove_instance(instance):
+    """
+        Remove instance from current workfile metadata.
+
+        Updates metadata of current file in File > File Info
+
+        Args:
+            instance (dict): instance representation from subsetmanager model
+    """
+    stub = _get_stub()
+
+    if not stub:
+        return
+
+    stub.remove_instance(instance.get("uuid"))
+
+
+def _get_stub():
+    """
+        Handle pulling stub from PS to run operations on host
+    Returns:
+        (PhotoshopServerStub) or None
+    """
+    try:
+        stub = lib.stub()  # only after Photoshop is up
+    except lib.ConnectionNotEstablishedYet:
+        print("Not connected yet, ignoring")
+        return
+
+    if not stub.get_active_document_name():
+        return
+
+    return stub
+
+
 class Creator(api.Creator):
     """Creator plugin to create instances in Photoshop
 
