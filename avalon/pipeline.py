@@ -276,6 +276,37 @@ class Creator(object):
 
         self.data.update(data or {})
 
+    @classmethod
+    def get_subset_name(
+        cls, variant, task_name, asset_id, project_name, host_name=None
+    ):
+        """Return subset name created with entered arguments.
+
+        Logic extracted from Creator tool. This method should give ability
+        to get subset name without the tool.
+
+        TODO: Maybe change `variant` variable.
+
+        By default is output concatenated family with user text.
+
+        Args:
+            variant (str): What is entered by user in creator tool.
+            task_name (str): Context's task name.
+            asset_id (ObjectId): Mongo ID of context's asset.
+            project_name (str): Context's project name.
+            host_name (str): Name of host.
+
+        Returns:
+            str: Formatted subset name with entered arguments. Should match
+                config's logic.
+        """
+        # Capitalize first letter of user input
+        if variant:
+            variant = variant[0].capitalize() + variant[1:]
+
+        family = cls.family.rsplit(".", 1)[-1]
+        return "{}{}".format(family, variant)
+
     def process(self):
         pass
 
