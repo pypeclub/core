@@ -848,8 +848,19 @@ class Communicator:
             subprocess.DETACHED_PROCESS
             | subprocess.CREATE_NEW_PROCESS_GROUP
         )
+        env = os.environ.copy()
+        # Remove QuickTime from PATH on windows
+        # - quicktime overrides TVPaint's ffmpeg encode/decode which may
+        #   cause issues on loading
+        if platform.system().lower() == "windows":
+            new_path = []
+            for path in env["PATH"].split(os.pathsep):
+                if path and "quicktime" not in path.lower():
+                    new_path.append(path)
+            env["PATH"] = os.pathsep.join(new_path)
+
         kwargs = {
-            "env": os.environ,
+            "env": env,
             "creationflags": flags
         }
         self.process = subprocess.Popen(launch_args, **kwargs)
