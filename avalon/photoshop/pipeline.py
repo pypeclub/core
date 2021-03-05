@@ -1,7 +1,6 @@
 from .. import api, pipeline
 from . import lib
 from ..vendor import Qt
-from collections import namedtuple
 
 import pyblish.api
 
@@ -55,9 +54,12 @@ def ls():
 
 def list_instances():
     """
-        List all created instances from current workfile.
+        List all created instances from current workfile which
+        will be published.
 
         Pulls from File > File Info
+
+        For SubsetManager
 
         Returns:
             (list) of dictionaries matching instances format
@@ -71,6 +73,10 @@ def list_instances():
     layers_meta = stub.get_layers_metadata()
     if layers_meta:
         for key, instance in layers_meta.items():
+            if instance.get("schema") and \
+                    "container" in instance.get("schema"):
+                continue
+
             instance['uuid'] = key
             instances.append(instance)
 
@@ -81,7 +87,10 @@ def remove_instance(instance):
     """
         Remove instance from current workfile metadata.
 
-        Updates metadata of current file in File > File Info
+        Updates metadata of current file in File > File Info and removes
+        icon highlight on group layer.
+
+        For SubsetManager
 
         Args:
             instance (dict): instance representation from subsetmanager model
@@ -92,6 +101,10 @@ def remove_instance(instance):
         return
 
     stub.remove_instance(instance.get("uuid"))
+    layer = stub.get_layer(instance.get("uuid"))
+    if layer:
+        stub.rename_layer(instance.get("uuid"),
+                          layer.name.replace(stub.PUBLISH_ICON, ''))
 
 
 def _get_stub():
@@ -132,7 +145,6 @@ class Creator(api.Creator):
                 msg.exec_()
                 return False
 
-        group = None
         # Store selection because adding a group will change selection.
         with lib.maintained_selection():
 
@@ -161,7 +173,7 @@ def containerise(name,
     Arguments:
         name (str): Name of resulting assembly
         namespace (str): Namespace under which to host container
-        layer (Layer): Layer to containerise
+        layer (PSItem): Layer to containerise
         context (dict): Asset information
         loader (str, optional): Name of loader used to produce this container.
         suffix (str, optional): Suffix of container, defaults to `_CON`.
@@ -169,11 +181,7 @@ def containerise(name,
     Returns:
         container (str): Name of container assembly
     """
-    # layer is namedtuple - immutable - need to change to dict and back
-    # refactor to proper object
-    layer = layer._asdict()
-    layer["name"] = name + suffix
-    layer = namedtuple('Layer', layer.keys())(*layer.values())
+    layer.name = name + suffix
 
     data = {
         "schema": "avalon-core:container-2.0",
@@ -182,6 +190,7 @@ def containerise(name,
         "namespace": namespace,
         "loader": str(loader),
         "representation": str(context["representation"]["_id"]),
+        "members": [str(layer.id)]
     }
     stub = lib.stub()
     stub.imprint(layer, data)
