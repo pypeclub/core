@@ -232,10 +232,17 @@ function getSelectedLayers(doc) {
     }
         
     var selLayers = [];
-    grp = groupSelectedLayers(doc);
+    _grp = groupSelectedLayers(doc);
   
     var group = doc.activeLayer;
     var layers = group.layers;
+
+    // group is fake at this point
+    var itself_name = '';
+    if (layers){
+        itself_name = layers[0].name;
+    }
+    long_names =_get_parents_names(group.parent, itself_name);
     
     for (var i = 0; i < layers.length; i++) {
         var layer = {};
@@ -248,6 +255,7 @@ function getSelectedLayers(doc) {
         }else{
             layer.group = true;
         }
+        layer.long_name = long_names;
         
         selLayers.push(layer);
     }
@@ -291,6 +299,10 @@ function groupSelectedLayers(doc, name) {
     /**
      * Groups selected layers into new group.
      * Returns json representation of Layer for server to consume
+     * 
+     * Args:
+     *     doc(activeDocument)
+     *     name (str): new name of created group
      **/
     if (doc == null){
         doc = app.activeDocument;
@@ -309,13 +321,15 @@ function groupSelectedLayers(doc, name) {
     var group = doc.activeLayer;
     if (name){
         // Add special character to highlight group that will be published
-        group.name = '\u2117 ' + name;
+        group.name = name;
     }   
     var layer = {};
     layer.id = group.id;
     layer.name = name; // keep name clean
     layer.group = true; 
-    
+
+    layer.long_name = _get_parents_names(group, name);
+
     return JSON.stringify(layer);        
 };
 
@@ -381,7 +395,7 @@ function createGroup(name){
      **/
     group = app.activeDocument.layerSets.add();
     // Add special character to highlight group that will be published
-    group.name = '\u2117 ' + name;
+    group.name = name;
        
     return group.id;  // only id available at this time :|
 }
@@ -419,9 +433,42 @@ function savePSB(output_path){
     executeAction( charIDToTypeID('save'), desc1, DialogModes.NO );      
 }
 
+function renameLayer(layer_id, new_name){
+    /***
+     * Renames 'layer_id' to 'new_name'
+     * 
+     * Via Action (fast)
+     * 
+     * Args:
+     *    layer_id(int)
+     *    new_name(str)
+     * 
+     * output_path (str)
+     **/
+    doc = app.activeDocument;
+    var desc = new ActionDescriptor();
+    var ref = new ActionReference();
+    ref.putOffset(stringIDToTypeID("document"), 1);
+    desc.putReference(stringIDToTypeID("null"), ref);
+
+    executeAction(stringIDToTypeID("select"), desc, DialogModes.NO);
+    doc.activeLayer.name = new_name;
+}
+
+function _get_parents_names(layer, itself_name){
+    var long_names = [itself_name];
+    while (layer.parent){
+        if (layer.typename != "LayerSet"){
+            break;
+        }
+        long_names.push(layer.name);
+        layer = layer.parent;
+    }
+    return long_names;
+}
+
 // triggers when panel is opened, good for debugging 
 //log(getActiveDocumentName()); 
 //log.show();
-
-
-
+// var a = app.activeDocument.activeLayer;
+// log(a);

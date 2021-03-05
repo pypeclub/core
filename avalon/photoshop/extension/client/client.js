@@ -192,6 +192,16 @@
                       return result;
                   });
       });
+
+      RPC.addRoute('Photoshop.rename_layer', function (data) {
+        log.warn('Server called route "rename_layer":', data);
+        return runEvalScript("renameLayer("+data.layer_id+", " +
+                                          "'"+ data.name +"')")
+            .then(function(result){
+                log.warn("rename_layer: " + result);
+                return result;
+            });
+});
        
       RPC.addRoute('Photoshop.select_layers', function (data) {
               log.warn('Server called client route "select_layers":', data);
