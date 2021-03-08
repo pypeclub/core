@@ -192,6 +192,85 @@ def groups_data():
 
     output = parse_group_data(data)
     os.remove(output_filepath)
+
+
+def get_layers_pre_post_behavior(layer_ids):
+    """Collect data about pre and post behavior of layer ids.
+
+    Pre and Post behaviors is enumerator of possible values:
+    - "none"
+    - "repeat"
+    - "pingpong"
+    - "hold"
+
+    Example output:
+    ```json
+    {
+        0: {
+            "pre": "none",
+            "post": "loop"
+        }
+    }
+    ```
+
+    Returns:
+        dict: Key is layer id value is dictionary with "pre" and "post" keys.
+    """
+    # Skip if is empty
+    if not layer_ids:
+        return {}
+
+    # Auto convert to list
+    if not isinstance(layer_ids, (list, set, tuple)):
+        layer_ids = [layer_ids]
+
+    # Prepare temp file
+    output_file = tempfile.NamedTemporaryFile(
+        mode="w", prefix="a_tvp_", suffix=".txt", delete=False
+    )
+    output_file.close()
+
+    output_filepath = output_file.name.replace("\\", "/")
+    george_script_lines = [
+        # Variable containing full path to output file
+        "output_path = \"{}\"".format(output_filepath),
+    ]
+    for layer_id in layer_ids:
+        george_script_lines.extend([
+            "layer_id = {}".format(layer_id),
+            "tv_layerprebehavior layer_id",
+            "pre_beh = result",
+            "tv_layerpostbehavior layer_id",
+            "post_beh = result",
+            "line = layer_id'|'pre_beh'|'post_beh",
+            "tv_writetextfile \"strict\" \"append\" '\"'output_path'\"' line"
+        ])
+
+    george_script = "\n".join(george_script_lines)
+    execute_george_through_file(george_script)
+
+    # Read data
+    with open(output_filepath, "r") as stream:
+        data = stream.read()
+
+    # Remove temp file
+    os.remove(output_filepath)
+
+    # Parse data
+    output = {}
+    raw_lines = data.split("\n")
+    for raw_line in raw_lines:
+        line = raw_line.strip()
+        if not line:
+            continue
+        parts = line.split("|")
+        if len(parts) != 3:
+            continue
+        layer_id, pre_beh, post_beh = parts
+        output[int(layer_id)] = {
+            "pre": pre_beh.lower(),
+            "post": post_beh.lower()
+        }
     return output
 
 
