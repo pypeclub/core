@@ -237,17 +237,18 @@ function getSelectedLayers(doc) {
     var group = doc.activeLayer;
     var layers = group.layers;
 
-    // group is fake at this point
-    var itself_name = '';
-    if (layers){
-        itself_name = layers[0].name;
-    }
-    long_names =_get_parents_names(group.parent, itself_name);
+    // // group is fake at this point
+    // var itself_name = '';
+    // if (layers){
+    //     itself_name = layers[0].name;
+    // }
+    
     
     for (var i = 0; i < layers.length; i++) {
         var layer = {};
         layer.id = layers[i].id;
         layer.name = layers[i].name;
+        long_names =_get_parents_names(group.parent, layers[i].name);
         var t = layers[i].kind;
         if ((typeof t !== 'undefined') && 
             (layers[i].kind.toString() == 'LayerKind.NORMAL')){
@@ -267,7 +268,7 @@ function getSelectedLayers(doc) {
 
 function selectLayers(selectedLayers){
     /**
-     *  Selects layers from list of Layers(id:X, name:Y)
+     *  Selects layers from list of ids
      **/
     selectedLayers = JSON.parse(selectedLayers);
     var layers = new Array();
@@ -283,7 +284,7 @@ function selectLayers(selectedLayers){
     }
     for (var i = 0; i < selectedLayers.length; i++) {
        // a check to see if the id stil exists
-       var id = selectedLayers[i].id;
+       var id = selectedLayers[i];
        if(existing_ids.toString().indexOf(id)>=0){
            layers[i] = charIDToTypeID( "Lyr " );
            ref9.putIdentifier(layers[i], id);
@@ -446,12 +447,8 @@ function renameLayer(layer_id, new_name){
      * output_path (str)
      **/
     doc = app.activeDocument;
-    var desc = new ActionDescriptor();
-    var ref = new ActionReference();
-    ref.putOffset(stringIDToTypeID("document"), 1);
-    desc.putReference(stringIDToTypeID("null"), ref);
+    selectLayers('['+layer_id+']');
 
-    executeAction(stringIDToTypeID("select"), desc, DialogModes.NO);
     doc.activeLayer.name = new_name;
 }
 
@@ -472,3 +469,4 @@ function _get_parents_names(layer, itself_name){
 //log.show();
 // var a = app.activeDocument.activeLayer;
 // log(a);
+// getSelectedLayers();
