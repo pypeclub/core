@@ -41,7 +41,7 @@ self._is_installed = False
 self._config = None
 self.data = {}
 # The currently registered plugins from the last `discover` call.
-self.registered_plugins = {}
+self.last_discovered_plugins = {}
 
 log = logging.getLogger(__name__)
 
@@ -777,7 +777,7 @@ def discover(superclass):
     sorted_plugins = sorted(
         plugins.values(), key=lambda Plugin: Plugin.__name__
     )
-    self.registered_plugins[superclass.__name__] = sorted_plugins
+    self.last_discovered_plugins[superclass.__name__] = sorted_plugins
     return sorted_plugins
 
 

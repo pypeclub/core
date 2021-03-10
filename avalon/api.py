@@ -57,8 +57,9 @@ from .pipeline import (
     registered_host,
     registered_config,
     registered_plugin_paths,
-    registered_plugins,
     registered_root,
+
+    last_discovered_plugins,
 
     deregister_plugin,
     deregister_plugin_path,
