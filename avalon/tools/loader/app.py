@@ -2,7 +2,7 @@ import sys
 import time
 
 from ...vendor.Qt import QtWidgets, QtCore
-from ... import api, io, style
+from ... import api, io, style, pipeline
 
 from ..models import AssetModel
 from ..widgets import AssetWidget
@@ -17,6 +17,17 @@ module.window = None
 
 # Custom roles
 DocumentRole = AssetModel.DocumentRole
+
+
+# Register callback on task change
+# - callback can't be defined in Window as it is weak reference callback
+#   so `WeakSet` will remove it immidiatelly
+def on_context_task_change(*args, **kwargs):
+    if module.window:
+        module.window.on_context_task_change(*args, **kwargs)
+
+
+pipeline.on("taskChanged", on_context_task_change)
 
 
 class Window(QtWidgets.QDialog):
@@ -156,6 +167,11 @@ class Window(QtWidgets.QDialog):
                      50, channel="mongo")
 
     # ------------------------------
+
+    def on_context_task_change(self, *args, **kwargs):
+        # Change to context asset on context change
+        assets_widget = self.data["widgets"]["assets"]
+        assets_widget.select_assets(io.Session["AVALON_ASSET"])
 
     def _refresh(self):
         """Load assets from database"""
