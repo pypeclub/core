@@ -18,6 +18,7 @@ module.window = None
 # Custom roles
 DocumentRole = AssetModel.DocumentRole
 
+
 # Register callback on task change
 # - callback can't be defined in Window as it is weak reference callback
 #   so `WeakSet` will remove it immidiatelly
