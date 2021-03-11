@@ -406,9 +406,9 @@ class FilesWidget(QtWidgets.QWidget):
         buttons = QtWidgets.QWidget()
         layout = QtWidgets.QHBoxLayout(buttons)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(widgets["open"])
-        layout.addWidget(widgets["browse"])
         layout.addWidget(widgets["save"])
+        layout.addWidget(widgets["browse"])
+        layout.addWidget(widgets["open"])
 
         # Build files widgets for home page
         layout = QtWidgets.QVBoxLayout(self)
