@@ -580,7 +580,14 @@ class Application(Action):
             "name": session["AVALON_ASSET"]
         })
         tools = self.find_tools(asset)
-        tools_attr.extend(tools)
+        # Forwards compatibility
+        modified_tools = []
+        for tool in tools:
+            parts = tool.split("/")
+            if len(parts) > 1:
+                parts.pop(0)
+            modified_tools.append("/".join(parts))
+        tools_attr.extend(modified_tools)
 
         tools_env = acre.get_tools(tools_attr)
         dyn_env = acre.compute(tools_env)
