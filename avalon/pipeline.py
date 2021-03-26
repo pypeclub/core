@@ -580,13 +580,10 @@ class Application(Action):
             "name": session["AVALON_ASSET"]
         })
         tools = self.find_tools(asset)
-        # Forwards compatibility
+        # Forwards compatibility - replace slash with underscore
         modified_tools = []
         for tool in tools:
-            parts = tool.split("/")
-            if len(parts) > 1:
-                parts.pop(0)
-            modified_tools.append("/".join(parts))
+            modified_tools.append(tool.replace("/", "_"))
         tools_attr.extend(modified_tools)
 
         tools_env = acre.get_tools(tools_attr)
