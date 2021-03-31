@@ -52,8 +52,81 @@ def ls():
 
         # Append transient data
         data["layer"] = item
-
         yield data
+
+
+def list_instances():
+    """
+        List all created instances from current workfile which
+        will be published.
+
+        Pulls from File > File Info
+
+        For SubsetManager
+
+        Returns:
+            (list) of dictionaries matching instances format
+    """
+    stub = _get_stub()
+    if not stub:
+        return []
+
+    instances = []
+    layers_meta = stub.get_metadata()
+
+    for instance in layers_meta:
+        if instance.get("schema") and \
+                "container" in instance.get("schema"):
+            continue
+
+        uuid_val = instance.get("uuid")
+        if uuid_val:
+            instance['uuid'] = uuid_val
+        else:
+            instance['uuid'] = instance.get("members")[0]  # legacy
+        instances.append(instance)
+    return instances
+
+
+def remove_instance(instance):
+    """
+        Remove instance from current workfile metadata.
+
+        Updates metadata of current file in File > File Info and removes
+        icon highlight on group layer.
+
+        For SubsetManager
+
+        Args:
+            instance (dict): instance representation from subsetmanager model
+    """
+    stub = _get_stub()
+
+    if not stub:
+        return
+
+    stub.remove_instance(instance.get("uuid"))
+    item = stub.get_item(instance.get("uuid"))
+    if item:
+        stub.rename_item(item,
+                         item.name.replace(stub.PUBLISH_ICON, ''))
+
+def _get_stub():
+    """
+        Handle pulling stub from PS to run operations on host
+    Returns:
+        (AEServerStub) or None
+    """
+    try:
+        stub = lib.stub()  # only after Photoshop is up
+    except lib.ConnectionNotEstablishedYet:
+        print("Not connected yet, ignoring")
+        return
+
+    if not stub.get_active_document_name():
+        return
+
+    return stub
 
 
 class Creator(api.Creator):
