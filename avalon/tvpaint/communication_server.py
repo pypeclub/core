@@ -802,6 +802,13 @@ class Communicator:
 
         to_copy = []
         to_remove = []
+        # Remove old plugin name
+        deprecated_filepath = os.path.join(
+            host_plugins_path, "AvalonPlugin.dll"
+        )
+        if os.path.exists(deprecated_filepath):
+            to_remove.append(deprecated_filepath)
+
         for filename in os.listdir(plugin_dir):
             src_full_path = os.path.join(plugin_dir, filename)
             dst_full_path = os.path.join(host_plugins_path, filename)
