@@ -845,21 +845,35 @@ class Communicator:
             log.error("Plugin copy failed", exc_info=True)
 
         # Validate copy was done
-        invalid = []
+        invalid_copy = []
         for src, dst in to_copy:
             if not os.path.exists(dst) or not filecmp.cmp(src, dst):
-                invalid.append((src, dst))
+                invalid_copy.append((src, dst))
 
-        if invalid:
-            _invalid = []
-            for src, dst in invalid:
-                _invalid.append("\"{}\" -> \"{}\"".format(src, dst))
+        # Validate delete was dones
+        invalid_remove = []
+        for filepath in to_remove:
+            if os.path.exists(filepath):
+                invalid_remove.append(filepath)
 
-            raise RuntimeError(
-                "Copy of plugin files failed. Failed files {}".format(
-                    ", ".join(_invalid)
-                )
+        if not invalid_remove and not invalid_copy:
+            return
+
+        msg_parts = []
+        if invalid_remove:
+            msg_parts.append(
+                "Failed to remove files: {}".format(", ".join(invalid_remove))
             )
+
+        if invalid_copy:
+            _invalid = [
+                "\"{}\" -> \"{}\"".format(src, dst)
+                for src, dst in invalid_copy
+            ]
+            msg_parts.append(
+                "Failed to copy files: {}".format(", ".join(_invalid))
+            )
+        raise RuntimeError(" & ".join(msg_parts))
 
     def _launch_tv_paint(self, launch_args):
         flags = (
