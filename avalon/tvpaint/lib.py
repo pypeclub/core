@@ -192,6 +192,7 @@ def groups_data():
 
     output = parse_group_data(data)
     os.remove(output_filepath)
+    return output
 
 
 def get_layers_pre_post_behavior(layer_ids):
