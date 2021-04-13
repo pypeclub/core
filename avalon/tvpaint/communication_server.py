@@ -677,11 +677,11 @@ class Communicator:
             return None
         return self.callback_queue.get()
 
-    def _windows_copy(self, src_dst_mapping):
-        """Windows specific copy process asking for admin permissions.
+    def _windows_file_process(self, src_dst_mapping, to_remove):
+        """Windows specific file processing asking for admin permissions.
 
-        It is required to have administration permissions to copy plugin to
-        TVPaint installation folder.
+        It is required to have administration permissions to modify plugin
+        files in TVPaint installation folder.
 
         Method requires `pywin32` python module.
 
@@ -689,6 +689,7 @@ class Communicator:
             src_dst_mapping (list, tuple, set): Mapping of source file to
                 destination. Both must be full path. Each item must be iterable
                 of size 2 `(C:/src/file.dll, C:/dst/file.dll)`.
+            to_remove (list): Fullpath to files that should be removed.
         """
 
         from win32com.shell import shell
@@ -723,6 +724,13 @@ class Communicator:
             pythoncom.CLSCTX_ALL,
             shell.IID_IFileOperation
         )
+
+        # Add delete command to file operation object
+        for filepath in to_remove:
+            item = shell.SHCreateItemFromParsingName(
+                filepath, None, shell.IID_IShellItem
+            )
+            fo.DeleteItem(item)
 
         # here you can use SetOperationFlags, progress Sinks, etc.
         for folder_path, items in dst_folders.items():
@@ -793,9 +801,19 @@ class Communicator:
         plugin_dir = os.path.join(source_plugins_dir, "plugin")
 
         to_copy = []
+        to_remove = []
+        # Remove old plugin name
+        deprecated_filepath = os.path.join(
+            host_plugins_path, "AvalonPlugin.dll"
+        )
+        if os.path.exists(deprecated_filepath):
+            to_remove.append(deprecated_filepath)
+
         for filename in os.listdir(plugin_dir):
             src_full_path = os.path.join(plugin_dir, filename)
             dst_full_path = os.path.join(host_plugins_path, filename)
+            if dst_full_path in to_remove:
+                to_remove.remove(dst_full_path)
             if (
                 not os.path.exists(dst_full_path)
                 or not filecmp.cmp(src_full_path, dst_full_path)
@@ -817,31 +835,45 @@ class Communicator:
                 to_copy.append((localization_file_src, localization_file_dst))
 
         # Skip copy if everything is done
-        if not to_copy:
+        if not to_copy and not to_remove:
             return
 
         # Try to copy
         try:
-            self._windows_copy(to_copy)
+            self._windows_file_process(to_copy, to_remove)
         except Exception:
             log.error("Plugin copy failed", exc_info=True)
 
         # Validate copy was done
-        invalid = []
+        invalid_copy = []
         for src, dst in to_copy:
             if not os.path.exists(dst) or not filecmp.cmp(src, dst):
-                invalid.append((src, dst))
+                invalid_copy.append((src, dst))
 
-        if invalid:
-            _invalid = []
-            for src, dst in invalid:
-                _invalid.append("\"{}\" -> \"{}\"".format(src, dst))
+        # Validate delete was dones
+        invalid_remove = []
+        for filepath in to_remove:
+            if os.path.exists(filepath):
+                invalid_remove.append(filepath)
 
-            raise RuntimeError(
-                "Copy of plugin files failed. Failed files {}".format(
-                    ", ".join(_invalid)
-                )
+        if not invalid_remove and not invalid_copy:
+            return
+
+        msg_parts = []
+        if invalid_remove:
+            msg_parts.append(
+                "Failed to remove files: {}".format(", ".join(invalid_remove))
             )
+
+        if invalid_copy:
+            _invalid = [
+                "\"{}\" -> \"{}\"".format(src, dst)
+                for src, dst in invalid_copy
+            ]
+            msg_parts.append(
+                "Failed to copy files: {}".format(", ".join(_invalid))
+            )
+        raise RuntimeError(" & ".join(msg_parts))
 
     def _launch_tv_paint(self, launch_args):
         flags = (
