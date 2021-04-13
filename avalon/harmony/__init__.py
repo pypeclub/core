@@ -8,6 +8,9 @@ from .pipeline import (
     ls,
     install,
     Creator,
+    list_instances,
+    remove_instance,
+    select_instance,
     containerise
 )
 
@@ -21,6 +24,7 @@ from .lib import (
     save_scene,
     save_scene_as,
     remove,
+    delete_node,
     find_node_by_name,
     signature
 )
@@ -39,6 +43,9 @@ __all__ = [
     "ls",
     "install",
     "Creator",
+    "list_instances",
+    "remove_instance",
+    "select_instance",
     "containerise",
 
     # lib
@@ -51,6 +58,7 @@ __all__ = [
     "save_scene",
     "save_scene_as",
     "remove",
+    "delete_node",
     "find_node_by_name",
     "signature",
 
