@@ -214,3 +214,13 @@ AvalonHarmony.createContainer = function(args) {
     }
     return resultNode;
 };
+
+
+/**
+ * Delete node.
+ * @function
+ * @param {string} node Node path.
+ */
+AvalonHarmony.deleteNode = function(_node) {
+    node.deleteNode(_node, true, true);
+};

@@ -8,6 +8,8 @@ from .pipeline import (
     ls,
     Creator,
     install,
+    list_instances,
+    remove_instance,
     containerise
 )
 
@@ -33,6 +35,8 @@ __all__ = [
     "ls",
     "Creator",
     "install",
+    "list_instances",
+    "remove_instance",
     "containerise",
 
     # workfiles

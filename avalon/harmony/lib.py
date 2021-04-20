@@ -327,10 +327,20 @@ def read(node_id):
 
 
 def remove(node_id):
-    """Remove node data from scene."""
+    """Remove node data from scene metadata."""
     data = get_scene_data()
     del data[node_id]
     set_scene_data(data)
+
+
+def delete_node(node):
+    """ Physically delete node from scene. """
+    self.send(
+        {
+            "function": "AvalonHarmony.deleteNode",
+            "args": node
+        }
+    )
 
 
 def imprint(node_id, data, remove=False):
@@ -383,6 +393,16 @@ def maintained_selection():
 def send(request):
     """Public method for sending requests to Harmony."""
     return self.server.send(request)
+
+
+def select_nodes(nodes):
+    """ Selects nodes in Node View """
+    selected_nodes = self.send(
+        {
+            "function": "AvalonHarmony.selectNodes",
+            "args": nodes
+        }
+    )
 
 
 @contextlib.contextmanager

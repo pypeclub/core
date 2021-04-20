@@ -84,8 +84,8 @@
     
     <script type=text/javascript>
             $(function() {
-              $("a#projectmanager-button").bind("click", function() {
-                RPC.call('AfterEffects.projectmanager_route').then(function (data) {
+              $("a#subsetmanager-button").bind("click", function() {
+                RPC.call('AfterEffects.subsetmanager_route').then(function (data) {
                 }, function (error) {
                     alert(error);
                 });
@@ -106,6 +106,7 @@
             <div><a href=# id=loader-button><button class="hostFontSize">Load...</button></a></div>
             <div><a href=# id=publish-button><button class="hostFontSize">Publish...</button></a></div>
             <div><a href=# id=sceneinventory-button><button class="hostFontSize">Manage...</button></a></div>
+            <div><a href=# id=subsetmanager-button><button class="hostFontSize">Subset Manager...</button></a></div>
         </div>   
         
     </div>
