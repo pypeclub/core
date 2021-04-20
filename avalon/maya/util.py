@@ -6,11 +6,13 @@ Does NOT depend on any other module.
 
 import re
 
+import six
+
 from maya import cmds
 
 
 def unique(name):
-    assert isinstance(name, basestring), "`name` must be string"
+    assert isinstance(name, six.string_types), "`name` must be string"
 
     while cmds.objExists(name):
         matches = re.findall(r"\d+$", name)
