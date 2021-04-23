@@ -16,6 +16,7 @@ from ..tools.workfiles.app import Window as workfiles_window
 from ..tools.sceneinventory.app import Window as sceneinventory_window
 from pype.tools.pyblish_pype import app as pyblish_pype_app
 
+from .workio import OpenFileCacher
 from .. import api
 from ..vendor.Qt import QtWidgets, QtCore
 
@@ -83,6 +84,9 @@ def _process_app_events(app: QtWidgets.QApplication) -> Optional[float]:
     return the time after which this function should be run again. Else return
     None, so the function is not run again and will be unregistered.
     """
+    if OpenFileCacher.opening_file:
+        return TIMER_INTERVAL
+
     if app._instance and _has_visible_windows(app):
         app.processEvents()
         return TIMER_INTERVAL
