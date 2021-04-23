@@ -14,7 +14,7 @@ from ..tools.creator.app import Window as creator_window
 from ..tools.loader.app import Window as loader_window
 from ..tools.workfiles.app import Window as workfiles_window
 from ..tools.sceneinventory.app import Window as sceneinventory_window
-from ..tools import publish
+from pype.tools.pyblish_pype import app as pyblish_pype_app
 
 from .. import api
 from ..vendor.Qt import QtWidgets, QtCore
@@ -211,10 +211,7 @@ class LaunchPublisher(LaunchQtApp):
     bl_idname = "wm.avalon_publisher"
     bl_label = "Publish..."
 
-    def execute(self, context):
-        publish_show = publish._discover_gui()
-        publish.show()
-        return {'FINISHED'}
+    _window = pyblish_pype_app
 
 
 class LaunchManager(LaunchQtApp):
