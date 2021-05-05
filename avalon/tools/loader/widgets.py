@@ -6,7 +6,7 @@ import traceback
 import collections
 
 from ...vendor.Qt import QtWidgets, QtCore, QtGui
-from ... import api
+from ... import api, io
 from ... import pipeline
 from ...lib import HeroVersionType
 
@@ -201,8 +201,8 @@ class SubsetWidget(QtWidgets.QWidget):
             idx = model.Columns.index(column_name)
             view.setColumnWidth(idx, width)
 
-        if not model.sync_server or not model.sync_server.enabled:
-            lib.change_visibility(self.model, self.view, "repre_info", False)
+        actual_project = dbcon.Session["AVALON_PROJECT"]
+        self.on_project_change(actual_project)
 
         selection = view.selectionModel()
         selection.selectionChanged.connect(self.active_changed)
@@ -294,6 +294,21 @@ class SubsetWidget(QtWidgets.QWidget):
                 "subset": subset_docs_by_id[version_doc["parent"]]
             }
         return repre_context_by_id, repre_docs_by_version_id
+
+    def on_project_change(self, project_name):
+        """
+            Called on each project change in parent widget.
+
+            Checks if Sync Server is enabled for a project, pushes changes to
+            model.
+        """
+        self.model.reset_sync_server()
+        enabled = False
+        if self.model.sync_server:
+            enabled = \
+                project_name in self.model.sync_server.get_enabled_projects()
+
+        lib.change_visibility(self.model, self.view, "repre_info", enabled)
 
     def on_context_menu(self, point):
         """Shows menu with loader actions on Right-click.
@@ -879,13 +894,18 @@ class RepresentationWidget(QtWidgets.QWidget):
 
     def __init__(self, dbcon, tool_name=None, parent=None):
         super(RepresentationWidget, self).__init__(parent=parent)
+        if not dbcon:
+            dbcon = io
+
+        if not dbcon.Session:
+            dbcon.install()
 
         self.dbcon = dbcon
         self.tool_name = tool_name
 
         headers = [item[0] for item in self.default_widths]
 
-        model = RepresentationModel(dbcon, headers, [])
+        model = RepresentationModel(self.dbcon, headers, [])
 
         proxy_model = RepresentationSortProxyModel(self)
         proxy_model.setSourceModel(model)
@@ -926,7 +946,8 @@ class RepresentationWidget(QtWidgets.QWidget):
         self.model = model
         self.proxy_model = proxy_model
 
-        self.sync_server_enabled = model.sync_server.enabled
+        self.sync_server_enabled = \
+            model.sync_server and model.sync_server.enabled
 
         self.model.refresh()
 
