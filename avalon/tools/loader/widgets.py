@@ -946,7 +946,8 @@ class RepresentationWidget(QtWidgets.QWidget):
         self.model = model
         self.proxy_model = proxy_model
 
-        self.sync_server_enabled = model.sync_server.enabled
+        self.sync_server_enabled = \
+            model.sync_server and model.sync_server.enabled
 
         self.model.refresh()
 
