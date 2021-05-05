@@ -428,7 +428,7 @@ class SubsetsModel(TreeModel):
         self.stop_fetch_thread()
         self.clear()
 
-        self._reset_sync_server()
+        self.reset_sync_server()
 
         if not self._asset_ids:
             return
@@ -492,7 +492,7 @@ class SubsetsModel(TreeModel):
 
         return merge_group
 
-    def _reset_sync_server(self):
+    def reset_sync_server(self):
         """Sets/Resets sync server vars after every change (refresh.)"""
         repre_icons = {}
         sync_server = None
@@ -503,7 +503,7 @@ class SubsetsModel(TreeModel):
             manager = ModulesManager()
             sync_server = manager.modules_by_name["sync_server"]
 
-            if sync_server.enabled:
+            if project_name in sync_server.get_enabled_projects():
                 active_site = sync_server.get_active_site(project_name)
                 active_provider = sync_server.get_provider_for_site(
                     project_name, active_site)

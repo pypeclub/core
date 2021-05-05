@@ -10,10 +10,13 @@ from .widgets import LibrarySubsetWidget
 from ..loader.widgets import (
     ThumbnailWidget,
     VersionWidget,
-    FamilyListWidget
+    FamilyListWidget,
+    RepresentationWidget
 )
 from ..widgets import AssetWidget
 from ..models import AssetModel
+
+from openpype.modules import ModulesManager
 
 module = sys.modules[__name__]
 module.window = None
@@ -71,14 +74,9 @@ class Window(QtWidgets.QDialog):
             tool_name=self.tool_name,
             parent=self
         )
+
         version = VersionWidget(self.dbcon)
         thumbnail = ThumbnailWidget(self.dbcon)
-
-        thumb_ver_body = QtWidgets.QWidget()
-        thumb_ver_layout = QtWidgets.QVBoxLayout(thumb_ver_body)
-        thumb_ver_layout.setContentsMargins(0, 0, 0, 0)
-        thumb_ver_layout.addWidget(thumbnail)
-        thumb_ver_layout.addWidget(version)
 
         # Project
         self.combo_projects = QtWidgets.QComboBox()
@@ -92,12 +90,27 @@ class Window(QtWidgets.QDialog):
         asset_filter_splitter.setStretchFactor(1, 65)
         asset_filter_splitter.setStretchFactor(2, 35)
 
+        manager = ModulesManager()
+        sync_server = manager.modules_by_name["sync_server"]
+
+        # RepresentationWidget needs dbcon from environments, eg. io
+        representations = RepresentationWidget(None)
+
+        thumb_ver_splitter = QtWidgets.QSplitter()
+        thumb_ver_splitter.setOrientation(QtCore.Qt.Vertical)
+        thumb_ver_splitter.addWidget(thumbnail)
+        thumb_ver_splitter.addWidget(version)
+        if sync_server.enabled:
+            thumb_ver_splitter.addWidget(representations)
+        thumb_ver_splitter.setStretchFactor(0, 30)
+        thumb_ver_splitter.setStretchFactor(1, 35)
+
         container_layout = QtWidgets.QHBoxLayout(container)
         container_layout.setContentsMargins(0, 0, 0, 0)
         split = QtWidgets.QSplitter()
         split.addWidget(asset_filter_splitter)
         split.addWidget(subsets)
-        split.addWidget(thumb_ver_body)
+        split.addWidget(thumb_ver_splitter)
         split.setSizes([180, 950, 200])
         container_layout.addWidget(split)
 
@@ -122,7 +135,8 @@ class Window(QtWidgets.QDialog):
                 "assets": assets,
                 "subsets": subsets,
                 "version": version,
-                "thumbnail": thumbnail
+                "thumbnail": thumbnail,
+                "representations": representations
             },
             "label": {
                 "message": message,
@@ -140,11 +154,20 @@ class Window(QtWidgets.QDialog):
         subsets.version_changed.connect(self.on_versionschanged)
         self.combo_projects.currentTextChanged.connect(self.on_project_change)
 
+        self.sync_server = sync_server
+
         # Set default thumbnail on start
         thumbnail.set_thumbnail(None)
 
+        self._refresh()
+
         # Defaults
-        self.resize(1330, 700)
+        if sync_server.enabled:
+            split.setSizes([250, 1000, 550])
+            self.resize(1800, 900)
+        else:
+            split.setSizes([250, 850, 200])
+            self.resize(1300, 700)
 
     def on_assetview_click(self, *args):
         subsets_widget = self.data["widgets"]["subsets"]
@@ -209,6 +232,8 @@ class Window(QtWidgets.QDialog):
         title = "{} - {}".format(self.tool_title, project_name)
         self.setWindowTitle(title)
 
+        subsets = self.data["widgets"]["subsets"]
+        subsets.on_project_change(self.dbcon.Session["AVALON_PROJECT"])
 
     @property
     def current_project(self):
@@ -327,6 +352,9 @@ class Window(QtWidgets.QDialog):
 
         self.data["state"]["assetIds"] = asset_ids
 
+        representations = self.data["widgets"]["representations"]
+        representations.set_version_ids([])  # reset repre list
+
         self.echo("Duration: %.3fs" % (time.time() - t1))
 
     def _subsetschanged(self):
@@ -417,6 +445,10 @@ class Window(QtWidgets.QDialog):
                 thumbnail_docs = asset_docs
 
         self.data["widgets"]["thumbnail"].set_thumbnail(thumbnail_docs)
+
+        representations = self.data["widgets"]["representations"]
+        version_ids = [doc["_id"] for doc in version_docs or []]
+        representations.set_version_ids(version_ids)
 
     def _set_context(self, context, refresh=True):
         """Set the selection in the interface using a context.
