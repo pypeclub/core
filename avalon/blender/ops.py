@@ -216,6 +216,8 @@ class LaunchPublisher(LaunchQtApp):
 
         pyblish_pype_app.show()
 
+        return {'FINISHED'}
+
 
 class LaunchManager(LaunchQtApp):
     """Launch Avalon Manager."""
