@@ -6,13 +6,10 @@ import inspect
 import traceback
 import collections
 
-from bson import ObjectId
-
-from ...vendor.Qt import QtWidgets, QtCore, QtGui, QtSvg
+from ...vendor.Qt import QtWidgets, QtCore, QtGui
 from ...vendor import qtawesome
 from ... import api
 from ... import pipeline
-from ... import style
 from ...lib import MasterVersionType
 
 from .. import lib as tools_lib
