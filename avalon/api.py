@@ -21,6 +21,7 @@ from .pipeline import (
     CreatorError,
 
     Loader,
+    SubsetLoader,
     Creator,
     Action,
     InventoryAction,
@@ -88,6 +89,7 @@ __all__ = [
     "CreatorError",
 
     "Loader",
+    "SubsetLoader",
     "Creator",
     "Action",
     "InventoryAction",
@@ -118,6 +120,8 @@ __all__ = [
     "register_plugin_path",
     "register_plugin",
     "register_root",
+
+    "last_discovered_plugins",
 
     "registered_root",
     "registered_plugin_paths",
