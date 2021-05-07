@@ -1,5 +1,6 @@
 import os
 import sys
+import inspect
 import datetime
 import pprint
 import traceback
@@ -336,7 +337,17 @@ class SubsetWidget(QtWidgets.QWidget):
         available_loaders = api.discover(api.Loader)
         if self.tool_name:
             available_loaders = lib.remove_tool_name_from_loaders(
-                available_loaders, self.tool_name)
+                available_loaders, self.tool_name
+            )
+
+        repre_loaders = []
+        subset_loaders = []
+        for loader in available_loaders:
+            # Skip if its a SubsetLoader.
+            if api.SubsetLoader in inspect.getmro(loader):
+                subset_loaders.append(loader)
+            else:
+                repre_loaders.append(loader)
 
         loaders = list()
 
@@ -358,7 +369,7 @@ class SubsetWidget(QtWidgets.QWidget):
             for repre_doc in repre_docs:
                 repre_context = repre_context_by_id[repre_doc["_id"]]
                 for loader in pipeline.loaders_from_repre_context(
-                    available_loaders,
+                    repre_loaders,
                     repre_context
                 ):
                     # do not allow download whole repre, select specific repre
@@ -401,6 +412,10 @@ class SubsetWidget(QtWidgets.QWidget):
 
                 loaders.append((repre, loader))
 
+        # Subset Loaders.
+        for loader in subset_loaders:
+            loaders.append((None, loader))
+
         loaders = lib.sort_loaders(loaders)
 
         menu = OptionalMenu(self)
@@ -418,35 +433,44 @@ class SubsetWidget(QtWidgets.QWidget):
 
         # Find the representation name and loader to trigger
         action_representation, loader = action.data()
-        representation_name = action_representation["name"]  # extension
-
         options = lib.get_options(action, loader, self)
 
-        # Run the loader for all selected indices, for those that have the
-        # same representation available
+        if api.SubsetLoader in inspect.getmro(loader):
+            subset_ids = []
+            for item in items:
+                subset_ids.append(item["version_document"]["parent"])
 
-        # Trigger
-        repre_ids = []
-        for item in items:
-            representation = self.dbcon.find_one(
-                {
-                    "type": "representation",
-                    "name": representation_name,
-                    "parent": item["version_document"]["_id"]
-                },
-                {"_id": 1}
+            error_info = _load_subsets_by_loader(
+                loader, subset_ids, self.dbcon, options
             )
-            if not representation:
-                self.echo("Subset '{}' has no representation '{}'".format(
-                    item["subset"], representation_name
-                ))
-                continue
-            repre_ids.append(representation["_id"])
 
-        error_info = _load_representations_by_loader(
-            loader, repre_ids, self.dbcon,
-            options=options
-        )
+        else:
+            representation_name = action_representation["name"]
+
+            # Run the loader for all selected indices, for those that have the
+            # same representation available
+
+            # Trigger
+            repre_ids = []
+            for item in items:
+                representation = self.dbcon.find_one(
+                    {
+                        "type": "representation",
+                        "name": representation_name,
+                        "parent": item["version_document"]["_id"]
+                    },
+                    {"_id": 1}
+                )
+                if not representation:
+                    self.echo("Subset '{}' has no representation '{}'".format(
+                        item["subset"], representation_name
+                    ))
+                    continue
+                repre_ids.append(representation["_id"])
+
+            error_info = _load_representations_by_loader(
+                loader, repre_ids, self.dbcon, options=options
+            )
 
         if error_info:
             box = LoadErrorMessageBox(error_info)
