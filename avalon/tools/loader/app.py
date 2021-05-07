@@ -36,6 +36,8 @@ pipeline.on("taskChanged", on_context_task_change)
 class Window(QtWidgets.QDialog):
     """Asset loader interface"""
 
+    tool_name = "loader"
+
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
         self.setWindowTitle(
@@ -62,11 +64,12 @@ class Window(QtWidgets.QDialog):
             io,
             self.groups_config,
             self.family_config_cache,
+            tool_name=self.tool_name,
             parent=self
         )
         version = VersionWidget(io)
         thumbnail = ThumbnailWidget(io)
-        representations = RepresentationWidget(io)
+        representations = RepresentationWidget(io, self.tool_name)
 
         manager = ModulesManager()
         sync_server = manager.modules_by_name["sync_server"]
