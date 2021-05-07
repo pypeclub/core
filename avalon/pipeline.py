@@ -1362,7 +1362,7 @@ def get_subset_contexts(subset_ids, dbcon=None):
 
     subset_docs = dbcon.find({
         "type": "subset",
-        "_id": {"$in": list(subset_ids)}
+        "_id": {"$in": list(_subset_ids)}
     })
     subset_docs_by_id = {}
     asset_ids = set()
@@ -1381,7 +1381,7 @@ def get_subset_contexts(subset_ids, dbcon=None):
 
     project_doc = dbcon.find_one({"type": "project"})
 
-    for id, doc in subset_docs_by_id.items():
+    for subset_id, subset_doc in subset_docs_by_id.items():
         asset_doc = asset_docs_by_id[subset_doc["parent"]]
         context = {
             "project": {
@@ -1389,9 +1389,9 @@ def get_subset_contexts(subset_ids, dbcon=None):
                 "code": project_doc["data"].get("code")
             },
             "asset": asset_doc,
-            "subset": doc
+            "subset": subset_doc
         }
-        contexts[id] = context
+        contexts[subset_id] = context
 
     return contexts
 
