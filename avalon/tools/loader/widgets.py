@@ -1058,7 +1058,6 @@ class RepresentationWidget(QtWidgets.QWidget):
         # index under the cursor, so we can list the user the options.
         available_loaders = api.discover(api.Loader)
 
-        loaders = list()
         filtered_loaders = []
         for loader in available_loaders:
             # Skip subset loaders
@@ -1078,6 +1077,7 @@ class RepresentationWidget(QtWidgets.QWidget):
                 filtered_loaders, self.tool_name
             )
 
+        loaders = list()
         already_added_loaders = set()
         label_already_in_menu = set()
 
