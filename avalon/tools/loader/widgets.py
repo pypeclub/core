@@ -975,6 +975,63 @@ class RepresentationWidget(QtWidgets.QWidget):
 
         self.model.refresh()
 
+    def _repre_contexts_for_loaders_filter(self, items):
+        repre_ids = []
+        for item in items:
+            repre_ids.append(item["_id"])
+
+        repre_docs = list(self.dbcon.find(
+            {
+                "type": "representation",
+                "_id": {"$in": repre_ids}
+            },
+            {
+                "name": 1,
+                "parent": 1
+            }
+        ))
+        version_ids = [
+            repre_doc["parent"]
+            for repre_doc in repre_docs
+        ]
+        version_docs = self.dbcon.find({
+            "_id": {"$in": version_ids}
+        })
+
+        version_docs_by_id = {}
+        version_docs_by_subset_id = collections.defaultdict(list)
+        for version_doc in version_docs:
+            version_id = version_doc["_id"]
+            subset_id = version_doc["parent"]
+            version_docs_by_id[version_id] = version_doc
+            version_docs_by_subset_id[subset_id].append(version_doc)
+
+        subset_docs = list(self.dbcon.find(
+            {
+                "_id": {"$in": list(version_docs_by_subset_id.keys())},
+                "type": "subset"
+            },
+            {
+                "schema": 1,
+                "data.families": 1
+            }
+        ))
+        subset_docs_by_id = {
+            subset_doc["_id"]: subset_doc
+            for subset_doc in subset_docs
+        }
+        repre_context_by_id = {}
+        for repre_doc in repre_docs:
+            version_id = repre_doc["parent"]
+
+            version_doc = version_docs_by_id[version_id]
+            repre_context_by_id[repre_doc["_id"]] = {
+                "representation": repre_doc,
+                "version": version_doc,
+                "subset": subset_docs_by_id[version_doc["parent"]]
+            }
+        return repre_context_by_id
+
     def on_context_menu(self, point):
         """Shows menu with loader actions on Right-click.
 
@@ -1023,8 +1080,13 @@ class RepresentationWidget(QtWidgets.QWidget):
 
         already_added_loaders = set()
         label_already_in_menu = set()
+
+        repre_context_by_id = (
+            self._repre_contexts_for_loaders_filter(items)
+        )
+
         for item in items:
-            repre_context = pipeline.get_representation_context(item["_id"])
+            repre_context = repre_context_by_id[item["_id"]]
             for loader in pipeline.loaders_from_repre_context(
                 filtered_loaders,
                 repre_context
