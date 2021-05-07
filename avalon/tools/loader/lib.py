@@ -1,7 +1,7 @@
+import inspect
 from ...vendor.Qt import QtGui
 from ...vendor import qtawesome
 from ..widgets import OptionalAction, OptionDialog
-import inspect
 
 
 def change_visibility(model, view, column_name, visible):
@@ -68,7 +68,7 @@ def add_representation_loaders_to_menu(loaders, menu):
     # List the available loaders
     for representation, loader in loaders:
         label = None
-        if representation.get("custom_label"):
+        if representation:
             label = representation.get("custom_label")
 
         if not label:
