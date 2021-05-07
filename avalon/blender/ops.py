@@ -215,6 +215,7 @@ class LaunchPublisher(LaunchQtApp):
             wm['is_avalon_qt_timer_running'] = True
 
         pyblish_pype_app.show()
+        return {"FINISHED"}
 
 
 class LaunchManager(LaunchQtApp):
