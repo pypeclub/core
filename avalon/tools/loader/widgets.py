@@ -1277,3 +1277,60 @@ def _load_representations_by_loader(loader, repre_ids, dbcon,
                 repre_context["version"]["name"]
             ))
     return error_info
+
+
+def _load_subsets_by_loader(loader, subset_ids, dbcon, options):
+    subset_contexts_by_id = pipeline.get_subset_contexts(subset_ids, dbcon)
+    subset_contexts = list(subset_contexts_by_id.values())
+
+    error_info = []
+    if loader.is_multiple_contexts_compatible:
+        subset_names = []
+        for context in subset_contexts:
+            subset_name = context.get("subset", {}).get("name") or "N/A"
+            subset_names.append(subset_name)
+        try:
+            pipeline.load_with_subset_contexts(
+                loader,
+                subset_contexts,
+                options=options
+            )
+        except Exception as exc:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            formatted_traceback = "".join(
+                traceback.format_exception(
+                    exc_type, exc_value, exc_traceback
+                )
+            )
+            error_info.append((
+                str(exc),
+                formatted_traceback,
+                None,
+                ", ".join(subset_names),
+                None
+            ))
+    else:
+        for subset_context in subset_contexts_by_id.values():
+            subset_name = subset_context.get("subset", {}).get("name") or "N/A"
+            try:
+                pipeline.load_with_subset_context(
+                    loader,
+                    subset_context,
+                    options=options
+                )
+            except Exception as exc:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                formatted_traceback = "\n".join(
+                    traceback.format_exception(
+                        exc_type, exc_value, exc_traceback
+                    )
+                )
+                error_info.append((
+                    str(exc),
+                    formatted_traceback,
+                    None,
+                    subset_name,
+                    None
+                ))
+
+    return error_info
