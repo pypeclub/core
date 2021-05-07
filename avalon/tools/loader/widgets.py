@@ -1002,22 +1002,32 @@ class RepresentationWidget(QtWidgets.QWidget):
         available_loaders = api.discover(api.Loader)
 
         loaders = list()
+        filtered_loaders = []
         for loader in available_loaders:
-            if tools_lib.is_representation_loader(loader):
-                if not self.sync_server_enabled:
-                    available_loaders.remove(loader)
+            # Skip subset loaders
+            if api.SubsetLoader in inspect.getmro(loader):
+                continue
+
+            if (
+                tools_lib.is_representation_loader(loader)
+                and not self.sync_server_enabled
+            ):
+                continue
+
+            filtered_loaders.append(loader)
 
         if self.tool_name:
-            available_loaders = lib.remove_tool_name_from_loaders(
-                available_loaders, self.tool_name)
+            filtered_loaders = lib.remove_tool_name_from_loaders(
+                filtered_loaders, self.tool_name
+            )
 
         already_added_loaders = set()
         label_already_in_menu = set()
         for item in items:
             repre_context = pipeline.get_representation_context(item["_id"])
             for loader in pipeline.loaders_from_repre_context(
-                    available_loaders,
-                    repre_context
+                filtered_loaders,
+                repre_context
             ):
                 if tools_lib.is_representation_loader(loader):
                     both_unavailable = item["active_site_progress"] <= 0 and \
