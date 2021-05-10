@@ -68,7 +68,7 @@ def add_representation_loaders_to_menu(loaders, menu):
     # List the available loaders
     for representation, loader in loaders:
         label = None
-        if representation.get("custom_label"):
+        if representation:
             label = representation.get("custom_label")
 
         if not label:
