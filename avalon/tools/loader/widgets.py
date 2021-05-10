@@ -1,5 +1,6 @@
 import os
 import sys
+import inspect
 import datetime
 import pprint
 import traceback
@@ -336,7 +337,17 @@ class SubsetWidget(QtWidgets.QWidget):
         available_loaders = api.discover(api.Loader)
         if self.tool_name:
             available_loaders = lib.remove_tool_name_from_loaders(
-                available_loaders, self.tool_name)
+                available_loaders, self.tool_name
+            )
+
+        repre_loaders = []
+        subset_loaders = []
+        for loader in available_loaders:
+            # Skip if its a SubsetLoader.
+            if api.SubsetLoader in inspect.getmro(loader):
+                subset_loaders.append(loader)
+            else:
+                repre_loaders.append(loader)
 
         loaders = list()
 
@@ -358,7 +369,7 @@ class SubsetWidget(QtWidgets.QWidget):
             for repre_doc in repre_docs:
                 repre_context = repre_context_by_id[repre_doc["_id"]]
                 for loader in pipeline.loaders_from_repre_context(
-                    available_loaders,
+                    repre_loaders,
                     repre_context
                 ):
                     # do not allow download whole repre, select specific repre
@@ -401,6 +412,10 @@ class SubsetWidget(QtWidgets.QWidget):
 
                 loaders.append((repre, loader))
 
+        # Subset Loaders.
+        for loader in subset_loaders:
+            loaders.append((None, loader))
+
         loaders = lib.sort_loaders(loaders)
 
         menu = OptionalMenu(self)
@@ -418,35 +433,44 @@ class SubsetWidget(QtWidgets.QWidget):
 
         # Find the representation name and loader to trigger
         action_representation, loader = action.data()
-        representation_name = action_representation["name"]  # extension
-
         options = lib.get_options(action, loader, self)
 
-        # Run the loader for all selected indices, for those that have the
-        # same representation available
+        if api.SubsetLoader in inspect.getmro(loader):
+            subset_ids = []
+            for item in items:
+                subset_ids.append(item["version_document"]["parent"])
 
-        # Trigger
-        repre_ids = []
-        for item in items:
-            representation = self.dbcon.find_one(
-                {
-                    "type": "representation",
-                    "name": representation_name,
-                    "parent": item["version_document"]["_id"]
-                },
-                {"_id": 1}
+            error_info = _load_subsets_by_loader(
+                loader, subset_ids, self.dbcon, options
             )
-            if not representation:
-                self.echo("Subset '{}' has no representation '{}'".format(
-                    item["subset"], representation_name
-                ))
-                continue
-            repre_ids.append(representation["_id"])
 
-        error_info = _load_representations_by_loader(
-            loader, repre_ids, self.dbcon,
-            options=options
-        )
+        else:
+            representation_name = action_representation["name"]
+
+            # Run the loader for all selected indices, for those that have the
+            # same representation available
+
+            # Trigger
+            repre_ids = []
+            for item in items:
+                representation = self.dbcon.find_one(
+                    {
+                        "type": "representation",
+                        "name": representation_name,
+                        "parent": item["version_document"]["_id"]
+                    },
+                    {"_id": 1}
+                )
+                if not representation:
+                    self.echo("Subset '{}' has no representation '{}'".format(
+                        item["subset"], representation_name
+                    ))
+                    continue
+                repre_ids.append(representation["_id"])
+
+            error_info = _load_representations_by_loader(
+                loader, repre_ids, self.dbcon, options=options
+            )
 
         if error_info:
             box = LoadErrorMessageBox(error_info)
@@ -951,6 +975,63 @@ class RepresentationWidget(QtWidgets.QWidget):
 
         self.model.refresh()
 
+    def _repre_contexts_for_loaders_filter(self, items):
+        repre_ids = []
+        for item in items:
+            repre_ids.append(item["_id"])
+
+        repre_docs = list(self.dbcon.find(
+            {
+                "type": "representation",
+                "_id": {"$in": repre_ids}
+            },
+            {
+                "name": 1,
+                "parent": 1
+            }
+        ))
+        version_ids = [
+            repre_doc["parent"]
+            for repre_doc in repre_docs
+        ]
+        version_docs = self.dbcon.find({
+            "_id": {"$in": version_ids}
+        })
+
+        version_docs_by_id = {}
+        version_docs_by_subset_id = collections.defaultdict(list)
+        for version_doc in version_docs:
+            version_id = version_doc["_id"]
+            subset_id = version_doc["parent"]
+            version_docs_by_id[version_id] = version_doc
+            version_docs_by_subset_id[subset_id].append(version_doc)
+
+        subset_docs = list(self.dbcon.find(
+            {
+                "_id": {"$in": list(version_docs_by_subset_id.keys())},
+                "type": "subset"
+            },
+            {
+                "schema": 1,
+                "data.families": 1
+            }
+        ))
+        subset_docs_by_id = {
+            subset_doc["_id"]: subset_doc
+            for subset_doc in subset_docs
+        }
+        repre_context_by_id = {}
+        for repre_doc in repre_docs:
+            version_id = repre_doc["parent"]
+
+            version_doc = version_docs_by_id[version_id]
+            repre_context_by_id[repre_doc["_id"]] = {
+                "representation": repre_doc,
+                "version": version_doc,
+                "subset": subset_docs_by_id[version_doc["parent"]]
+            }
+        return repre_context_by_id
+
     def on_context_menu(self, point):
         """Shows menu with loader actions on Right-click.
 
@@ -977,23 +1058,38 @@ class RepresentationWidget(QtWidgets.QWidget):
         # index under the cursor, so we can list the user the options.
         available_loaders = api.discover(api.Loader)
 
-        loaders = list()
+        filtered_loaders = []
         for loader in available_loaders:
-            if tools_lib.is_representation_loader(loader):
-                if not self.sync_server_enabled:
-                    available_loaders.remove(loader)
+            # Skip subset loaders
+            if api.SubsetLoader in inspect.getmro(loader):
+                continue
+
+            if (
+                tools_lib.is_representation_loader(loader)
+                and not self.sync_server_enabled
+            ):
+                continue
+
+            filtered_loaders.append(loader)
 
         if self.tool_name:
-            available_loaders = lib.remove_tool_name_from_loaders(
-                available_loaders, self.tool_name)
+            filtered_loaders = lib.remove_tool_name_from_loaders(
+                filtered_loaders, self.tool_name
+            )
 
+        loaders = list()
         already_added_loaders = set()
         label_already_in_menu = set()
+
+        repre_context_by_id = (
+            self._repre_contexts_for_loaders_filter(items)
+        )
+
         for item in items:
-            repre_context = pipeline.get_representation_context(item["_id"])
+            repre_context = repre_context_by_id[item["_id"]]
             for loader in pipeline.loaders_from_repre_context(
-                    available_loaders,
-                    repre_context
+                filtered_loaders,
+                repre_context
             ):
                 if tools_lib.is_representation_loader(loader):
                     both_unavailable = item["active_site_progress"] <= 0 and \
@@ -1180,4 +1276,61 @@ def _load_representations_by_loader(loader, repre_ids, dbcon,
                 repre_context["subset"]["name"],
                 repre_context["version"]["name"]
             ))
+    return error_info
+
+
+def _load_subsets_by_loader(loader, subset_ids, dbcon, options):
+    subset_contexts_by_id = pipeline.get_subset_contexts(subset_ids, dbcon)
+    subset_contexts = list(subset_contexts_by_id.values())
+
+    error_info = []
+    if loader.is_multiple_contexts_compatible:
+        subset_names = []
+        for context in subset_contexts:
+            subset_name = context.get("subset", {}).get("name") or "N/A"
+            subset_names.append(subset_name)
+        try:
+            pipeline.load_with_subset_contexts(
+                loader,
+                subset_contexts,
+                options=options
+            )
+        except Exception as exc:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            formatted_traceback = "".join(
+                traceback.format_exception(
+                    exc_type, exc_value, exc_traceback
+                )
+            )
+            error_info.append((
+                str(exc),
+                formatted_traceback,
+                None,
+                ", ".join(subset_names),
+                None
+            ))
+    else:
+        for subset_context in subset_contexts_by_id.values():
+            subset_name = subset_context.get("subset", {}).get("name") or "N/A"
+            try:
+                pipeline.load_with_subset_context(
+                    loader,
+                    subset_context,
+                    options=options
+                )
+            except Exception as exc:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                formatted_traceback = "\n".join(
+                    traceback.format_exception(
+                        exc_type, exc_value, exc_traceback
+                    )
+                )
+                error_info.append((
+                    str(exc),
+                    formatted_traceback,
+                    None,
+                    subset_name,
+                    None
+                ))
+
     return error_info

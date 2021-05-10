@@ -190,6 +190,7 @@ class Loader(list):
     families = list()
     representations = list()
     order = 0
+    is_multiple_contexts_compatible = False
 
     def __init__(self, context):
         self.fname = self.filepath_from_context(context)
@@ -244,6 +245,19 @@ class Loader(list):
 
         raise NotImplementedError("Loader.remove() must be "
                                   "implemented by subclass")
+
+
+@lib.log
+class SubsetLoader(Loader):
+    """Load subset into host application
+    Arguments:
+        context (dict): avalon-core:context-1.0
+        name (str, optional): Use pre-defined name
+        namespace (str, optional): Use pre-defined namespace
+    """
+
+    def __init__(self, context):
+        pass
 
 
 class CreatorError(Exception):
@@ -1148,6 +1162,64 @@ def get_repres_contexts(representation_ids, dbcon=None):
     return contexts
 
 
+def get_subset_contexts(subset_ids, dbcon=None):
+    """Return parenthood context for subset.
+    Args:
+        subset_ids (list): The subset ids.
+        dbcon (AvalonMongoDB): Mongo connection object. `avalon.io` used when
+            not entered.
+    Returns:
+        dict: The full representation context by representation id.
+    """
+    if not dbcon:
+        dbcon = io
+
+    contexts = {}
+    if not subset_ids:
+        return contexts
+
+    _subset_ids = set()
+    for subset_id in subset_ids:
+        if isinstance(subset_id, six.string_types):
+            subset_id = io.ObjectId(subset_id)
+        _subset_ids.add(subset_id)
+
+    subset_docs = dbcon.find({
+        "type": "subset",
+        "_id": {"$in": list(_subset_ids)}
+    })
+    subset_docs_by_id = {}
+    asset_ids = set()
+    for subset_doc in subset_docs:
+        subset_docs_by_id[subset_doc["_id"]] = subset_doc
+        asset_ids.add(subset_doc["parent"])
+
+    asset_docs = dbcon.find({
+        "type": "asset",
+        "_id": {"$in": list(asset_ids)}
+    })
+    asset_docs_by_id = {
+        asset_doc["_id"]: asset_doc
+        for asset_doc in asset_docs
+    }
+
+    project_doc = dbcon.find_one({"type": "project"})
+
+    for subset_id, subset_doc in subset_docs_by_id.items():
+        asset_doc = asset_docs_by_id[subset_doc["parent"]]
+        context = {
+            "project": {
+                "name": project_doc["name"],
+                "code": project_doc["data"].get("code")
+            },
+            "asset": asset_doc,
+            "subset": subset_doc
+        }
+        contexts[subset_id] = context
+
+    return contexts
+
+
 def get_representation_context(representation):
     """Return parenthood context for representation.
 
@@ -1406,6 +1478,58 @@ def load_with_repre_context(
 
     loader = Loader(repre_context)
     return loader.load(repre_context, name, namespace, options)
+
+
+def load_with_subset_context(
+    Loader, subset_context, namespace=None, name=None, options=None, **kwargs
+):
+    Loader = _make_backwards_compatible_loader(Loader)
+
+    # Ensure options is a dictionary when no explicit options provided
+    if options is None:
+        options = kwargs.get("data", dict())  # "data" for backward compat
+
+    assert isinstance(options, dict), "Options must be a dictionary"
+
+    # Fallback to subset when name is None
+    if name is None:
+        name = subset_context["subset"]["name"]
+
+    log.info(
+        "Running '%s' on '%s'" % (
+            Loader.__name__, subset_context["asset"]["name"]
+        )
+    )
+
+    loader = Loader(subset_context)
+    return loader.load(subset_context, name, namespace, options)
+
+
+def load_with_subset_contexts(
+    Loader, subset_contexts, namespace=None, name=None, options=None, **kwargs
+):
+    Loader = _make_backwards_compatible_loader(Loader)
+
+    # Ensure options is a dictionary when no explicit options provided
+    if options is None:
+        options = kwargs.get("data", dict())  # "data" for backward compat
+
+    assert isinstance(options, dict), "Options must be a dictionary"
+
+    # Fallback to subset when name is None
+    joined_subset_names = " | ".join(
+        context["subset"]["name"]
+        for context in subset_contexts
+    )
+    if name is None:
+        name = joined_subset_names
+
+    log.info(
+        "Running '{}' on '{}'".format(Loader.__name__, joined_subset_names)
+    )
+
+    loader = Loader(subset_contexts)
+    return loader.load(subset_contexts, name, namespace, options)
 
 
 def load(Loader, representation, namespace=None, name=None, options=None,
