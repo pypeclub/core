@@ -235,6 +235,9 @@ class Window(QtWidgets.QDialog):
         subsets = self.data["widgets"]["subsets"]
         subsets.on_project_change(self.dbcon.Session["AVALON_PROJECT"])
 
+        representations = self.data["widgets"]["representations"]
+        representations.on_project_change(self.dbcon.Session["AVALON_PROJECT"])
+
     @property
     def current_project(self):
         if (

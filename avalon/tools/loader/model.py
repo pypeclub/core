@@ -26,7 +26,40 @@ def is_filtering_recursible():
                    "setRecursiveFilteringEnabled")
 
 
-class SubsetsModel(TreeModel):
+class BaseRepresentationModel:
+    """Methods for SyncServer useful in multiple models"""
+
+    def reset_sync_server(self, project_name=None):
+        """Sets/Resets sync server vars after every change (refresh.)"""
+        repre_icons = {}
+        sync_server = None
+        active_site = active_provider = None
+
+        if not project_name:
+            project_name = self.dbcon.Session["AVALON_PROJECT"]
+        else:
+            self.dbcon.Session["AVALON_PROJECT"] = project_name
+
+        if project_name:
+            manager = ModulesManager()
+            sync_server = manager.modules_by_name["sync_server"]
+
+            if project_name in sync_server.get_enabled_projects():
+                active_site = sync_server.get_active_site(project_name)
+                active_provider = sync_server.get_provider_for_site(
+                    project_name, active_site)
+                if active_site == 'studio':  # for studio use explicit icon
+                    active_provider = 'studio'
+
+                repre_icons = lib.get_repre_icons()
+
+        self.repre_icons = repre_icons
+        self.sync_server = sync_server
+        self.active_site = active_site
+        self.active_provider = active_provider
+
+
+class SubsetsModel(TreeModel, BaseRepresentationModel):
 
     doc_fetched = QtCore.Signal()
     refreshed = QtCore.Signal(bool)
@@ -492,31 +525,6 @@ class SubsetsModel(TreeModel):
 
         return merge_group
 
-    def reset_sync_server(self):
-        """Sets/Resets sync server vars after every change (refresh.)"""
-        repre_icons = {}
-        sync_server = None
-        active_site = active_provider = None
-
-        project_name = self.dbcon.Session["AVALON_PROJECT"]
-        if project_name:
-            manager = ModulesManager()
-            sync_server = manager.modules_by_name["sync_server"]
-
-            if project_name in sync_server.get_enabled_projects():
-                active_site = sync_server.get_active_site(project_name)
-                active_provider = sync_server.get_provider_for_site(
-                    project_name, active_site)
-                if active_site == 'studio':  # for studio use explicit icon
-                    active_provider = 'studio'
-
-                repre_icons = lib.get_repre_icons()
-
-        self.repre_icons = repre_icons
-        self.sync_server = sync_server
-        self.active_site = active_site
-        self.active_provider = active_provider
-
     def _fill_subset_items(
         self, asset_docs_by_id, subset_docs_by_id, last_versions_by_subset_id,
         repre_info_by_version_id
@@ -898,7 +906,7 @@ class RepresentationSortProxyModel(GroupMemberFilterProxyModel):
         return super(RepresentationSortProxyModel, self).lessThan(left, right)
 
 
-class RepresentationModel(TreeModel):
+class RepresentationModel(TreeModel, BaseRepresentationModel):
 
     doc_fetched = QtCore.Signal()
     refreshed = QtCore.Signal(bool)
@@ -1118,6 +1126,10 @@ class RepresentationModel(TreeModel):
 
     def refresh(self):
         docs = []
+        session_project = self.dbcon.Session['AVALON_PROJECT']
+        if not session_project:
+            return
+
         if self.version_ids:
             # Simple find here for now, expected to receive lower number of
             # representations and logic could be in Python

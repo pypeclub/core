@@ -302,7 +302,7 @@ class SubsetWidget(QtWidgets.QWidget):
             Checks if Sync Server is enabled for a project, pushes changes to
             model.
         """
-        self.model.reset_sync_server()
+        self.model.reset_sync_server(project_name)
         enabled = False
         if self.model.sync_server:
             enabled = \
@@ -950,6 +950,24 @@ class RepresentationWidget(QtWidgets.QWidget):
             model.sync_server and model.sync_server.enabled
 
         self.model.refresh()
+
+    def on_project_change(self, project_name):
+        """
+            Called on each project change in parent widget.
+
+            Checks if Sync Server is enabled for a project, pushes changes to
+            model.
+        """
+        self.model.reset_sync_server(project_name)
+        enabled = False
+        if self.model.sync_server:
+            enabled = \
+                project_name in self.model.sync_server.get_enabled_projects()
+
+        lib.change_visibility(self.model, self.tree_view,
+                              "active_site", enabled)
+        lib.change_visibility(self.model, self.tree_view,
+                              "remote_site", enabled)
 
     def on_context_menu(self, point):
         """Shows menu with loader actions on Right-click.
