@@ -1,7 +1,7 @@
+import inspect
 from ...vendor.Qt import QtGui
 from ...vendor import qtawesome
 from ..widgets import OptionalAction, OptionDialog
-import inspect
 
 
 def change_visibility(model, view, column_name, visible):

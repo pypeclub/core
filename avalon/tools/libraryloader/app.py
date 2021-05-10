@@ -93,8 +93,7 @@ class Window(QtWidgets.QDialog):
         manager = ModulesManager()
         sync_server = manager.modules_by_name["sync_server"]
 
-        # RepresentationWidget needs dbcon from environments, eg. io
-        representations = RepresentationWidget(None)
+        representations = RepresentationWidget(self.dbcon)
 
         thumb_ver_splitter = QtWidgets.QSplitter()
         thumb_ver_splitter.setOrientation(QtCore.Qt.Vertical)
