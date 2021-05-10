@@ -34,6 +34,7 @@ class BaseRepresentationModel:
         repre_icons = {}
         sync_server = None
         active_site = active_provider = None
+        remote_site = remote_provider = None
 
         if not project_name:
             project_name = self.dbcon.Session["AVALON_PROJECT"]
@@ -51,12 +52,20 @@ class BaseRepresentationModel:
                 if active_site == 'studio':  # for studio use explicit icon
                     active_provider = 'studio'
 
+                remote_site = sync_server.get_remote_site(project_name)
+                remote_provider = sync_server.get_provider_for_site(
+                    project_name, remote_site)
+                if remote_site == 'studio':  # for studio use explicit icon
+                    remote_provider = 'studio'
+
                 repre_icons = lib.get_repre_icons()
 
         self.repre_icons = repre_icons
         self.sync_server = sync_server
         self.active_site = active_site
         self.active_provider = active_provider
+        self.remote_site = remote_site
+        self.remote_provider = remote_provider
 
 
 class SubsetsModel(TreeModel, BaseRepresentationModel):

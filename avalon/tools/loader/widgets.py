@@ -987,6 +987,7 @@ class RepresentationWidget(QtWidgets.QWidget):
         if self.model.sync_server:
             enabled = \
                 project_name in self.model.sync_server.get_enabled_projects()
+            self.sync_server_enabled = enabled
 
         lib.change_visibility(self.model, self.tree_view,
                               "active_site", enabled)
@@ -1083,7 +1084,7 @@ class RepresentationWidget(QtWidgets.QWidget):
                 continue
 
             if (
-                tools_lib.is_representation_loader(loader)
+                tools_lib.is_sync_loader(loader)
                 and not self.sync_server_enabled
             ):
                 continue
