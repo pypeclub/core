@@ -303,11 +303,12 @@ class SubsetWidget(QtWidgets.QWidget):
             Checks if Sync Server is enabled for a project, pushes changes to
             model.
         """
-        self.model.reset_sync_server(project_name)
         enabled = False
-        if self.model.sync_server:
-            enabled = \
-                project_name in self.model.sync_server.get_enabled_projects()
+        if project_name:
+            self.model.reset_sync_server(project_name)
+            if self.model.sync_server:
+                enabled_proj = self.model.sync_server.get_enabled_projects()
+                enabled = project_name in enabled_proj
 
         lib.change_visibility(self.model, self.view, "repre_info", enabled)
 
@@ -918,12 +919,6 @@ class RepresentationWidget(QtWidgets.QWidget):
 
     def __init__(self, dbcon, tool_name=None, parent=None):
         super(RepresentationWidget, self).__init__(parent=parent)
-        if not dbcon:
-            dbcon = io
-
-        if not dbcon.Session:
-            dbcon.install()
-
         self.dbcon = dbcon
         self.tool_name = tool_name
 
@@ -970,8 +965,9 @@ class RepresentationWidget(QtWidgets.QWidget):
         self.model = model
         self.proxy_model = proxy_model
 
-        self.sync_server_enabled = \
-            model.sync_server and model.sync_server.enabled
+        self.sync_server_enabled = False
+        actual_project = dbcon.Session["AVALON_PROJECT"]
+        self.on_project_change(actual_project)
 
         self.model.refresh()
 
@@ -982,13 +978,14 @@ class RepresentationWidget(QtWidgets.QWidget):
             Checks if Sync Server is enabled for a project, pushes changes to
             model.
         """
-        self.model.reset_sync_server(project_name)
         enabled = False
-        if self.model.sync_server:
-            enabled = \
-                project_name in self.model.sync_server.get_enabled_projects()
-            self.sync_server_enabled = enabled
+        if project_name:
+            self.model.reset_sync_server(project_name)
+            if self.model.sync_server:
+                enabled_proj = self.model.sync_server.get_enabled_projects()
+                enabled = project_name in enabled_proj
 
+        self.sync_server_enabled = enabled
         lib.change_visibility(self.model, self.tree_view,
                               "active_site", enabled)
         lib.change_visibility(self.model, self.tree_view,

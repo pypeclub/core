@@ -35,7 +35,6 @@ class Window(QtWidgets.QDialog):
         self, parent=None, icon=None, show_projects=False, show_libraries=True
     ):
         super(Window, self).__init__(parent)
-
         # Enable minimize and maximize for app
         self.setWindowTitle(self.tool_title)
         self.setWindowFlags(QtCore.Qt.Window)
@@ -94,7 +93,6 @@ class Window(QtWidgets.QDialog):
         sync_server = manager.modules_by_name["sync_server"]
 
         representations = RepresentationWidget(self.dbcon)
-
         thumb_ver_splitter = QtWidgets.QSplitter()
         thumb_ver_splitter.setOrientation(QtCore.Qt.Vertical)
         thumb_ver_splitter.addWidget(thumbnail)

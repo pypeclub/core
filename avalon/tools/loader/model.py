@@ -26,7 +26,7 @@ def is_filtering_recursible():
                    "setRecursiveFilteringEnabled")
 
 
-class BaseRepresentationModel:
+class BaseRepresentationModel(object):
     """Methods for SyncServer useful in multiple models"""
 
     def reset_sync_server(self, project_name=None):
