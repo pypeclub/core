@@ -594,9 +594,10 @@ class SubsetsModel(TreeModel, BaseRepresentationModel):
                     )
                     data["last_version"] = last_version
 
-                    data.update(
-                        self._get_last_repre_info(repre_info_by_version_id,
-                                                  last_version["_id"]))
+                    if last_version:
+                        data.update(
+                            self._get_last_repre_info(repre_info_by_version_id,
+                                                      last_version["_id"]))
 
                     item = Item()
                     item.update(data)
@@ -629,8 +630,10 @@ class SubsetsModel(TreeModel, BaseRepresentationModel):
                 )
                 data["last_version"] = last_version
 
-                data.update(self._get_last_repre_info(repre_info_by_version_id,
-                                                      last_version["_id"]))
+                if last_version:
+                    data.update(
+                        self._get_last_repre_info(repre_info_by_version_id,
+                                                  last_version["_id"]))
 
                 item = Item()
                 item.update(data)
