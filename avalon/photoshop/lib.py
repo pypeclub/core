@@ -8,6 +8,7 @@ import logging
 import functools
 import time
 import traceback
+import asyncio
 
 from wsrpc_aiohttp import (
     WebSocketRoute,
@@ -101,6 +102,20 @@ class PhotoshopRoute(WebSocketRoute):
 
     # This method calls function on the client side
     # client functions
+    async def set_context(self, project, asset):
+        """
+            Sets 'project' and 'asset' to envs, eg. setting context
+
+            Args:
+                project (str)
+                asset (str)
+        """
+        log.info("Setting context change")
+        log.info("project {} asset {} ".format(project, asset))
+        if project:
+            os.environ["AVALON_PROJECT"] = project
+        if asset:
+            os.environ["AVALON_ASSET"] = asset
 
     async def read(self):
         log.debug("photoshop.read client calls server server calls "
@@ -154,7 +169,6 @@ def stub():
 def safe_excepthook(*args):
     traceback.print_exception(*args)
 
-
 def launch(*subprocess_args):
     """Starts the websocket server that will be hosted
        in the Photoshop extension.
@@ -167,6 +181,13 @@ def launch(*subprocess_args):
     process = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE)
 
     websocket_server = WebServerTool()
+
+    if websocket_server.port_occupied(websocket_server.host_name,
+                                      websocket_server.port):
+        log.info("Server already running, sending actual context and exit")
+        asyncio.run(websocket_server.send_context_change())
+        sys.exit(1)
+
     # Add Websocket route
     websocket_server.add_route("*", "/ws/", WebSocketAsync)
     # Add after effects route to websocket handler

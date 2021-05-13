@@ -8,8 +8,13 @@ import logging
 import urllib
 import threading
 import asyncio
+import socket
 
 from aiohttp import web
+
+from wsrpc_aiohttp import (
+    WSRPCClient
+)
 
 log = logging.getLogger(__name__)
 
@@ -31,17 +36,22 @@ class WebServerTool:
         self.on_stop_callbacks = []
 
         port = None
+        host_name = "localhost"
         websocket_url = os.getenv("WEBSOCKET_URL")
         if websocket_url:
             parsed = urllib.parse.urlparse(websocket_url)
             port = parsed.port
+            host_name = parsed.netloc.split(":")[0]
         if not port:
             port = 8098  # fallback
+
+        self.port = port
+        self.host_name = host_name
 
         self.app = web.Application()
 
         # add route with multiple methods for single "external app"
-        self.webserver_thread = WebServerThread(self, port)
+        self.webserver_thread = WebServerThread(self, self.port)
 
     def add_route(self, *args, **kwargs):
         self.app.router.add_route(*args, **kwargs)
@@ -55,6 +65,41 @@ class WebServerTool:
 
     def stop_server(self):
         self.stop()
+
+    async def send_context_change(self):
+        """
+            Calls running webserver to inform about context change
+
+            Used when new PS should be triggered, but one already running, without
+            this publish would point to old context.
+        """
+        client = WSRPCClient(os.getenv("WEBSOCKET_URL"),
+                             loop=asyncio.get_event_loop())
+        await client.connect()
+
+        project = os.environ["AVALON_PROJECT"]
+        asset = os.environ["AVALON_ASSET"]
+        log.info("Sending context change to {}-{}".format(project, asset))
+        await client.proxy.Photoshop.set_context(project=project, asset=asset)
+        await client.close()
+
+    def port_occupied(self, host_name, port):
+        """
+            Check if 'url' is already occupied.
+
+            This could mean, that app is already running and we are trying open it
+            again. In that case, use existing running webserver.
+            Check here is easier than capturing exception from thread.
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = True
+        try:
+            sock.bind((host_name, port))
+            result = False
+        except:
+            print("Port is in use")
+
+        return result
 
     def call(self, func):
         log.debug("websocket.call {}".format(func))
@@ -135,12 +180,13 @@ class WebServerThread(threading.Thread):
             log.warning(
                 "Websocket Server service has failed", exc_info=True
             )
+            raise
         finally:
             self.loop.close()  # optional
 
-        self.is_running = False
-        self.module.thread_stopped()
-        log.info("Websocket server stopped")
+            self.is_running = False
+            self.module.thread_stopped()
+            log.info("Websocket server stopped")
 
     async def start_server(self):
         """ Starts runner and TCPsite """
