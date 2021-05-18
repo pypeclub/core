@@ -611,7 +611,7 @@ def get_progress_for_repre(doc, active_site, remote_site):
     return avg_progress
 
 
-def is_representation_loader(loader):
+def is_sync_loader(loader):
     return is_remove_site_loader(loader) or is_add_site_loader(loader)
 
 
