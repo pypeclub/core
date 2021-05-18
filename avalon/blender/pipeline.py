@@ -42,6 +42,8 @@ def _on_load_post(*args):
     else:
         api.emit("new", args)
 
+    ops.OpenFileCacher.post_load()
+
 
 def _register_callbacks():
     """Register callbacks for certain events."""
