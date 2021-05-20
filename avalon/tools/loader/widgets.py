@@ -438,11 +438,14 @@ class SubsetWidget(QtWidgets.QWidget):
 
         if api.SubsetLoader in inspect.getmro(loader):
             subset_ids = []
+            subset_version_docs = {}
             for item in items:
-                subset_ids.append(item["version_document"]["parent"])
+                subset_id = item["version_document"]["parent"]
+                subset_ids.append(subset_id)
+                subset_version_docs[subset_id] = item["version_document"]
 
             error_info = _load_subsets_by_loader(
-                loader, subset_ids, self.dbcon, options
+                loader, subset_ids, self.dbcon, options, subset_version_docs
             )
 
         else:
@@ -1295,7 +1298,18 @@ def _load_representations_by_loader(loader, repre_ids, dbcon,
     return error_info
 
 
-def _load_subsets_by_loader(loader, subset_ids, dbcon, options):
+def _load_subsets_by_loader(loader, subset_ids, dbcon, options,
+                            subset_version_docs=None):
+    """
+        Triggers load with SubsetLoader type of loaders
+
+        Args:
+            loader (SubsetLoder):
+            subset_ids (list): of subset ObjectId
+            dbcon (AvalonMongoDB)
+            options (dict):
+            subset_version_docs (dict): {subset_id: version_doc}
+    """
     subset_contexts_by_id = pipeline.get_subset_contexts(subset_ids, dbcon)
     subset_contexts = list(subset_contexts_by_id.values())
 
@@ -1305,6 +1319,8 @@ def _load_subsets_by_loader(loader, subset_ids, dbcon, options):
         for context in subset_contexts:
             subset_name = context.get("subset", {}).get("name") or "N/A"
             subset_names.append(subset_name)
+
+            context["version"] = subset_version_docs[context["subset"]["_id"]]
         try:
             pipeline.load_with_subset_contexts(
                 loader,
@@ -1328,6 +1344,9 @@ def _load_subsets_by_loader(loader, subset_ids, dbcon, options):
     else:
         for subset_context in subset_contexts_by_id.values():
             subset_name = subset_context.get("subset", {}).get("name") or "N/A"
+
+            version_doc = subset_version_docs[subset_context["subset"]["_id"]]
+            subset_context["version"] = version_doc
             try:
                 pipeline.load_with_subset_context(
                     loader,
