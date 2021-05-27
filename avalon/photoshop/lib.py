@@ -1,14 +1,12 @@
-import collections
+import os
 import sys
 import contextlib
 import subprocess
-import queue
 import importlib
 import logging
 import functools
 import time
 import traceback
-from io import StringIO
 
 from wsrpc_aiohttp import (
     WebSocketRoute,
@@ -17,22 +15,15 @@ from wsrpc_aiohttp import (
 
 from Qt import QtWidgets, QtCore, QtGui
 
-from avalon import style
 from avalon.tools.webserver.app import WebServerTool
 
 from openpype.tools import workfiles
-from openpype import resources
+from openpype.tools.tray_app.app import TrayApp
 
 from .ws_stub import PhotoshopServerStub
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
-
-
-def execute_in_main_thread(func_to_call_from_main_thread):
-    if not TrayApp.callback_queue:
-        TrayApp.callback_queue = queue.Queue()
-    TrayApp.callback_queue.put(func_to_call_from_main_thread)
 
 
 def show(module_name):
@@ -112,7 +103,7 @@ class PhotoshopRoute(WebSocketRoute):
         """The address accessed when clicking on the buttons."""
         partial_method = functools.partial(show, tool_name)
 
-        execute_in_main_thread(partial_method)
+        TrayApp.execute_in_main_thread(partial_method)
 
         # Required return statement.
         return "nothing"
@@ -137,172 +128,14 @@ def safe_excepthook(*args):
     traceback.print_exception(*args)
 
 
-class TrayApp:
-    callback_queue = None
-
-    def __init__(self, host):
-        self.host = host
-
-        self.initialized = False
-        self.websocket_server = None
-        self.timer = None
-        self.subprocess_args = None
-        self.initializing = False
-        self.tray = False
-
-        self.original_stdout_write = None
-        self.original_stderr_write = None
-        self.new_text = collections.deque()
-
-        self.icons = self._select_icons(self.host)
-        self.status_texts = self._prepare_status_texts(self.host)
-
-        tray = QtWidgets.QSystemTrayIcon()
-
-        tray.show()
-        tray.activated.connect(self.open_console)
-
-        self.tray = tray
-        self.dialog = ConsoleDialog(self.new_text)
-
-        self.change_status("initializing")
-
-    def _prepare_status_texts(self, host_name):
-        status_texts = {
-            'initializing': "Starting communication with {}".format(self.host),
-            'ready': "Communicating with {}".format(self.host),
-            'error': "Error!"
-        }
-
-        return status_texts
-
-    def _select_icons(self, host_name):
-        # use host_name
-        icons = {
-            'initializing': QtGui.QIcon(
-                resources.get_resource("icons", "circle_orange.png")
-            ),
-            'ready': QtGui.QIcon(
-                resources.get_resource("icons", "circle_green.png")
-            ),
-            'error': QtGui.QIcon(
-                resources.get_resource("icons", "circle_red.png")
-            )
-        }
-
-        return icons
-
-    def on_timer(self):
-        self.dialog.append_text(self.new_text)
-        if not self.initialized:
-            if self.initializing:
-                return
-            TrayApp.callback_queue = queue.Queue()
-            self.initializing = True
-
-            launch(*self.subprocess_args)
-            self.initialized = True
-            self.initializing = False
-            self.change_status("ready")
-        elif TrayApp.callback_queue:
-            try:
-                callback = TrayApp.callback_queue.get(block=False)
-                callback()
-            except queue.Empty:
-                pass
-        else:
-            if self.process.poll() is not None:
-                # Wait on Photoshop to close before closing the websocket serv.
-                self.process.wait()
-                self.websocket_server.stop()
-                self.timer.stop()
-                self.change_status("error")
-
-    def redirect_stds(self):
-        if sys.stdout:
-            self.original_stdout_write = sys.stdout.write
-        else:
-            sys.stdout = StringIO()
-
-        if sys.stderr:
-            self.original_stderr_write = sys.stdout.write
-        else:
-            sys.stderr = StringIO()
-
-        sys.stdout.write = self.my_stdout_write
-        sys.stderr.write = self.my_stderr_write
-
-    def my_stdout_write(self, text):
-        if self.original_stdout_write is not None:
-            self.original_stdout_write(text)
-        self.new_text.append(text)
-
-    def my_stderr_write(self, text):
-        if self.original_stderr_write is not None:
-            self.original_stderr_write(text)
-        self.new_text.append(text)
-
-    def change_status(self, status):
-        self._change_tooltip(status)
-        self._change_icon(status)
-
-    def _change_tooltip(self, status):
-        status = self.status_texts.get(status)
-        if not status:
-            raise ValueError("Unknown state")
-
-        self.tray.setToolTip(status)
-
-    def _change_icon(self, state):
-        icon = self.icons.get(state)
-        if not icon:
-            raise ValueError("Unknown state")
-
-        self.tray.setIcon(icon)
-
-    def open_console(self):
-        self.dialog.show()
-
-
-class ConsoleDialog(QtWidgets.QDialog):
-    WIDTH = 720
-    HEIGHT = 450
-
-    def __init__(self, text, parent=None):
-        super(ConsoleDialog, self).__init__(parent)
-        layout = QtWidgets.QHBoxLayout(parent)
-
-        plain_text = QtWidgets.QPlainTextEdit(self)
-        plain_text.setReadOnly(True)
-        plain_text.resize(self.WIDTH, self.HEIGHT)
-        while text:
-            plain_text.appendPlainText(text.popleft().strip())
-
-        layout.addWidget(plain_text)
-
-        self.plain_text = plain_text
-
-        self.setStyleSheet(style.load_stylesheet())
-
-        self.resize(self.WIDTH, self.HEIGHT)
-
-    def append_text(self, new_text):
-        while new_text:
-            self.plain_text.appendPlainText(new_text.popleft().rstrip())
-
 def main(*subprocess_args):
+    os.environ["OPENPYPE_LOG_NO_COLORS"] = "False"  # coloring in TrayApp
     app = QtWidgets.QApplication([])
     app.setQuitOnLastWindowClosed(False)
 
     trayApp = TrayApp('photoshop')
-    trayApp.redirect_stds()
+    trayApp.launch_method = launch
     trayApp.subprocess_args = subprocess_args
-
-    timer = QtCore.QTimer()
-    trayApp.timer = timer
-    timer.timeout.connect(trayApp.on_timer)
-    timer.setInterval(200)
-    timer.start()
 
     sys.exit(app.exec_())
 
@@ -350,11 +183,11 @@ def launch(*subprocess_args):
             api.emit("application.launched")
 
         # Wait for application launch to show Workfiles.
-        # if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
-        #     if os.getenv("WORKFILES_SAVE_AS"):
-        #         workfiles.show(save=False)
-        #     else:
-        #         workfiles.show()
+        if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
+            if os.getenv("WORKFILES_SAVE_AS"):
+                workfiles.show(save=False)
+            else:
+                workfiles.show()
 
     except ConnectionNotEstablishedYet:
         pass
