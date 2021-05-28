@@ -18,7 +18,7 @@ from Qt import QtWidgets, QtCore, QtGui
 from avalon.tools.webserver.app import WebServerTool
 
 from openpype.tools import workfiles
-from openpype.tools.tray_app.app import TrayApp
+from openpype.tools.tray_app.app import ConsoleTrayIcon
 
 from .ws_stub import PhotoshopServerStub
 
@@ -103,7 +103,7 @@ class PhotoshopRoute(WebSocketRoute):
         """The address accessed when clicking on the buttons."""
         partial_method = functools.partial(show, tool_name)
 
-        TrayApp.execute_in_main_thread(partial_method)
+        ConsoleTrayIcon.execute_in_main_thread(partial_method)
 
         # Required return statement.
         return "nothing"
@@ -129,13 +129,29 @@ def safe_excepthook(*args):
 
 
 def main(*subprocess_args):
-    os.environ["OPENPYPE_LOG_NO_COLORS"] = "False"  # coloring in TrayApp
+    from avalon import photoshop
+
+    def is_host_connected():
+        """Returns True if connected, False if app is not running at all."""
+        if ConsoleTrayIcon.process.poll() is not None:
+            return False
+        try:
+            _stub = photoshop.stub()
+
+            if _stub:
+                return True
+        except Exception:
+            pass
+
+        return None
+
+    # coloring in ConsoleTrayIcon
+    os.environ["OPENPYPE_LOG_NO_COLORS"] = "False"
     app = QtWidgets.QApplication([])
     app.setQuitOnLastWindowClosed(False)
 
-    trayApp = TrayApp('photoshop')
-    trayApp.launch_method = launch
-    trayApp.subprocess_args = subprocess_args
+    consoleTrayIcon = ConsoleTrayIcon('photoshop', launch,
+                                      subprocess_args, is_host_connected)
 
     sys.exit(app.exec_())
 
@@ -149,7 +165,8 @@ def launch(*subprocess_args):
     api.install(photoshop)
     sys.excepthook = safe_excepthook
     # Launch Photoshop and the websocket server.
-    TrayApp.process = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE)
+    ConsoleTrayIcon.process = subprocess.Popen(subprocess_args,
+                                               stdout=subprocess.PIPE)
 
     websocket_server = WebServerTool()
     # Add Websocket route
@@ -162,35 +179,14 @@ def launch(*subprocess_args):
     )
     websocket_server.start_server()
 
-    TrayApp.websocket_server = websocket_server
+    ConsoleTrayIcon.websocket_server = websocket_server
 
-    while True:
-        # add timeout
-        if TrayApp.process.poll() is not None:
-            print("Photoshop process is not alive. Exiting")
-            TrayApp.websocket_server.stop()
-            sys.exit(1)
-        try:
-            _stub = photoshop.stub()
-            if _stub:
-                break
-        except Exception:
-            time.sleep(0.5)
+    if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
+        save = False
+        if os.getenv("WORKFILES_SAVE_AS"):
+            save = True
 
-    # Photoshop could be closed immediately, withou workfile selection
-    try:
-        if photoshop.stub():
-            api.emit("application.launched")
-
-        # Wait for application launch to show Workfiles.
-        if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
-            if os.getenv("WORKFILES_SAVE_AS"):
-                workfiles.show(save=False)
-            else:
-                workfiles.show()
-
-    except ConnectionNotEstablishedYet:
-        pass
+        ConsoleTrayIcon.execute_in_main_thread(lambda: workfiles.show(save))
 
 
 @contextlib.contextmanager
