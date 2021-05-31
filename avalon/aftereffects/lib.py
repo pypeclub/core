@@ -17,7 +17,7 @@ from Qt import QtWidgets, QtCore, QtGui
 from avalon.tools.webserver.app import WebServerTool
 
 from openpype.tools import workfiles
-from openpype.tools.tray_app.app import ConsoleTrayIcon
+from openpype.tools.tray_app.app import ConsoleTrayApp
 
 from .ws_stub import AfterEffectsServerStub
 
@@ -102,7 +102,7 @@ class AfterEffectsRoute(WebSocketRoute):
         """The address accessed when clicking on the buttons."""
         partial_method = functools.partial(show, tool_name)
 
-        ConsoleTrayIcon.execute_in_main_thread(partial_method)
+        ConsoleTrayApp.execute_in_main_thread(partial_method)
 
         # Required return statement.
         return "nothing"
@@ -132,7 +132,7 @@ def main(*subprocess_args):
 
     def is_host_connected():
         """Returns True if connected, False if app is not running at all."""
-        if ConsoleTrayIcon.process.poll() is not None:
+        if ConsoleTrayApp.process.poll() is not None:
             return False
         try:
             _stub = aftereffects.stub()
@@ -144,13 +144,13 @@ def main(*subprocess_args):
 
         return None
 
-    # coloring in ConsoleTrayIcon
+    # coloring in ConsoleTrayApp
     os.environ["OPENPYPE_LOG_NO_COLORS"] = "False"
     app = QtWidgets.QApplication([])
     app.setQuitOnLastWindowClosed(False)
 
-    consoleTrayIcon = ConsoleTrayIcon('aftereffects', launch,
-                                      subprocess_args, is_host_connected)
+    console_app = ConsoleTrayApp('aftereffects', launch,
+                                 subprocess_args, is_host_connected)
 
     sys.exit(app.exec_())
 
@@ -165,7 +165,7 @@ def launch(*subprocess_args):
     sys.excepthook = safe_excepthook
 
     # Launch aftereffects and the websocket server.
-    ConsoleTrayIcon.process = subprocess.Popen(subprocess_args,
+    ConsoleTrayApp.process = subprocess.Popen(subprocess_args,
                                                stdout=subprocess.PIPE)
 
     websocket_server = WebServerTool()
@@ -179,14 +179,14 @@ def launch(*subprocess_args):
     )
     websocket_server.start_server()
 
-    ConsoleTrayIcon.websocket_server = websocket_server
+    ConsoleTrayApp.websocket_server = websocket_server
 
     if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
         save = False
         if os.getenv("WORKFILES_SAVE_AS"):
             save = True
 
-        ConsoleTrayIcon.execute_in_main_thread(lambda: workfiles.show(save))
+        ConsoleTrayApp.execute_in_main_thread(lambda: workfiles.show(save))
 
 
 @contextlib.contextmanager
