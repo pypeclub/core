@@ -323,7 +323,12 @@ def read(node_id):
 
 
 def remove(node_id):
-    """Remove node data from scene metadata."""
+    """
+        Remove node data from scene metadata.
+
+        Args:
+            node_id (str): full name (eg. 'Top/renderAnimation')
+    """
     data = get_scene_data()
     del data[node_id]
     set_scene_data(data)
@@ -479,8 +484,11 @@ def find_node_by_name(name, node_type):
     """Find node by its name.
 
     Args:
-        name (str): Name of the Node.
-        node_typ (str): Type of the Node.
+        name (str): Name of the Node. (without part before '/')
+        node_type (str): Type of the Node.
+            'READ' - for loaded data with Loaders (background)
+            'GROUP' - for loaded data with Loaders (templates)
+            'WRITE' - render nodes
 
     Returns:
         str: FQ Node name.
