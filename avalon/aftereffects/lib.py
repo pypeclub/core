@@ -12,7 +12,7 @@ from wsrpc_aiohttp import (
     WebSocketAsync
 )
 
-from Qt import QtWidgets, QtCore, QtGui
+from Qt import QtWidgets
 
 from avalon.tools.webserver.app import WebServerTool
 
@@ -149,8 +149,7 @@ def main(*subprocess_args):
     app = QtWidgets.QApplication([])
     app.setQuitOnLastWindowClosed(False)
 
-    console_app = ConsoleTrayApp('aftereffects', launch,
-                                 subprocess_args, is_host_connected)
+    ConsoleTrayApp('aftereffects', launch, subprocess_args, is_host_connected)
 
     sys.exit(app.exec_())
 

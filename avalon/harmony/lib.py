@@ -69,8 +69,7 @@ def main(*subprocess_args):
     app = QtWidgets.QApplication([])
     app.setQuitOnLastWindowClosed(False)
 
-    console_app = ConsoleTrayApp('harmony', launch,
-                                 subprocess_args, is_host_connected)
+    ConsoleTrayApp('harmony', launch, subprocess_args, is_host_connected)
 
     sys.exit(app.exec_())
 
