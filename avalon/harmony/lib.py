@@ -7,7 +7,6 @@ import random
 import zipfile
 import sys
 import importlib
-import queue
 import shutil
 import logging
 import contextlib
@@ -15,10 +14,12 @@ import json
 import signal
 import time
 from uuid import uuid4
+from Qt import QtWidgets
 
 from .server import Server
-from ..vendor.Qt import QtWidgets
+
 from openpype.tools import workfiles
+from openpype.tools.tray_app.app import ConsoleTrayApp
 from ..toonboom import setup_startup_scripts, check_libs
 
 self = sys.modules[__name__]
@@ -58,19 +59,19 @@ class _ZipFile(zipfile.ZipFile):
     )
 
 
-def execute_in_main_thread(func_to_call_from_main_thread):
-    """Queue function for execution in main thread.
+def main(*subprocess_args):
+    def is_host_connected():
+        # Harmony always connected, not waiting
+        return True
 
-    Args:
-        func_to_call_from_main_thread (Callable): function
-    """
-    self.callback_queue.put(func_to_call_from_main_thread)
+    # coloring in ConsoleTrayApp
+    os.environ["OPENPYPE_LOG_NO_COLORS"] = "False"
+    app = QtWidgets.QApplication([])
+    app.setQuitOnLastWindowClosed(False)
 
+    ConsoleTrayApp('harmony', launch, subprocess_args, is_host_connected)
 
-def main_thread_listen():
-    """Execute function from queue in main thread."""
-    callback = self.callback_queue.get()
-    callback()
+    sys.exit(app.exec_())
 
 
 def launch(application_path, *args):
@@ -112,10 +113,6 @@ def launch(application_path, *args):
                 raise Exception(f"cannot clear {temp_path}") from e
 
         launch_zip_file(zip_file)
-
-    self.callback_queue = queue.Queue()
-    while True:
-        main_thread_listen()
 
 
 def get_local_harmony_path(filepath):
@@ -206,8 +203,9 @@ def launch_zip_file(filepath):
         return
 
     print("Launching {}".format(scene_path))
-    process = subprocess.Popen([self.application_path, scene_path])
-    self.pid = process.pid
+    ConsoleTrayApp.process = subprocess.Popen([self.application_path,
+                                               scene_path])
+    self.pid = ConsoleTrayApp.process.pid
 
 
 def on_file_changed(path, threaded=True):
@@ -261,20 +259,17 @@ def show(module_name):
     # requests to be received properly.
     time.sleep(1)
 
-    # Need to have an existing QApplication.
-    app = QtWidgets.QApplication.instance()
-    if not app:
-        app = QtWidgets.QApplication(sys.argv)
-
     # Import and show tool.
     module = importlib.import_module(module_name)
 
+    use_context = False
     if "loader" in module_name:
-        module.show(use_context=True)
-    else:
-        module.show()
+        use_context = True
 
-    app.exec_()
+    ConsoleTrayApp.execute_in_main_thread(lambda: module.show(use_context))
+
+    # Required return statement.
+    return "nothing"
 
 
 def get_scene_data():
