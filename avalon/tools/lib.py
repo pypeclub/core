@@ -347,19 +347,23 @@ class FamilyConfigCache:
 
         self.family_configs.clear()
 
-        # Update the icons from the project configuration
-        project_doc = self.dbcon.find_one(
-            {"type": "project"},
-            projection={"config.families": True}
-        )
+        families = []
 
-        if not project_doc:
-            project_name = self.dbcon.Session["AVALON_PROJECT"]
-            print((
-                "Project \"{}\" not found! Can't refresh family icons cache."
-            ).format(project_name))
-            return
-        families = project_doc["config"].get("families") or []
+        # Update the icons from the project configuration
+        project_name = self.dbcon.Session.get("AVALON_PROJECT")
+        if project_name:
+            project_doc = self.dbcon.find_one(
+                {"type": "project"},
+                projection={"config.families": True}
+            )
+
+            if not project_doc:
+                print((
+                    "Project \"{}\" not found!"
+                    " Can't refresh family icons cache."
+                ).format(project_name))
+            else:
+                families = project_doc["config"].get("families") or []
 
         # Check if any family state are being overwritten by the configuration
         default_state = api.data.get("familiesStateDefault", True)
@@ -420,19 +424,19 @@ class GroupsConfig:
         # Clear cached groups
         self.groups.clear()
 
-        # Get pre-defined group name and apperance from project config
-        project_doc = self.dbcon.find_one(
-            {"type": "project"},
-            projection={"config.groups": True}
-        )
-
-        if not project_doc:
-            print(
-                "Project not found! \"{}\"".format(
-                    self.dbcon.Session["AVALON_PROJECT"]
-                )
+        group_configs = []
+        project_name = self.dbcon.Session.get("AVALON_PROJECT")
+        if project_name:
+            # Get pre-defined group name and apperance from project config
+            project_doc = self.dbcon.find_one(
+                {"type": "project"},
+                projection={"config.groups": True}
             )
-        group_configs = project_doc["config"].get("groups") or []
+
+            if project_doc:
+                group_configs = project_doc["config"].get("groups") or []
+            else:
+                print("Project not found! \"{}\"".format(project_name))
 
         # Build pre-defined group configs
         for config in group_configs:
