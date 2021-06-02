@@ -763,6 +763,7 @@ class Window(QtWidgets.QMainWindow):
         # Add top margin for tasks to align it visually with files as
         # the files widget has a filter field which tasks does not.
         widgets["tasks"].setContentsMargins(0, 32, 0, 0)
+        widgets["assets"].set_current_asset_btn_visibility(True)
 
         # Connect signals
         widgets["assets"].current_changed.connect(self.on_asset_changed)
