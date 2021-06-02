@@ -2,7 +2,7 @@ import sys
 import time
 
 from ...api import AvalonMongoDB
-from ...vendor.Qt import QtWidgets, QtCore
+from ...vendor.Qt import QtWidgets, QtCore, QtGui
 from ... import style
 from .. import lib as tools_lib
 from . import lib
@@ -179,25 +179,35 @@ class Window(QtWidgets.QDialog):
             selection_model.clearSelection()
 
     def _set_projects(self):
-        projects = self.get_filtered_projects()
+        # Store current project
+        old_project_name = self.current_project
 
-        project_name = self.combo_projects.currentText()
-
+        # Cleanup
         self.combo_projects.clear()
-        if len(projects) > 0:
-            self.combo_projects.addItems(projects)
 
-        project_set = False
-        if project_name:
+        # Fill combobox with projects
+        select_project_item = QtGui.QStandardItem("< Select project >")
+        select_project_item.setData(None, QtCore.Qt.UserRole + 1)
+
+        combobox_items = [select_project_item]
+
+        project_names = self.get_filtered_projects()
+
+        for project_name in sorted(project_names):
+            item = QtGui.QStandardItem(project_name)
+            item.setData(project_name, QtCore.Qt.UserRole + 1)
+            combobox_items.append(item)
+
+        root_item = self.combo_projects.model().invisibleRootItem()
+        root_item.appendRows(combobox_items)
+
+        index = 0
+        if old_project_name:
             index = self.combo_projects.findText(
-                project_name, QtCore.Qt.MatchFixedString
+                old_project_name, QtCore.Qt.MatchFixedString
             )
-            if index:
-                project_set = True
-                self.combo_projects.setCurrentIndex(index)
 
-        if not project_set:
-            project_name = None
+        self.combo_projects.setCurrentIndex(index)
 
     def get_filtered_projects(self):
         projects = list()
@@ -212,9 +222,10 @@ class Window(QtWidgets.QDialog):
         return projects
 
     def on_project_change(self):
-        project_name = self.combo_projects.currentText()
-        if not project_name:
-            return
+        row = self.combo_projects.currentIndex()
+        index = self.combo_projects.model().index(row, 0)
+        project_name = index.data(QtCore.Qt.UserRole + 1)
+
         self.dbcon.Session["AVALON_PROJECT"] = project_name
 
         _config = lib.find_config()
