@@ -297,11 +297,13 @@ class Window(QtWidgets.QDialog):
 
     def _refresh_assets(self):
         """Load assets from database"""
-        if self.current_project is None:
-            return
-        # Ensure a project is loaded
-        project = self.dbcon.find_one({"type": "project"})
-        assert project, "This is a bug"
+        if self.current_project is not None:
+            # Ensure a project is loaded
+            project_doc = self.dbcon.find_one(
+                {"type": "project"},
+                {"type": 1}
+            )
+            assert project_doc, "This is a bug"
 
         assets_widget = self.data["widgets"]["assets"]
         assets_widget.model.stop_fetch_thread()
