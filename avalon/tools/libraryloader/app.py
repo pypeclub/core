@@ -35,6 +35,9 @@ class Window(QtWidgets.QDialog):
         self, parent=None, icon=None, show_projects=False, show_libraries=True
     ):
         super(Window, self).__init__(parent)
+
+        self._initial_refresh = False
+
         # Enable minimize and maximize for app
         self.setWindowTitle(self.tool_title)
         self.setWindowFlags(QtCore.Qt.Window)
@@ -156,8 +159,6 @@ class Window(QtWidgets.QDialog):
         # Set default thumbnail on start
         thumbnail.set_thumbnail(None)
 
-        self._refresh()
-
         # Defaults
         if sync_server.enabled:
             split.setSizes([250, 1000, 550])
@@ -165,6 +166,11 @@ class Window(QtWidgets.QDialog):
         else:
             split.setSizes([250, 850, 200])
             self.resize(1300, 700)
+
+    def showEvent(self, event):
+        super(Window, self).showEvent(event)
+        if not self._initial_refresh:
+            self.refresh()
 
     def on_assetview_click(self, *args):
         subsets_widget = self.data["widgets"]["subsets"]
@@ -274,7 +280,8 @@ class Window(QtWidgets.QDialog):
 
     # ------------------------------
     def _refresh(self):
-        project_name = self.combo_projects.currentText()
+        if not self._initial_refresh:
+            self._initial_refresh = True
         self._set_projects()
 
     def _refresh_assets(self):
