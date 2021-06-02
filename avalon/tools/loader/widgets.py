@@ -828,8 +828,11 @@ class FamilyListWidget(QtWidgets.QListWidget):
 
         """
 
-        family = self.dbcon.distinct("data.family")
-        families = self.dbcon.distinct("data.families")
+        family = []
+        families = []
+        if self.dbcon.Session.get("AVALON_PROJECT"):
+            family = self.dbcon.distinct("data.family")
+            families = self.dbcon.distinct("data.families")
         unique_families = list(set(family + families))
 
         # Rebuild list
