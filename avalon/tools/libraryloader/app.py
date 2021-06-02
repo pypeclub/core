@@ -172,7 +172,7 @@ class Window(QtWidgets.QDialog):
         if selection_model.selectedIndexes():
             selection_model.clearSelection()
 
-    def _set_projects(self, default=False):
+    def _set_projects(self):
         projects = self.get_filtered_projects()
 
         project_name = self.combo_projects.currentText()
@@ -275,7 +275,7 @@ class Window(QtWidgets.QDialog):
     # ------------------------------
     def _refresh(self):
         project_name = self.combo_projects.currentText()
-        self._set_projects(bool(not project_name))
+        self._set_projects()
 
     def _refresh_assets(self):
         """Load assets from database"""
