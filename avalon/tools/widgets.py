@@ -57,6 +57,10 @@ class AssetWidget(QtWidgets.QWidget):
         # Header
         header = QtWidgets.QHBoxLayout()
 
+        icon = qtawesome.icon("fa.arrow-down", color=style.colors.light)
+        set_current_asset_btn = QtWidgets.QPushButton(icon, "")
+        set_current_asset_btn.setToolTip("Go to Asset from current Session")
+
         icon = qtawesome.icon("fa.refresh", color=style.colors.light)
         refresh = QtWidgets.QPushButton(icon, "")
         refresh.setToolTip("Refresh items")
@@ -66,6 +70,7 @@ class AssetWidget(QtWidgets.QWidget):
         filter.setPlaceholderText("Filter assets..")
 
         header.addWidget(filter)
+        header.addWidget(set_current_asset_btn)
         header.addWidget(refresh)
 
         # Layout
@@ -77,12 +82,21 @@ class AssetWidget(QtWidgets.QWidget):
         selection.selectionChanged.connect(self.selection_changed)
         selection.currentChanged.connect(self.current_changed)
         refresh.clicked.connect(self.refresh)
+        set_current_asset_btn.clicked.connect(self.set_current_session_asset)
 
+        self.set_current_asset_btn = set_current_asset_btn
         self.model = model
         self.proxy = proxy
         self.view = view
 
         self.model_selection = {}
+
+    def hide_current_asset_btn(self):
+        """Hide set current asset button.
+
+        Not all tools support using of current context asset.
+        """
+        self.set_current_asset_btn.setVisible(False)
 
     def _refresh_model(self):
         # Store selection
@@ -260,35 +274,39 @@ class AssetWidget(QtWidgets.QWidget):
                 is_expanded = index.data(self.model.ObjectIdRole) in expanded
                 self.view.setExpanded(index, is_expanded)
 
-        if selected or current:
-            current_index = None
-            selected_indexes = []
-            # Go through all indices, select the ones with similar data
-            for index in lib.iter_model_rows(
-                model, column=0, include_root=False
-            ):
-                object_id = index.data(self.model.ObjectIdRole)
-                if object_id in selected:
-                    selected_indexes.append(index)
+        if not selected and not current:
+            self.set_current_session_asset()
+            return
 
-                if not current_index and object_id == current:
-                    current_index = index
+        current_index = None
+        selected_indexes = []
+        # Go through all indices, select the ones with similar data
+        for index in lib.iter_model_rows(
+            model, column=0, include_root=False
+        ):
+            object_id = index.data(self.model.ObjectIdRole)
+            if object_id in selected:
+                selected_indexes.append(index)
 
-            if current_index:
-                self.view.setCurrentIndex(current_index)
+            if not current_index and object_id == current:
+                current_index = index
 
-            if not selected_indexes:
-                return
-            selection_model = self.view.selectionModel()
-            flags = selection_model.Select | selection_model.Rows
-            for index in selected_indexes:
-                # Ensure item is visible
-                self.view.scrollTo(index)
-                selection_model.select(index, flags)
-        else:
-            asset_name = self.dbcon.Session.get("AVALON_ASSET")
-            if asset_name:
-                self.select_assets([asset_name])
+        if current_index:
+            self.view.setCurrentIndex(current_index)
+
+        if not selected_indexes:
+            return
+        selection_model = self.view.selectionModel()
+        flags = selection_model.Select | selection_model.Rows
+        for index in selected_indexes:
+            # Ensure item is visible
+            self.view.scrollTo(index)
+            selection_model.select(index, flags)
+
+    def set_current_session_asset(self):
+        asset_name = self.dbcon.Session.get("AVALON_ASSET")
+        if asset_name:
+            self.select_assets([asset_name])
 
 
 class OptionalMenu(QtWidgets.QMenu):
