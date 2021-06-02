@@ -66,7 +66,6 @@ class Window(QtWidgets.QDialog):
         assets = AssetWidget(
             self.dbcon, multiselection=True, parent=self
         )
-        assets.hide_current_asset_btn()
         families = FamilyListWidget(
             self.dbcon, self.family_config_cache, parent=self
         )

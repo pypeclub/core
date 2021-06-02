@@ -60,6 +60,8 @@ class AssetWidget(QtWidgets.QWidget):
         icon = qtawesome.icon("fa.arrow-down", color=style.colors.light)
         set_current_asset_btn = QtWidgets.QPushButton(icon, "")
         set_current_asset_btn.setToolTip("Go to Asset from current Session")
+        # Hide by default
+        set_current_asset_btn.setVisible(False)
 
         icon = qtawesome.icon("fa.refresh", color=style.colors.light)
         refresh = QtWidgets.QPushButton(icon, "")
@@ -91,12 +93,14 @@ class AssetWidget(QtWidgets.QWidget):
 
         self.model_selection = {}
 
-    def hide_current_asset_btn(self):
+    def set_current_asset_btn_visibility(self, visible=None):
         """Hide set current asset button.
 
         Not all tools support using of current context asset.
         """
-        self.set_current_asset_btn.setVisible(False)
+        if visible is None:
+            visible = not self.set_current_asset_btn.isVisible()
+        self.set_current_asset_btn.setVisible(visible)
 
     def _refresh_model(self):
         # Store selection
