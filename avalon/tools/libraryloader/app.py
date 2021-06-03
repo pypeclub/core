@@ -37,6 +37,7 @@ class Window(QtWidgets.QDialog):
         super(Window, self).__init__(parent)
 
         self._initial_refresh = False
+        self._ignore_project_change = False
 
         # Enable minimize and maximize for app
         self.setWindowTitle(self.tool_title)
@@ -182,6 +183,8 @@ class Window(QtWidgets.QDialog):
         # Store current project
         old_project_name = self.current_project
 
+        self._ignore_project_change = True
+
         # Cleanup
         self.combo_projects.clear()
 
@@ -202,6 +205,8 @@ class Window(QtWidgets.QDialog):
         root_item.appendRows(combobox_items)
 
         index = 0
+        self._ignore_project_change = False
+
         if old_project_name:
             index = self.combo_projects.findText(
                 old_project_name, QtCore.Qt.MatchFixedString
@@ -222,6 +227,9 @@ class Window(QtWidgets.QDialog):
         return projects
 
     def on_project_change(self):
+        if self._ignore_project_change:
+            return
+
         row = self.combo_projects.currentIndex()
         index = self.combo_projects.model().index(row, 0)
         project_name = index.data(QtCore.Qt.UserRole + 1)
