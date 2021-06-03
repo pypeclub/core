@@ -525,18 +525,26 @@ class SubsetWidget(QtWidgets.QWidget):
         error_info = []
         if api.SubsetLoader in inspect.getmro(loader):
             subset_ids = []
+            subset_version_docs = {}
+
             for item in items:
-                subset_ids.append(item["version_document"]["parent"])
+                subset_id = item["version_document"]["parent"]
+                subset_ids.append(subset_id)
+                subset_version_docs[subset_id] = item["version_document"]
 
             subset_contexts_by_id = pipeline.get_subset_contexts(
                 subset_ids, self.dbcon
             )
+            subset_contexts = list(subset_contexts_by_id.values())
+            for context in subset_contexts:
+                context["version"] = subset_version_docs[
+                    context["subset"]["_id"]]
 
             if loader.is_multiple_contexts_compatible:
                 try:
                     pipeline.load_with_subset_contexts(
                         loader,
-                        list(subset_contexts_by_id.values()),
+                        subset_contexts,
                         options=options
                     )
                 except Exception as exc:
@@ -555,6 +563,9 @@ class SubsetWidget(QtWidgets.QWidget):
                     ))
             else:
                 for subset_context in subset_contexts_by_id.values():
+                    version_doc = subset_version_docs[
+                        subset_context["subset"]["_id"]]
+                    subset_context["version"] = version_doc
                     try:
                         pipeline.load_with_subset_context(
                             loader,
