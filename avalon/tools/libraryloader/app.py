@@ -348,6 +348,13 @@ class Window(QtWidgets.QDialog):
         subsets_model.clear()
         self.clear_assets_underlines()
 
+        if not self.dbcon.Session.get("AVALON_PROJECT"):
+            subsets_widget.set_loading_state(
+                loading=False,
+                empty=True
+            )
+            return
+
         # filter None docs they are silo
         asset_docs = assets_widget.get_selected_assets()
         if len(asset_docs) == 0:
