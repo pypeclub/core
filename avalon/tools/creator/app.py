@@ -349,9 +349,9 @@ class Window(QtWidgets.QDialog):
                 defaults = list(plugin.defaults)
 
             # Replace
-            compare_regex = re.compile(
-                subset_name.replace(user_input_text, "(.+)")
-            )
+            compare_regex = re.compile(re.sub(
+                user_input_text, "(.+)", subset_name, flags=re.IGNORECASE
+            ))
             subset_hints = set()
             if user_input_text:
                 for _name in existing_subset_names:

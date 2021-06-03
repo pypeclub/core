@@ -1,12 +1,13 @@
 import os
 import sys
+import inspect
 import datetime
 import pprint
 import traceback
 import collections
 
 from ...vendor.Qt import QtWidgets, QtCore, QtGui
-from ... import api
+from ... import api, io
 from ... import pipeline
 from ...lib import HeroVersionType
 
@@ -201,8 +202,8 @@ class SubsetWidget(QtWidgets.QWidget):
             idx = model.Columns.index(column_name)
             view.setColumnWidth(idx, width)
 
-        if not model.sync_server or not model.sync_server.enabled:
-            lib.change_visibility(self.model, self.view, "repre_info", False)
+        actual_project = dbcon.Session["AVALON_PROJECT"]
+        self.on_project_change(actual_project)
 
         selection = view.selectionModel()
         selection.selectionChanged.connect(self.active_changed)
@@ -295,6 +296,22 @@ class SubsetWidget(QtWidgets.QWidget):
             }
         return repre_context_by_id, repre_docs_by_version_id
 
+    def on_project_change(self, project_name):
+        """
+            Called on each project change in parent widget.
+
+            Checks if Sync Server is enabled for a project, pushes changes to
+            model.
+        """
+        enabled = False
+        if project_name:
+            self.model.reset_sync_server(project_name)
+            if self.model.sync_server:
+                enabled_proj = self.model.sync_server.get_enabled_projects()
+                enabled = project_name in enabled_proj
+
+        lib.change_visibility(self.model, self.view, "repre_info", enabled)
+
     def on_context_menu(self, point):
         """Shows menu with loader actions on Right-click.
 
@@ -321,7 +338,17 @@ class SubsetWidget(QtWidgets.QWidget):
         available_loaders = api.discover(api.Loader)
         if self.tool_name:
             available_loaders = lib.remove_tool_name_from_loaders(
-                available_loaders, self.tool_name)
+                available_loaders, self.tool_name
+            )
+
+        repre_loaders = []
+        subset_loaders = []
+        for loader in available_loaders:
+            # Skip if its a SubsetLoader.
+            if api.SubsetLoader in inspect.getmro(loader):
+                subset_loaders.append(loader)
+            else:
+                repre_loaders.append(loader)
 
         loaders = list()
 
@@ -343,11 +370,11 @@ class SubsetWidget(QtWidgets.QWidget):
             for repre_doc in repre_docs:
                 repre_context = repre_context_by_id[repre_doc["_id"]]
                 for loader in pipeline.loaders_from_repre_context(
-                    available_loaders,
+                    repre_loaders,
                     repre_context
                 ):
                     # do not allow download whole repre, select specific repre
-                    if tools_lib.is_representation_loader(loader):
+                    if tools_lib.is_sync_loader(loader):
                         continue
 
                     # skip multiple select variant if one is selected
@@ -386,6 +413,10 @@ class SubsetWidget(QtWidgets.QWidget):
 
                 loaders.append((repre, loader))
 
+        # Subset Loaders.
+        for loader in subset_loaders:
+            loaders.append((None, loader))
+
         loaders = lib.sort_loaders(loaders)
 
         menu = OptionalMenu(self)
@@ -403,35 +434,47 @@ class SubsetWidget(QtWidgets.QWidget):
 
         # Find the representation name and loader to trigger
         action_representation, loader = action.data()
-        representation_name = action_representation["name"]  # extension
-
         options = lib.get_options(action, loader, self)
 
-        # Run the loader for all selected indices, for those that have the
-        # same representation available
+        if api.SubsetLoader in inspect.getmro(loader):
+            subset_ids = []
+            subset_version_docs = {}
+            for item in items:
+                subset_id = item["version_document"]["parent"]
+                subset_ids.append(subset_id)
+                subset_version_docs[subset_id] = item["version_document"]
 
-        # Trigger
-        repre_ids = []
-        for item in items:
-            representation = self.dbcon.find_one(
-                {
-                    "type": "representation",
-                    "name": representation_name,
-                    "parent": item["version_document"]["_id"]
-                },
-                {"_id": 1}
+            error_info = _load_subsets_by_loader(
+                loader, subset_ids, self.dbcon, options, subset_version_docs
             )
-            if not representation:
-                self.echo("Subset '{}' has no representation '{}'".format(
-                    item["subset"], representation_name
-                ))
-                continue
-            repre_ids.append(representation["_id"])
 
-        error_info = _load_representations_by_loader(
-            loader, repre_ids, self.dbcon,
-            options=options
-        )
+        else:
+            representation_name = action_representation["name"]
+
+            # Run the loader for all selected indices, for those that have the
+            # same representation available
+
+            # Trigger
+            repre_ids = []
+            for item in items:
+                representation = self.dbcon.find_one(
+                    {
+                        "type": "representation",
+                        "name": representation_name,
+                        "parent": item["version_document"]["_id"]
+                    },
+                    {"_id": 1}
+                )
+                if not representation:
+                    self.echo("Subset '{}' has no representation '{}'".format(
+                        item["subset"], representation_name
+                    ))
+                    continue
+                repre_ids.append(representation["_id"])
+
+            error_info = _load_representations_by_loader(
+                loader, repre_ids, self.dbcon, options=options
+            )
 
         if error_info:
             box = LoadErrorMessageBox(error_info)
@@ -785,8 +828,11 @@ class FamilyListWidget(QtWidgets.QListWidget):
 
         """
 
-        family = self.dbcon.distinct("data.family")
-        families = self.dbcon.distinct("data.families")
+        family = []
+        families = []
+        if self.dbcon.Session.get("AVALON_PROJECT"):
+            family = self.dbcon.distinct("data.family")
+            families = self.dbcon.distinct("data.families")
         unique_families = list(set(family + families))
 
         # Rebuild list
@@ -879,13 +925,12 @@ class RepresentationWidget(QtWidgets.QWidget):
 
     def __init__(self, dbcon, tool_name=None, parent=None):
         super(RepresentationWidget, self).__init__(parent=parent)
-
         self.dbcon = dbcon
         self.tool_name = tool_name
 
         headers = [item[0] for item in self.default_widths]
 
-        model = RepresentationModel(dbcon, headers, [])
+        model = RepresentationModel(self.dbcon, headers, [])
 
         proxy_model = RepresentationSortProxyModel(self)
         proxy_model.setSourceModel(model)
@@ -926,9 +971,88 @@ class RepresentationWidget(QtWidgets.QWidget):
         self.model = model
         self.proxy_model = proxy_model
 
-        self.sync_server_enabled = model.sync_server.enabled
+        self.sync_server_enabled = False
+        actual_project = dbcon.Session["AVALON_PROJECT"]
+        self.on_project_change(actual_project)
 
         self.model.refresh()
+
+    def on_project_change(self, project_name):
+        """
+            Called on each project change in parent widget.
+
+            Checks if Sync Server is enabled for a project, pushes changes to
+            model.
+        """
+        enabled = False
+        if project_name:
+            self.model.reset_sync_server(project_name)
+            if self.model.sync_server:
+                enabled_proj = self.model.sync_server.get_enabled_projects()
+                enabled = project_name in enabled_proj
+
+        self.sync_server_enabled = enabled
+        lib.change_visibility(self.model, self.tree_view,
+                              "active_site", enabled)
+        lib.change_visibility(self.model, self.tree_view,
+                              "remote_site", enabled)
+
+    def _repre_contexts_for_loaders_filter(self, items):
+        repre_ids = []
+        for item in items:
+            repre_ids.append(item["_id"])
+
+        repre_docs = list(self.dbcon.find(
+            {
+                "type": "representation",
+                "_id": {"$in": repre_ids}
+            },
+            {
+                "name": 1,
+                "parent": 1
+            }
+        ))
+        version_ids = [
+            repre_doc["parent"]
+            for repre_doc in repre_docs
+        ]
+        version_docs = self.dbcon.find({
+            "_id": {"$in": version_ids}
+        })
+
+        version_docs_by_id = {}
+        version_docs_by_subset_id = collections.defaultdict(list)
+        for version_doc in version_docs:
+            version_id = version_doc["_id"]
+            subset_id = version_doc["parent"]
+            version_docs_by_id[version_id] = version_doc
+            version_docs_by_subset_id[subset_id].append(version_doc)
+
+        subset_docs = list(self.dbcon.find(
+            {
+                "_id": {"$in": list(version_docs_by_subset_id.keys())},
+                "type": "subset"
+            },
+            {
+                "schema": 1,
+                "data.families": 1
+            }
+        ))
+        subset_docs_by_id = {
+            subset_doc["_id"]: subset_doc
+            for subset_doc in subset_docs
+        }
+        repre_context_by_id = {}
+        for repre_doc in repre_docs:
+            version_id = repre_doc["parent"]
+
+            version_doc = version_docs_by_id[version_id]
+            repre_context_by_id[repre_doc["_id"]] = {
+                "representation": repre_doc,
+                "version": version_doc,
+                "subset": subset_docs_by_id[version_doc["parent"]]
+            }
+        return repre_context_by_id
 
     def on_context_menu(self, point):
         """Shows menu with loader actions on Right-click.
@@ -956,25 +1080,40 @@ class RepresentationWidget(QtWidgets.QWidget):
         # index under the cursor, so we can list the user the options.
         available_loaders = api.discover(api.Loader)
 
-        loaders = list()
+        filtered_loaders = []
         for loader in available_loaders:
-            if tools_lib.is_representation_loader(loader):
-                if not self.sync_server_enabled:
-                    available_loaders.remove(loader)
+            # Skip subset loaders
+            if api.SubsetLoader in inspect.getmro(loader):
+                continue
+
+            if (
+                tools_lib.is_sync_loader(loader)
+                and not self.sync_server_enabled
+            ):
+                continue
+
+            filtered_loaders.append(loader)
 
         if self.tool_name:
-            available_loaders = lib.remove_tool_name_from_loaders(
-                available_loaders, self.tool_name)
+            filtered_loaders = lib.remove_tool_name_from_loaders(
+                filtered_loaders, self.tool_name
+            )
 
+        loaders = list()
         already_added_loaders = set()
         label_already_in_menu = set()
+
+        repre_context_by_id = (
+            self._repre_contexts_for_loaders_filter(items)
+        )
+
         for item in items:
-            repre_context = pipeline.get_representation_context(item["_id"])
+            repre_context = repre_context_by_id[item["_id"]]
             for loader in pipeline.loaders_from_repre_context(
-                    available_loaders,
-                    repre_context
+                filtered_loaders,
+                repre_context
             ):
-                if tools_lib.is_representation_loader(loader):
+                if tools_lib.is_sync_loader(loader):
                     both_unavailable = item["active_site_progress"] <= 0 and \
                                        item["remote_site_progress"] <= 0
                     if both_unavailable:
@@ -1050,7 +1189,7 @@ class RepresentationWidget(QtWidgets.QWidget):
         selected_side = action_representation.get("selected_side")
 
         for item in items:
-            if tools_lib.is_representation_loader(loader):
+            if tools_lib.is_sync_loader(loader):
                 site_name = "{}_site_name".format(selected_side)
                 data = {
                     "_id": item.get("_id"),
@@ -1090,7 +1229,7 @@ class RepresentationWidget(QtWidgets.QWidget):
             else:
                 txt = "Sync to Remote"
             optional_labels = {loader: txt for _, loader in loaders
-                               if tools_lib.is_representation_loader(loader)}
+                               if tools_lib.is_sync_loader(loader)}
         return optional_labels
 
     def _get_selected_side(self, point_index, rows):
@@ -1159,4 +1298,77 @@ def _load_representations_by_loader(loader, repre_ids, dbcon,
                 repre_context["subset"]["name"],
                 repre_context["version"]["name"]
             ))
+    return error_info
+
+
+def _load_subsets_by_loader(loader, subset_ids, dbcon, options,
+                            subset_version_docs=None):
+    """
+        Triggers load with SubsetLoader type of loaders
+
+        Args:
+            loader (SubsetLoder):
+            subset_ids (list): of subset ObjectId
+            dbcon (AvalonMongoDB)
+            options (dict):
+            subset_version_docs (dict): {subset_id: version_doc}
+    """
+    subset_contexts_by_id = pipeline.get_subset_contexts(subset_ids, dbcon)
+    subset_contexts = list(subset_contexts_by_id.values())
+
+    error_info = []
+    if loader.is_multiple_contexts_compatible:
+        subset_names = []
+        for context in subset_contexts:
+            subset_name = context.get("subset", {}).get("name") or "N/A"
+            subset_names.append(subset_name)
+
+            context["version"] = subset_version_docs[context["subset"]["_id"]]
+        try:
+            pipeline.load_with_subset_contexts(
+                loader,
+                subset_contexts,
+                options=options
+            )
+        except Exception as exc:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            formatted_traceback = "".join(
+                traceback.format_exception(
+                    exc_type, exc_value, exc_traceback
+                )
+            )
+            error_info.append((
+                str(exc),
+                formatted_traceback,
+                None,
+                ", ".join(subset_names),
+                None
+            ))
+    else:
+        for subset_context in subset_contexts_by_id.values():
+            subset_name = subset_context.get("subset", {}).get("name") or "N/A"
+
+            version_doc = subset_version_docs[subset_context["subset"]["_id"]]
+            subset_context["version"] = version_doc
+            try:
+                pipeline.load_with_subset_context(
+                    loader,
+                    subset_context,
+                    options=options
+                )
+            except Exception as exc:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                formatted_traceback = "\n".join(
+                    traceback.format_exception(
+                        exc_type, exc_value, exc_traceback
+                    )
+                )
+                error_info.append((
+                    str(exc),
+                    formatted_traceback,
+                    None,
+                    subset_name,
+                    None
+                ))
+
     return error_info
