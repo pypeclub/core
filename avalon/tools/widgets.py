@@ -107,14 +107,6 @@ class AssetWidget(QtWidgets.QWidget):
         self._store_model_selection()
         time_start = time.time()
 
-        if not self.dbcon.Session.get("AVALON_PROJECT"):
-            self.refresh_triggered.emit()
-            self.set_loading_state(
-                loading=False,
-                empty=True
-            )
-            return
-
         self.set_loading_state(
             loading=True,
             empty=True
