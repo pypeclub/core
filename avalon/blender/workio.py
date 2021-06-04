@@ -17,12 +17,10 @@ class OpenFileCacher:
     @classmethod
     def post_load(cls):
         cls.opening_file = False
-        bpy.app.handlers.load_post.remove(cls.post_load)
 
     @classmethod
     def set_opening(cls):
         cls.opening_file = True
-        bpy.app.handlers.load_post.append(cls.post_load)
 
 
 def open_file(filepath: str) -> Optional[str]:
