@@ -134,6 +134,7 @@ class Window(QtWidgets.QDialog):
         self.state = {
             "valid": False
         }
+        self.message_dialog = None
 
         body = QtWidgets.QWidget()
         lists = QtWidgets.QWidget()
@@ -552,8 +553,10 @@ class Window(QtWidgets.QDialog):
                 family, subset_name, asset, *error_info
             )
             box.show()
+            self.message_dialog = box
 
-        self.echo("Created %s .." % subset_name)
+        else:
+            self.echo("Created %s .." % subset_name)
 
     def echo(self, message):
         widget = self.data["Error Message"]
