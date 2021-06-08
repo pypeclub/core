@@ -507,13 +507,16 @@ class Window(QtWidgets.QDialog):
         Creator = item.data(PluginRole)
         use_selection = self.data["Use Selection Checkbox"].isChecked()
 
+        variant = self.data["Subset"].text()
+
         error_info = None
         try:
             api.create(
                 Creator,
                 subset_name,
                 asset,
-                options={"useSelection": use_selection}
+                options={"useSelection": use_selection},
+                data={"variant": variant}
             )
 
         except api.CreatorError as exc:
