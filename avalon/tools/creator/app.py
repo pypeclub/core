@@ -318,10 +318,25 @@ class Window(QtWidgets.QDialog):
             # Force replacement of prohibited symbols
             # QUESTION should Creator care about this and here should be only
             #   validated with schema regex?
-            subset_name = re.sub(
+
+            # Allow curly brackets in subset name for dynamic keys
+            curly_left = "__cbl__"
+            curly_right = "__cbr__"
+            tmp_subset_name = (
+                subset_name
+                .replace("{", curly_left)
+                .replace("}", curly_right)
+            )
+            # Replace prohibited symbols
+            tmp_subset_name = re.sub(
                 "[^{}]+".format(SubsetAllowedSymbols),
                 "",
-                subset_name
+                tmp_subset_name
+            )
+            subset_name = (
+                tmp_subset_name
+                .replace(curly_left, "{")
+                .replace(curly_right, "}")
             )
             result.setText(subset_name)
 
