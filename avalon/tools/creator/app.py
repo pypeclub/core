@@ -134,6 +134,7 @@ class Window(QtWidgets.QDialog):
         self.state = {
             "valid": False
         }
+        # Message dialog when something goes wrong during creation
         self.message_dialog = None
 
         body = QtWidgets.QWidget()
@@ -553,6 +554,7 @@ class Window(QtWidgets.QDialog):
                 family, subset_name, asset, *error_info
             )
             box.show()
+            # Store dialog so is not garbage collected before is shown
             self.message_dialog = box
 
         else:
