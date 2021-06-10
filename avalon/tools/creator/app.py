@@ -413,10 +413,15 @@ class Window(QtWidgets.QDialog):
         if plugin is None:
             return
 
-        if plugin.defaults and isinstance(plugin.defaults, list):
-            default = plugin.defaults[0]
-        else:
-            default = "Default"
+        default = None
+        if hasattr(plugin, "get_default_variant"):
+            default = plugin.get_default_variant()
+
+        if not default:
+            if plugin.defaults and isinstance(plugin.defaults, list):
+                default = plugin.defaults[0]
+            else:
+                default = "Default"
 
         name.setText(default)
 
