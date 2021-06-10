@@ -481,8 +481,7 @@ class TVPaintRpc(JsonRpc):
     async def creator_tool(self):
         log.info("Triggering Creator tool")
         item = MainThreadItem(self.tools_helper.show_creator_tool)
-        self._execute_in_main_thread(item)
-        return
+        await self._async_execute_in_main_thread(item, wait=False)
 
     async def subset_manager_tool(self):
         log.info("Triggering Subset Manager tool")
