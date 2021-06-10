@@ -473,6 +473,7 @@ class SubsetsModel(TreeModel, BaseRepresentationModel):
         self.reset_sync_server()
 
         if not self._asset_ids:
+            self.doc_fetched.emit()
             return
 
         self.fetch_subset_and_version()
@@ -1191,4 +1192,3 @@ class RepresentationModel(TreeModel, BaseRepresentationModel):
             group[key] = (group.get(key, 0) + max(progress, 0))
 
         return group
-
