@@ -516,6 +516,11 @@ class TVPaintRpc(JsonRpc):
         self._execute_in_main_thread(item)
         return
 
+    async def _async_execute_in_main_thread(self, item, **kwargs):
+        await self.communication_obj.async_execute_in_main_thread(
+            item, **kwargs
+        )
+
     def _execute_in_main_thread(self, item, **kwargs):
         return self.communication_obj.execute_in_main_thread(item, **kwargs)
 
@@ -641,6 +646,23 @@ class MainThreadItem:
             return self.result
         raise self.exception
 
+    async def async_wait(self):
+        """Wait for result from main thread.
+
+        Returns:
+            object: Output of callback. May be any type or object.
+
+        Raises:
+            Exception: Reraise any exception that happened during callback
+                execution.
+        """
+        while not self.done:
+            await asyncio.sleep(self.sleep_time)
+
+        if self.exception is self.not_set:
+            return self.result
+        raise self.exception
+
 
 class Communicator:
     def __init__(self, qt_app):
@@ -658,6 +680,12 @@ class Communicator:
         if wait:
             return main_thread_item.wait()
         return
+
+    async def async_execute_in_main_thread(self, main_thread_item, wait=True):
+        """Add `MainThreadItem` to callback queue and wait for result."""
+        self.callback_queue.put(main_thread_item)
+        if wait:
+            return await main_thread_item.async_wait()
 
     def main_thread_listen(self):
         """Get last `MainThreadItem` from queue.
