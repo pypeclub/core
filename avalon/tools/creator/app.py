@@ -134,6 +134,8 @@ class Window(QtWidgets.QDialog):
         self.state = {
             "valid": False
         }
+        # Message dialog when something goes wrong during creation
+        self.message_dialog = None
 
         body = QtWidgets.QWidget()
         lists = QtWidgets.QWidget()
@@ -318,10 +320,25 @@ class Window(QtWidgets.QDialog):
             # Force replacement of prohibited symbols
             # QUESTION should Creator care about this and here should be only
             #   validated with schema regex?
-            subset_name = re.sub(
+
+            # Allow curly brackets in subset name for dynamic keys
+            curly_left = "__cbl__"
+            curly_right = "__cbr__"
+            tmp_subset_name = (
+                subset_name
+                .replace("{", curly_left)
+                .replace("}", curly_right)
+            )
+            # Replace prohibited symbols
+            tmp_subset_name = re.sub(
                 "[^{}]+".format(SubsetAllowedSymbols),
                 "",
-                subset_name
+                tmp_subset_name
+            )
+            subset_name = (
+                tmp_subset_name
+                .replace(curly_left, "{")
+                .replace(curly_right, "}")
             )
             result.setText(subset_name)
 
@@ -512,13 +529,16 @@ class Window(QtWidgets.QDialog):
         Creator = item.data(PluginRole)
         use_selection = self.data["Use Selection Checkbox"].isChecked()
 
+        variant = self.data["Subset"].text()
+
         error_info = None
         try:
             api.create(
                 Creator,
                 subset_name,
                 asset,
-                options={"useSelection": use_selection}
+                options={"useSelection": use_selection},
+                data={"variant": variant}
             )
 
         except api.CreatorError as exc:
@@ -539,8 +559,11 @@ class Window(QtWidgets.QDialog):
                 family, subset_name, asset, *error_info
             )
             box.show()
+            # Store dialog so is not garbage collected before is shown
+            self.message_dialog = box
 
-        self.echo("Created %s .." % subset_name)
+        else:
+            self.echo("Created %s .." % subset_name)
 
     def echo(self, message):
         widget = self.data["Error Message"]
