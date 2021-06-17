@@ -192,10 +192,14 @@ class Loader(list):
     order = 0
     is_multiple_contexts_compatible = False
 
-    def __init__(self, context):
-        self.fname = self.filepath_from_context(context)
+    options = []
 
-    def filepath_from_context(self, context):
+    def __init__(self, context):
+        self.fname = Loader.filepath_from_context(context)
+
+    @classmethod
+    def filepath_from_context(cls, context):
+        print("context {}".format(context))
         representation = context['representation']
         project_doc = context.get("project")
         root = None
@@ -246,6 +250,17 @@ class Loader(list):
         raise NotImplementedError("Loader.remove() must be "
                                   "implemented by subclass")
 
+    @classmethod
+    def get_options(cls, contexts):
+        """
+            Returns static (cls) options or could collect from 'contexts'.
+
+            Args:
+                contexts (list): of repre or subset contexts
+            Returns:
+                (list)
+        """
+        return cls.options
 
 @lib.log
 class SubsetLoader(Loader):
@@ -1065,6 +1080,11 @@ def get_repres_contexts(representation_ids, dbcon=None):
 
     Returns:
         dict: The full representation context by representation id.
+            keys are repre_id, value is dictionary with full:
+                                                        asset_doc
+                                                        version_doc
+                                                        subset_doc
+                                                        repre_doc
 
     """
     if not dbcon:
@@ -1164,6 +1184,9 @@ def get_repres_contexts(representation_ids, dbcon=None):
 
 def get_subset_contexts(subset_ids, dbcon=None):
     """Return parenthood context for subset.
+
+        Provides context on subset granularity - less detail than
+        'get_repre_contexts'.
     Args:
         subset_ids (list): The subset ids.
         dbcon (AvalonMongoDB): Mongo connection object. `avalon.io` used when
