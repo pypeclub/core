@@ -197,17 +197,8 @@ class Loader(list):
     def __init__(self, context):
         self.fname = self.filepath_from_context(context)
 
-    @staticmethod
-    def filepath_from_context(context):
-        representation = context['representation']
-        project_doc = context.get("project")
-        root = None
-        session_project = Session.get("AVALON_PROJECT")
-        if project_doc and project_doc["name"] != session_project:
-            anatomy = Anatomy(project_doc["name"])
-            root = anatomy.roots_obj
-
-        return get_representation_path(representation, root)
+    def filepath_from_context(self, context):
+        return get_representation_path_from_context(context)
 
     def load(self, context, name=None, namespace=None, options=None):
         """Load asset via database
@@ -1725,6 +1716,19 @@ def format_template_with_optional_keys(data, template):
     work_file = work_file.replace("..", ".")
 
     return work_file
+
+
+def get_representation_path_from_context(context):
+    """Preparation wrapper using only context as a argument"""
+    representation = context['representation']
+    project_doc = context.get("project")
+    root = None
+    session_project = Session.get("AVALON_PROJECT")
+    if project_doc and project_doc["name"] != session_project:
+        anatomy = Anatomy(project_doc["name"])
+        root = anatomy.roots_obj
+
+    return get_representation_path(representation, root)
 
 
 def get_representation_path(representation, root=None, dbcon=None):
