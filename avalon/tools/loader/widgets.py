@@ -428,8 +428,8 @@ class SubsetWidget(QtWidgets.QWidget):
             repre_contexts = pipeline.get_repres_contexts(
                 repre_context_by_id.keys(), self.dbcon)
 
-            menu = lib.add_representation_loaders_to_menu(loaders, menu,
-                repre_contexts)
+            menu = lib.add_representation_loaders_to_menu(
+                loaders, menu, repre_contexts)
 
         # Show the context action menu
         global_point = self.view.mapToGlobal(point)
@@ -1283,7 +1283,7 @@ class RepresentationWidget(QtWidgets.QWidget):
 
 
 def _load_representations_by_loader(loader, repre_contexts,
-                                    options=None,
+                                    options,
                                     data_by_repre_id=None):
     """Loops through list of repre_contexts and loads them with one loader
 
