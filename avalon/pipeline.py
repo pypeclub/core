@@ -259,7 +259,7 @@ class Loader(list):
             Returns:
                 (list)
         """
-        return cls.options
+        return cls.options or []
 
 @lib.log
 class SubsetLoader(Loader):
