@@ -195,11 +195,10 @@ class Loader(list):
     options = []
 
     def __init__(self, context):
-        self.fname = Loader.filepath_from_context(context)
+        self.fname = self.filepath_from_context(context)
 
-    @classmethod
-    def filepath_from_context(cls, context):
-        print("context {}".format(context))
+    @staticmethod
+    def filepath_from_context(context):
         representation = context['representation']
         project_doc = context.get("project")
         root = None
