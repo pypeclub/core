@@ -522,9 +522,6 @@ class AssetModel(TreeModel):
         # Clear model items
         self.clear()
 
-        if not self.dbcon.Session.get("AVALON_PROJECT"):
-            return
-
         # Fetch documents from mongo
         # Restart payload
         self._doc_payload = {}
