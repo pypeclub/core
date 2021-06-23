@@ -192,19 +192,13 @@ class Loader(list):
     order = 0
     is_multiple_contexts_compatible = False
 
+    options = []
+
     def __init__(self, context):
         self.fname = self.filepath_from_context(context)
 
     def filepath_from_context(self, context):
-        representation = context['representation']
-        project_doc = context.get("project")
-        root = None
-        session_project = Session.get("AVALON_PROJECT")
-        if project_doc and project_doc["name"] != session_project:
-            anatomy = Anatomy(project_doc["name"])
-            root = anatomy.roots_obj
-
-        return get_representation_path(representation, root)
+        return get_representation_path_from_context(context)
 
     def load(self, context, name=None, namespace=None, options=None):
         """Load asset via database
@@ -246,6 +240,17 @@ class Loader(list):
         raise NotImplementedError("Loader.remove() must be "
                                   "implemented by subclass")
 
+    @classmethod
+    def get_options(cls, contexts):
+        """
+            Returns static (cls) options or could collect from 'contexts'.
+
+            Args:
+                contexts (list): of repre or subset contexts
+            Returns:
+                (list)
+        """
+        return cls.options or []
 
 @lib.log
 class SubsetLoader(Loader):
@@ -1065,6 +1070,11 @@ def get_repres_contexts(representation_ids, dbcon=None):
 
     Returns:
         dict: The full representation context by representation id.
+            keys are repre_id, value is dictionary with full:
+                                                        asset_doc
+                                                        version_doc
+                                                        subset_doc
+                                                        repre_doc
 
     """
     if not dbcon:
@@ -1164,6 +1174,9 @@ def get_repres_contexts(representation_ids, dbcon=None):
 
 def get_subset_contexts(subset_ids, dbcon=None):
     """Return parenthood context for subset.
+
+        Provides context on subset granularity - less detail than
+        'get_repre_contexts'.
     Args:
         subset_ids (list): The subset ids.
         dbcon (AvalonMongoDB): Mongo connection object. `avalon.io` used when
@@ -1703,6 +1716,19 @@ def format_template_with_optional_keys(data, template):
     work_file = work_file.replace("..", ".")
 
     return work_file
+
+
+def get_representation_path_from_context(context):
+    """Preparation wrapper using only context as a argument"""
+    representation = context['representation']
+    project_doc = context.get("project")
+    root = None
+    session_project = Session.get("AVALON_PROJECT")
+    if project_doc and project_doc["name"] != session_project:
+        anatomy = Anatomy(project_doc["name"])
+        root = anatomy.roots_obj
+
+    return get_representation_path(representation, root)
 
 
 def get_representation_path(representation, root=None, dbcon=None):
