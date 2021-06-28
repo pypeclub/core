@@ -1902,8 +1902,10 @@ def get_representation_path(representation, root=None, dbcon=None):
             # Template references unavailable data
             return None
 
+        # Check if path is empty string
+        # - `os.path.normpath` would convert "" to "." which always exists
         if not path:
-            return path
+            return None
 
         normalized_path = os.path.normpath(path)
         if os.path.exists(normalized_path):
