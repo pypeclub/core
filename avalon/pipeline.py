@@ -1901,9 +1901,15 @@ def get_representation_path(representation, root=None, dbcon=None):
             return path
 
         normalized_path = os.path.normpath(path)
+        # This is fixing other bug down the integrator where
+        # normpath is used on template, messing with slashes.
+        # Because those are already saved in database, this is the
+        # place to fix it.
+        if platform.system().lower() != "windows":
+            normalized_path = normalized_path.replace("\\", "/")
         if os.path.exists(normalized_path):
             return normalized_path
-        return path
+        return normalized_path
 
     def path_from_config():
         try:
