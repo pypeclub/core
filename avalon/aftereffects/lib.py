@@ -15,6 +15,7 @@ from wsrpc_aiohttp import (
 
 from Qt import QtWidgets
 
+from avalon import api
 from avalon.tools.webserver.app import WebServerTool
 
 from openpype.tools import workfiles
@@ -85,8 +86,10 @@ class AfterEffectsRoute(WebSocketRoute):
         log.info("Setting context change")
         log.info("project {} asset {} ".format(project, asset))
         if project:
+            api.Session["AVALON_PROJECT"] = project
             os.environ["AVALON_PROJECT"] = project
         if asset:
+            api.Session["AVALON_ASSET"] = asset
             os.environ["AVALON_ASSET"] = asset
 
     async def read(self):
