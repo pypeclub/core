@@ -177,6 +177,7 @@ class WebServerThread(threading.Thread):
             asyncio.ensure_future(self.check_shutdown(), loop=self.loop)
             self.loop.run_forever()
         except Exception:
+            self.is_running = False
             log.warning(
                 "Websocket Server service has failed", exc_info=True
             )

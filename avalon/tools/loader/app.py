@@ -59,6 +59,8 @@ class Window(QtWidgets.QDialog):
         container = QtWidgets.QWidget()
 
         assets = AssetWidget(io, multiselection=True, parent=self)
+        assets.set_current_asset_btn_visibility(True)
+
         families = FamilyListWidget(io, self.family_config_cache, self)
         subsets = SubsetWidget(
             io,
