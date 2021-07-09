@@ -75,7 +75,7 @@ class AfterEffectsRoute(WebSocketRoute):
 
     # This method calls function on the client side
     # client functions
-    async def set_context(self, project, asset):
+    async def set_context(self, project, asset, task):
         """
             Sets 'project' and 'asset' to envs, eg. setting context
 
@@ -91,6 +91,9 @@ class AfterEffectsRoute(WebSocketRoute):
         if asset:
             api.Session["AVALON_ASSET"] = asset
             os.environ["AVALON_ASSET"] = asset
+        if task:
+            api.Session["AVALON_TASK"] = task
+            os.environ["AVALON_TASK"] = task
 
     async def read(self):
         log.debug("aftereffects.read client calls server server calls "

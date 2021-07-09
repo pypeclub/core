@@ -16,6 +16,8 @@ from wsrpc_aiohttp import (
     WSRPCClient
 )
 
+from avalon import api
+
 log = logging.getLogger(__name__)
 
 
@@ -78,12 +80,15 @@ class WebServerTool:
                              loop=asyncio.get_event_loop())
         await client.connect()
 
-        project = os.environ["AVALON_PROJECT"]
-        asset = os.environ["AVALON_ASSET"]
-        log.info("Sending context change to {}-{}".format(project, asset))
+        project = api.Session["AVALON_PROJECT"]
+        asset = api.Session["AVALON_ASSET"]
+        task = api.Session["AVALON_TASK"]
+        log.info("Sending context change to {}-{}-{}".format(project,
+                                                             asset,
+                                                             task))
 
         await client.call('{}.set_context'.format(host),
-                          project=project, asset=asset)
+                          project=project, asset=asset, task=task)
         await client.close()
 
     def port_occupied(self, host_name, port):
