@@ -185,17 +185,17 @@ def launch(*subprocess_args):
                                               stdout=subprocess.PIPE)
 
     websocket_server = WebServerTool()
-
+    route_name = 'Photoshop'
     if websocket_server.port_occupied(websocket_server.host_name,
                                       websocket_server.port):
         log.info("Server already running, sending actual context and exit")
-        asyncio.run(websocket_server.send_context_change())
+        asyncio.run(websocket_server.send_context_change(route_name))
         sys.exit(1)
 
     # Add Websocket route
     websocket_server.add_route("*", "/ws/", WebSocketAsync)
     # Add after effects route to websocket handler
-    route_name = 'Photoshop'
+
     print("Adding {} route".format(route_name))
     WebSocketAsync.add_route(
         route_name, PhotoshopRoute  # keep same name as in extension

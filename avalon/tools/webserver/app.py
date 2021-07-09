@@ -66,11 +66,12 @@ class WebServerTool:
     def stop_server(self):
         self.stop()
 
-    async def send_context_change(self):
+    async def send_context_change(self, host):
         """
             Calls running webserver to inform about context change
 
-            Used when new PS should be triggered, but one already running, without
+            Used when new PS/AE should be triggered,
+            but one already running, without
             this publish would point to old context.
         """
         client = WSRPCClient(os.getenv("WEBSOCKET_URL"),
@@ -80,7 +81,9 @@ class WebServerTool:
         project = os.environ["AVALON_PROJECT"]
         asset = os.environ["AVALON_ASSET"]
         log.info("Sending context change to {}-{}".format(project, asset))
-        await client.proxy.Photoshop.set_context(project=project, asset=asset)
+
+        await client.call('{}.set_context'.format(host),
+                          project=project, asset=asset)
         await client.close()
 
     def port_occupied(self, host_name, port):
