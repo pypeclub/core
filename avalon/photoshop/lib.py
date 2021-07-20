@@ -6,6 +6,7 @@ import importlib
 import logging
 import functools
 import traceback
+import asyncio
 
 from wsrpc_aiohttp import (
     WebSocketRoute,
@@ -14,6 +15,7 @@ from wsrpc_aiohttp import (
 
 from Qt import QtWidgets
 
+from avalon import api
 from avalon.tools.webserver.app import WebServerTool
 
 from openpype.tools import workfiles
@@ -73,6 +75,25 @@ class PhotoshopRoute(WebSocketRoute):
 
     # This method calls function on the client side
     # client functions
+    async def set_context(self, project, asset, task):
+        """
+            Sets 'project' and 'asset' to envs, eg. setting context
+
+            Args:
+                project (str)
+                asset (str)
+        """
+        log.info("Setting context change")
+        log.info("project {} asset {} ".format(project, asset))
+        if project:
+            api.Session["AVALON_PROJECT"] = project
+            os.environ["AVALON_PROJECT"] = project
+        if asset:
+            api.Session["AVALON_ASSET"] = asset
+            os.environ["AVALON_ASSET"] = asset
+        if task:
+            api.Session["AVALON_TASK"] = task
+            os.environ["AVALON_TASK"] = task
 
     async def read(self):
         log.debug("photoshop.read client calls server server calls "
@@ -167,10 +188,17 @@ def launch(*subprocess_args):
                                               stdout=subprocess.PIPE)
 
     websocket_server = WebServerTool()
+    route_name = 'Photoshop'
+    if websocket_server.port_occupied(websocket_server.host_name,
+                                      websocket_server.port):
+        log.info("Server already running, sending actual context and exit")
+        asyncio.run(websocket_server.send_context_change(route_name))
+        sys.exit(1)
+
     # Add Websocket route
     websocket_server.add_route("*", "/ws/", WebSocketAsync)
     # Add after effects route to websocket handler
-    route_name = 'Photoshop'
+
     print("Adding {} route".format(route_name))
     WebSocketAsync.add_route(
         route_name, PhotoshopRoute  # keep same name as in extension
