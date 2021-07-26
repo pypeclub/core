@@ -185,8 +185,11 @@ def launch(*subprocess_args):
     sys.excepthook = safe_excepthook
 
     # Launch aftereffects and the websocket server.
-    ConsoleTrayApp.process = subprocess.Popen(subprocess_args,
-                                               stdout=subprocess.PIPE)
+    ConsoleTrayApp.process = subprocess.Popen(
+        subprocess_args,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
 
     websocket_server = WebServerTool()
     route_name = 'AfterEffects'
