@@ -293,7 +293,12 @@ function replaceItem(comp_id, path, item_name){
     var item = app.project.itemByID(comp_id);
     if (item){
         try{
-            item.replace(fp);
+            if (isFileSequence(item)) {
+                item.replaceWithSequence(fp, false);
+            }else{
+                item.replace(fp);
+            }
+            
             item.name = item_name;
         } catch (error) {
             alert(error.toString() + path, scriptName);
@@ -652,6 +657,19 @@ function _importItem(file_url){
 
     return item;
 }
+
+function isFileSequence (item){
+    /**
+     * Check that item is a recognizable sequence
+     */
+    if (item instanceof FootageItem && item.mainSource instanceof FileSource && !(item.mainSource.isStill) && item.hasVideo){
+        var extname = item.mainSource.file.fsName.split('.').pop();
+
+        return extname.match(new RegExp("(ai|bmp|bw|cin|cr2|crw|dcr|dng|dib|dpx|eps|erf|exr|gif|hdr|ico|icb|iff|jpe|jpeg|jpg|mos|mrw|nef|orf|pbm|pef|pct|pcx|pdf|pic|pict|png|ps|psd|pxr|raf|raw|rgb|rgbe|rla|rle|rpf|sgi|srf|tdi|tga|tif|tiff|vda|vst|x3f|xyze)", "i")) !== null;
+    }
+
+    return false;
+}
  
 // var img = 'c:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\image\\imageBG\\v013\\petr_test_Jungle_imageBG_v013.jpg';
 // var psd = 'c:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\workfile\\workfileArt\\v013\\petr_test_Jungle_workfileArt_v013.psd';
@@ -680,6 +698,6 @@ function _importItem(file_url){
 // ]
 // reloadBackground(1067, 'Jungle_backgroundComp_001', files_to_import);
 
-
-
+// replaceItem(15, "C:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\render\\renderCompositingCompositing\\v004\\petr_test_Jungle_renderCompositingCompositing_v004.0003.png",
+// "▼Jungle_renderCompositingCompositing_001")
 
