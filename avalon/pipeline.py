@@ -252,6 +252,7 @@ class Loader(list):
         """
         return cls.options or []
 
+
 @lib.log
 class SubsetLoader(Loader):
     """Load subset into host application
