@@ -52,8 +52,8 @@ def get_options(action, loader, parent, repre_contexts):
     """
     # Pop option dialog
     options = {}
-    if getattr(action, "optioned", False):
-        loader_options = loader.get_options(repre_contexts)
+    loader_options = loader.get_options(repre_contexts)
+    if getattr(action, "optioned", False) and loader_options:
         dialog = OptionDialog(parent)
         dialog.setWindowTitle(action.label + " Options")
         dialog.create(loader_options)
