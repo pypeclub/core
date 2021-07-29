@@ -299,7 +299,7 @@ class AvalonMongoDB:
 
     def __getattr__(self, attr_name):
         attr = None
-        if self.is_installed() and self.auto_install:
+        if not self.is_installed() and self.auto_install:
             self.install()
 
         if self.is_installed():
