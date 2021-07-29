@@ -309,15 +309,19 @@ class AvalonMongoDB:
                 )
             )
 
-        attr = getattr(
-            self._database[project_name],
-            attr_name,
-            None
-        )
+        project_name = self.active_project()
 
-        if attr is None:
-            # Reraise attribute error
-            return self.__getattribute__(attr_name)
+        collection = self._database[project_name]
+        not_set = object()
+        attr = getattr(collection, attr_name, not_set)
+
+        if attr is not_set:
+            # Raise attribute error
+            raise AttributeError(
+                "{} has no attribute '{}'.".format(
+                    collection.__class__.__name__, attr_name
+                )
+            )
 
         # Decorate function
         if callable(attr):
