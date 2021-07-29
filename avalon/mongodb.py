@@ -178,7 +178,7 @@ class AvalonMongoConnection:
 
     @classmethod
     def database(cls):
-        return cls._mongo_client[os.environ["AVALON_DB"]]
+        return cls._mongo_client[str(os.environ["AVALON_DB"])]
 
     @classmethod
     def mongo_client(cls):
