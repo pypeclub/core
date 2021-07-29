@@ -302,12 +302,18 @@ class AvalonMongoDB:
         if not self.is_installed() and self.auto_install:
             self.install()
 
-        if self.is_installed():
-            attr = getattr(
-                self._database[self.active_project()],
-                attr_name,
-                None
+        if not self.is_installed():
+            raise IOError(
+                "'{}.{}()' requires to run install() first".format(
+                    self.__class__.__name__, attr_name
+                )
             )
+
+        attr = getattr(
+            self._database[project_name],
+            attr_name,
+            None
+        )
 
         if attr is None:
             # Reraise attribute error
