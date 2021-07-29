@@ -378,21 +378,27 @@ class AvalonMongoDB:
 
     @requires_install
     @auto_reconnect
-    def projects(self):
+    def projects(self, query_filter=None, projection=None):
         """List available projects
 
         Returns:
             list of project documents
 
         """
+        if not query_filter:
+            query_filter = {"type": "project"}
+
+        find_args = [query_filter]
+        if projection:
+            find_args.append(projection)
+
         for project_name in self._database.collection_names():
             if project_name in ("system.indexes",):
                 continue
 
             # Each collection will have exactly one project document
-            document = self._database[project_name].find_one({
-                "type": "project"
-            })
+
+            document = self._database[project_name].find_one(*find_args)
             if document is not None:
                 yield document
 
