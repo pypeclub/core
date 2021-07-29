@@ -310,6 +310,10 @@ class AvalonMongoDB:
             )
 
         project_name = self.active_project()
+        if project_name is None:
+            raise ValueError(
+                "Value of 'Session[\"AVALON_PROJECT\"]' is not set."
+            )
 
         collection = self._database[project_name]
         not_set = object()
