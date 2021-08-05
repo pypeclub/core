@@ -6,11 +6,16 @@ from ... import api, io, style, pipeline
 
 from ..models import AssetModel
 from ..widgets import AssetWidget
+
 from .. import lib
 
 from .widgets import (
-    SubsetWidget, VersionWidget, FamilyListWidget, ThumbnailWidget,
-    RepresentationWidget
+    SubsetWidget,
+    VersionWidget,
+    FamilyListWidget,
+    ThumbnailWidget,
+    RepresentationWidget,
+    OverlayFrame
 )
 
 from openpype.modules import ModulesManager
@@ -134,12 +139,18 @@ class Window(QtWidgets.QDialog):
             }
         }
 
+        overlay_frame = OverlayFrame("Loading...", self)
+        overlay_frame.setVisible(False)
+
         families.active_changed.connect(subsets.set_family_filters)
         assets.selection_changed.connect(self.on_assetschanged)
         assets.refresh_triggered.connect(self.on_assetschanged)
         assets.view.clicked.connect(self.on_assetview_click)
         subsets.active_changed.connect(self.on_subsetschanged)
         subsets.version_changed.connect(self.on_versionschanged)
+
+
+        self._overlay_frame = overlay_frame
 
         self.family_config_cache.refresh()
         self.groups_config.refresh()
@@ -154,6 +165,14 @@ class Window(QtWidgets.QDialog):
         else:
             split.setSizes([250, 850, 200])
             self.resize(1300, 700)
+
+    def resizeEvent(self, event):
+        super(Window, self).resizeEvent(event)
+        self._overlay_frame.resize(self.size())
+
+    def moveEvent(self, event):
+        super(Window, self).moveEvent(event)
+        self._overlay_frame.move(0, 0)
 
     # -------------------------------
     # Delay calling blocking methods
