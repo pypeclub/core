@@ -354,7 +354,6 @@ class Window(QtWidgets.QDialog):
         self._versionschanged()
 
     def _versionschanged(self):
-
         subsets = self.data["widgets"]["subsets"]
         selection = subsets.view.selectionModel()
 
@@ -404,7 +403,6 @@ class Window(QtWidgets.QDialog):
 
         # representations.change_visibility("subset", len(rows) > 1)
         # representations.change_visibility("asset", len(asset_docs) > 1)
-
 
     def _set_context(self, context, refresh=True):
         """Set the selection in the interface using a context.
@@ -503,7 +501,6 @@ class Window(QtWidgets.QDialog):
 
 
 class SubsetGroupingDialog(QtWidgets.QDialog):
-
     grouped = QtCore.Signal()
 
     def __init__(self, items, groups_config, parent=None):
