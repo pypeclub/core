@@ -149,6 +149,10 @@ class Window(QtWidgets.QDialog):
         subsets.active_changed.connect(self.on_subsetschanged)
         subsets.version_changed.connect(self.on_versionschanged)
 
+        subsets.load_started.connect(self._on_load_start)
+        subsets.load_ended.connect(self._on_load_end)
+        representations.load_started.connect(self._on_load_start)
+        representations.load_ended.connect(self._on_load_end)
 
         self._overlay_frame = overlay_frame
 
@@ -204,6 +208,19 @@ class Window(QtWidgets.QDialog):
         self.echo("Setting context: {}".format(context))
         lib.schedule(lambda: self._set_context(context, refresh=refresh),
                      50, channel="mongo")
+
+    def _on_load_start(self):
+        # Show overlay and process events so it's repainted
+        self._overlay_frame.setVisible(True)
+        QtWidgets.QApplication.processEvents()
+
+    def _hide_overlay(self):
+        self._overlay_frame.setVisible(False)
+
+    def _on_load_end(self):
+        # Delay hiding as click events happened during loading should be
+        #   blocked
+        QtCore.QTimer.singleShot(100, self._hide_overlay)
 
     # ------------------------------
 
