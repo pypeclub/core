@@ -178,7 +178,7 @@ class AvalonMongoConnection:
 
     @classmethod
     def database(cls):
-        return cls._mongo_client[os.environ["AVALON_DB"]]
+        return cls._mongo_client[str(os.environ["AVALON_DB"])]
 
     @classmethod
     def mongo_client(cls):
@@ -299,19 +299,33 @@ class AvalonMongoDB:
 
     def __getattr__(self, attr_name):
         attr = None
-        if self.is_installed() and self.auto_install:
+        if not self.is_installed() and self.auto_install:
             self.install()
 
-        if self.is_installed():
-            attr = getattr(
-                self._database[self.active_project()],
-                attr_name,
-                None
+        if not self.is_installed():
+            raise IOError(
+                "'{}.{}()' requires to run install() first".format(
+                    self.__class__.__name__, attr_name
+                )
             )
 
-        if attr is None:
-            # Reraise attribute error
-            return self.__getattribute__(attr_name)
+        project_name = self.active_project()
+        if project_name is None:
+            raise ValueError(
+                "Value of 'Session[\"AVALON_PROJECT\"]' is not set."
+            )
+
+        collection = self._database[project_name]
+        not_set = object()
+        attr = getattr(collection, attr_name, not_set)
+
+        if attr is not_set:
+            # Raise attribute error
+            raise AttributeError(
+                "{} has no attribute '{}'.".format(
+                    collection.__class__.__name__, attr_name
+                )
+            )
 
         # Decorate function
         if callable(attr):
@@ -364,21 +378,27 @@ class AvalonMongoDB:
 
     @requires_install
     @auto_reconnect
-    def projects(self):
+    def projects(self, query_filter=None, projection=None):
         """List available projects
 
         Returns:
             list of project documents
 
         """
+        if not query_filter:
+            query_filter = {"type": "project"}
+
+        find_args = [query_filter]
+        if projection:
+            find_args.append(projection)
+
         for project_name in self._database.collection_names():
             if project_name in ("system.indexes",):
                 continue
 
             # Each collection will have exactly one project document
-            document = self._database[project_name].find_one({
-                "type": "project"
-            })
+
+            document = self._database[project_name].find_one(*find_args)
             if document is not None:
                 yield document
 
