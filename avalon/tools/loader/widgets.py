@@ -26,6 +26,26 @@ from .model import (
 from . import lib
 
 
+class OverlayFrame(QtWidgets.QFrame):
+    def __init__(self, label, parent):
+        super(OverlayFrame, self).__init__(parent)
+
+        label_widget = QtWidgets.QLabel(label, self)
+        main_layout = QtWidgets.QVBoxLayout(self)
+        main_layout.addWidget(label_widget, 1, QtCore.Qt.AlignCenter)
+
+        self.label_widget = label_widget
+
+        label_widget.setStyleSheet("background: transparent;")
+        self.setStyleSheet((
+            "background: rgba(0, 0, 0, 127);"
+            "font-size: 60pt;"
+        ))
+
+    def set_label(self, label):
+        self.label_widget.setText(label)
+
+
 class LoadErrorMessageBox(QtWidgets.QDialog):
     def __init__(self, messages, parent=None):
         super(LoadErrorMessageBox, self).__init__(parent)
