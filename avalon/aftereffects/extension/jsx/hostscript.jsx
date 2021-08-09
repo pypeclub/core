@@ -397,9 +397,15 @@ function getRenderInfo(){
         if it is sequence in Python
     **/
     try{
-        var render_queue = app.project.renderQueue.item(1);
-        render_queue.render = true; // always set render queue to render
-        var item = render_queue.outputModule(1);
+        var render_item = app.project.renderQueue.item(1);
+        if (render_item.status == RQItemStatus.DONE){
+            render_item.duplicate();  // create new, cannot change status if DONE
+            render_item.remove();  // remove existing to limit duplications
+            render_item = app.project.renderQueue.item(1);
+        }
+
+        render_item.render = true; // always set render queue to render
+        var item = render_item.outputModule(1);
     } catch (error) {
         alert("There is no render queue, create one.");
     }
@@ -670,7 +676,35 @@ function isFileSequence (item){
 
     return false;
 }
+
+function render(target_folder){
+    var out_dir = new Folder(target_folder);
+    var out_dir = out_dir.fsName;
+    for (i = 1; i <= app.project.renderQueue.numItems; ++i){
+        var render_item = app.project.renderQueue.item(i);
+        var om1 = app.project.renderQueue.item(i).outputModule(1);
+        var file_name = File.decode( om1.file.name ).replace('℗', ''); // Name contains special character, space?
+        
+        var omItem1_settable_str = app.project.renderQueue.item(i).outputModule(1).getSettings( GetSettingsFormat.STRING_SETTABLE );
+
+        if (render_item.status == RQItemStatus.DONE){
+            render_item.duplicate();
+            render_item.remove();
+            continue;
+        }
+
+        var targetFolder = new Folder(target_folder);
+        if (!targetFolder.exists) {
+          targetFolder.create();
+        }
+
+        om1.file = new File(targetFolder.fsName + '/' + file_name);
+    }
+    app.project.renderQueue.render();
+}
  
+
+
 // var img = 'c:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\image\\imageBG\\v013\\petr_test_Jungle_imageBG_v013.jpg';
 // var psd = 'c:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\workfile\\workfileArt\\v013\\petr_test_Jungle_workfileArt_v013.psd';
 // var mov = 'c:\\Users\\petrk\\Downloads\\Samples\\sample_iTunes.mov';
@@ -700,4 +734,9 @@ function isFileSequence (item){
 
 // replaceItem(15, "C:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\render\\renderCompositingCompositing\\v004\\petr_test_Jungle_renderCompositingCompositing_v004.0003.png",
 // "▼Jungle_renderCompositingCompositing_001")
-
+// app.project.renderQueue.canQueueInAME;
+// for (i = 1; i <= app.project.renderQueue.numItems; ++i){
+//     var sel = app.project.renderQueue.item(i);
+//     $.writeln("Huu");
+// }
+// app.project.renderQueue.render();
