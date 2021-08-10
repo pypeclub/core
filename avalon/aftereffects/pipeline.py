@@ -108,7 +108,7 @@ def remove_instance(instance):
     stub.remove_instance(instance.get("uuid"))
     item = stub.get_item(instance.get("uuid"))
     if item:
-        stub.rename_item(item,
+        stub.rename_item(item.id,
                          item.name.replace(stub.PUBLISH_ICON, ''))
 
 def _get_stub():
