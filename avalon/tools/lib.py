@@ -8,8 +8,6 @@ from ..vendor import qtawesome
 
 from ..vendor.Qt import QtWidgets, QtCore, QtGui
 
-from openpype.modules.sync_server import sync_server_module
-
 self = sys.modules[__name__]
 self._jobs = dict()
 self._path = os.path.dirname(__file__)
@@ -559,9 +557,16 @@ def create_qthread(func, *args, **kwargs):
 
 
 def get_repre_icons():
-    resource_path = os.path.dirname(sync_server_module.__file__)
-    resource_path = os.path.join(resource_path,
-                                 "providers", "resources")
+    try:
+        from openpype_modules import sync_server
+    except Exception:
+        # Backwards compatibility
+        from openpype.modules import sync_server
+
+    resource_path = os.path.join(
+        os.path.dirname(sync_server.sync_server_module.__file__),
+        "providers", "resources"
+    )
     icons = {}
     # TODO get from sync module
     for provider in ['studio', 'local_drive', 'gdrive']:
