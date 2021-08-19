@@ -618,8 +618,7 @@ def get_progress_for_repre(doc, active_site, remote_site):
             if site.get("created_dt"):
                 progress[site["name"]] = norm_progress + 1
             elif site.get("progress"):
-                progress[site["name"]] = norm_progress + \
-                                         site["progress"]
+                progress[site["name"]] = norm_progress + site["progress"]
             else:  # site exists, might be failed, do not add again
                 progress[site["name"]] = 0
 
