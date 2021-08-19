@@ -10,7 +10,7 @@ import contextlib
 
 from . import schema, Session
 from .vendor import requests
-from .api import AvalonMongoDB, session_data_from_environment
+from .mongodb import AvalonMongoDB, session_data_from_environment
 
 # Third-party dependencies
 from bson.objectid import ObjectId, InvalidId
