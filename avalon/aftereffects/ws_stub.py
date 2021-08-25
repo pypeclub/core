@@ -522,6 +522,17 @@ class AfterEffectsServerStub():
 
         log.debug("Adding new layer failed.")
 
+    def render(self, folder_url):
+        """
+            Render all renderqueueitem to 'folder_url'
+        Args:
+            folder_url(string): local folder path for collecting
+        Returns: None
+        """
+        self.websocketserver.call(self.client.call
+                                  ('AfterEffects.render',
+                                   folder_url=folder_url))
+
     def _to_records(self, res):
         """
             Converts string json representation into list of AEItem

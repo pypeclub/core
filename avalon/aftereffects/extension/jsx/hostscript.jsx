@@ -246,7 +246,6 @@ function importFile(path, item_name, import_options){
                  comp.parentFolder = app.project.selection[0]   
             }
         } catch (error) {
-            $.writeln(error);
             alert(error.toString() + importOptions.file.fsName, scriptName);
         } finally {
             fp.close();
@@ -255,7 +254,6 @@ function importFile(path, item_name, import_options){
     if (comp){
         comp.name = item_name;
         comp.label = 9; // Green
-        $.writeln(comp.id);
         ret = {"name": comp.name, "id": comp.id}
     }
     app.endUndoGroup();
@@ -293,7 +291,12 @@ function replaceItem(comp_id, path, item_name){
     var item = app.project.itemByID(comp_id);
     if (item){
         try{
-            item.replace(fp);
+            if (isFileSequence(item)) {
+                item.replaceWithSequence(fp, false);
+            }else{
+                item.replace(fp);
+            }
+            
             item.name = item_name;
         } catch (error) {
             alert(error.toString() + path, scriptName);
@@ -392,9 +395,15 @@ function getRenderInfo(){
         if it is sequence in Python
     **/
     try{
-        var render_queue = app.project.renderQueue.item(1);
-        render_queue.render = true; // always set render queue to render
-        var item = render_queue.outputModule(1);
+        var render_item = app.project.renderQueue.item(1);
+        if (render_item.status == RQItemStatus.DONE){
+            render_item.duplicate();  // create new, cannot change status if DONE
+            render_item.remove();  // remove existing to limit duplications
+            render_item = app.project.renderQueue.item(1);
+        }
+
+        render_item.render = true; // always set render queue to render
+        var item = render_item.outputModule(1);
     } catch (error) {
         alert("There is no render queue, create one.");
     }
@@ -652,7 +661,48 @@ function _importItem(file_url){
 
     return item;
 }
+
+function isFileSequence (item){
+    /**
+     * Check that item is a recognizable sequence
+     */
+    if (item instanceof FootageItem && item.mainSource instanceof FileSource && !(item.mainSource.isStill) && item.hasVideo){
+        var extname = item.mainSource.file.fsName.split('.').pop();
+
+        return extname.match(new RegExp("(ai|bmp|bw|cin|cr2|crw|dcr|dng|dib|dpx|eps|erf|exr|gif|hdr|ico|icb|iff|jpe|jpeg|jpg|mos|mrw|nef|orf|pbm|pef|pct|pcx|pdf|pic|pict|png|ps|psd|pxr|raf|raw|rgb|rgbe|rla|rle|rpf|sgi|srf|tdi|tga|tif|tiff|vda|vst|x3f|xyze)", "i")) !== null;
+    }
+
+    return false;
+}
+
+function render(target_folder){
+    var out_dir = new Folder(target_folder);
+    var out_dir = out_dir.fsName;
+    for (i = 1; i <= app.project.renderQueue.numItems; ++i){
+        var render_item = app.project.renderQueue.item(i);
+        var om1 = app.project.renderQueue.item(i).outputModule(1);
+        var file_name = File.decode( om1.file.name ).replace('℗', ''); // Name contains special character, space?
+        
+        var omItem1_settable_str = app.project.renderQueue.item(i).outputModule(1).getSettings( GetSettingsFormat.STRING_SETTABLE );
+
+        if (render_item.status == RQItemStatus.DONE){
+            render_item.duplicate();
+            render_item.remove();
+            continue;
+        }
+
+        var targetFolder = new Folder(target_folder);
+        if (!targetFolder.exists) {
+          targetFolder.create();
+        }
+
+        om1.file = new File(targetFolder.fsName + '/' + file_name);
+    }
+    app.project.renderQueue.render();
+}
  
+
+
 // var img = 'c:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\image\\imageBG\\v013\\petr_test_Jungle_imageBG_v013.jpg';
 // var psd = 'c:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\workfile\\workfileArt\\v013\\petr_test_Jungle_workfileArt_v013.psd';
 // var mov = 'c:\\Users\\petrk\\Downloads\\Samples\\sample_iTunes.mov';
@@ -680,6 +730,11 @@ function _importItem(file_url){
 // ]
 // reloadBackground(1067, 'Jungle_backgroundComp_001', files_to_import);
 
-
-
-
+// replaceItem(15, "C:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\render\\renderCompositingCompositing\\v004\\petr_test_Jungle_renderCompositingCompositing_v004.0003.png",
+// "▼Jungle_renderCompositingCompositing_001")
+// app.project.renderQueue.canQueueInAME;
+// for (i = 1; i <= app.project.renderQueue.numItems; ++i){
+//     var sel = app.project.renderQueue.item(i);
+//     $.writeln("Huu");
+// }
+// app.project.renderQueue.render();

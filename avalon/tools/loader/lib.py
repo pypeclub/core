@@ -34,16 +34,32 @@ def get_selected_items(rows, item_role):
     return items
 
 
-def get_options(action, loader, parent):
+def get_options(action, loader, parent, repre_contexts):
+    """Provides dialog to select value from loader provided options.
+
+        Loader can provide static or dynamically created options based on
+        qargparse variants.
+
+        Args:
+            action (OptionalAction) - action in menu
+            loader (cls of api.Loader) - not initilized yet
+            parent (Qt element to parent dialog to)
+            repre_contexts (list) of dict with full info about selected repres
+        Returns:
+            (dict) - selected value from OptionDialog
+            None when dialog was closed or cancelled, in all other cases {}
+              if no options
+    """
     # Pop option dialog
     options = {}
-    if getattr(action, "optioned", False):
+    loader_options = loader.get_options(repre_contexts)
+    if getattr(action, "optioned", False) and loader_options:
         dialog = OptionDialog(parent)
         dialog.setWindowTitle(action.label + " Options")
-        dialog.create(loader.options)
+        dialog.create(loader_options)
 
         if not dialog.exec_():
-            return
+            return None
 
         # Get option
         options = dialog.parse()
@@ -51,7 +67,7 @@ def get_options(action, loader, parent):
     return options
 
 
-def add_representation_loaders_to_menu(loaders, menu):
+def add_representation_loaders_to_menu(loaders, menu, repre_contexts):
     """
         Loops through provider loaders and adds them to 'menu'.
 
@@ -61,6 +77,9 @@ def add_representation_loaders_to_menu(loaders, menu):
         Args:
             loaders(tuple): representation - loader
             menu (OptionalMenu):
+            repre_contexts (dict): full info about representations (contains
+                their repre_doc, asset_doc, subset_doc, version_doc),
+                keys are repre_ids
 
         Returns:
             menu (OptionalMenu): with new items
@@ -68,20 +87,23 @@ def add_representation_loaders_to_menu(loaders, menu):
     # List the available loaders
     for representation, loader in loaders:
         label = None
+        repre_context = None
         if representation:
             label = representation.get("custom_label")
+            repre_context = repre_contexts[representation["_id"]]
 
         if not label:
             label = get_label_from_loader(loader, representation)
 
         icon = get_icon_from_loader(loader)
 
-        # Optional action
-        use_option = hasattr(loader, "options")
+        loader_options = loader.get_options([repre_context])
+
+        use_option = bool(loader_options)
         action = OptionalAction(label, icon, use_option, menu)
         if use_option:
             # Add option box tip
-            action.set_option_tip(loader.options)
+            action.set_option_tip(loader_options)
 
         action.setData((representation, loader))
 

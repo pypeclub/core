@@ -203,8 +203,11 @@ def launch_zip_file(filepath):
         return
 
     print("Launching {}".format(scene_path))
-    ConsoleTrayApp.process = subprocess.Popen([self.application_path,
-                                               scene_path])
+    ConsoleTrayApp.process = subprocess.Popen(
+        [self.application_path, scene_path],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
     self.pid = ConsoleTrayApp.process.pid
 
 

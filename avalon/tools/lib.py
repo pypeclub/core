@@ -8,8 +8,6 @@ from ..vendor import qtawesome
 
 from ..vendor.Qt import QtWidgets, QtCore, QtGui
 
-from openpype.modules.sync_server import sync_server_module
-
 self = sys.modules[__name__]
 self._jobs = dict()
 self._path = os.path.dirname(__file__)
@@ -559,9 +557,16 @@ def create_qthread(func, *args, **kwargs):
 
 
 def get_repre_icons():
-    resource_path = os.path.dirname(sync_server_module.__file__)
-    resource_path = os.path.join(resource_path,
-                                 "providers", "resources")
+    try:
+        from openpype_modules import sync_server
+    except Exception:
+        # Backwards compatibility
+        from openpype.modules import sync_server
+
+    resource_path = os.path.join(
+        os.path.dirname(sync_server.sync_server_module.__file__),
+        "providers", "resources"
+    )
     icons = {}
     # TODO get from sync module
     for provider in ['studio', 'local_drive', 'gdrive']:
@@ -593,18 +598,29 @@ def get_progress_for_repre(doc, active_site, remote_site):
         return progress
 
     files = {active_site: 0, remote_site: 0}
-    for file in doc.get("files", []):
-        for site in file.get("sites"):
-            if site["name"] in [active_site, remote_site]:
-                files[site["name"]] += 1
-                norm_progress = max(progress[site["name"]], 0)
-                if site.get("created_dt"):
-                    progress[site["name"]] = norm_progress + 1
-                elif site.get("progress"):
-                    progress[site["name"]] = norm_progress + \
-                                             site["progress"]
-                else:  # site exists, might be failed, do not add again
-                    progress[site["name"]] = 0
+    doc_files = doc.get("files") or []
+    for doc_file in doc_files:
+        if not isinstance(doc_file, dict):
+            continue
+
+        sites = doc_file.get("sites") or []
+        for site in sites:
+            if (
+                # Pype 2 compatibility
+                not isinstance(site, dict)
+                # Check if site name is one of progress sites
+                or site["name"] not in progress
+            ):
+                continue
+
+            files[site["name"]] += 1
+            norm_progress = max(progress[site["name"]], 0)
+            if site.get("created_dt"):
+                progress[site["name"]] = norm_progress + 1
+            elif site.get("progress"):
+                progress[site["name"]] = norm_progress + site["progress"]
+            else:  # site exists, might be failed, do not add again
+                progress[site["name"]] = 0
 
     # for example 13 fully avail. files out of 26 >> 13/26 = 0.5
     avg_progress = {}
