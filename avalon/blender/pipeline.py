@@ -18,6 +18,7 @@ self = sys.modules[__name__]
 self._events = dict()  # Registered Blender callbacks
 self._parent = None  # Main window
 
+AVALON_INSTANCES = "AVALON_INSTANCES"
 AVALON_CONTAINERS = "AVALON_CONTAINERS"
 AVALON_PROPERTY = 'avalon'
 IS_HEADLESS = bpy.app.background
