@@ -132,7 +132,6 @@ __all__ = [
     "deregister_plugin_path",
 
     "HOST_WORKFILE_EXTENSIONS",
-    "should_start_last_workfile",
     "format_template_with_optional_keys",
     "last_workfile_with_version",
     "last_workfile",
