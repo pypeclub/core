@@ -1416,7 +1416,7 @@ def compute_session_changes(
     return changes
 
 
-def update_current_task(task=None, asset=None, app=None):
+def update_current_task(task=None, asset=None, app=None, template_key=None):
     """Update active Session to a new task work area.
 
     This updates the live Session to a different `asset`, `task` or `app`.
@@ -1432,7 +1432,7 @@ def update_current_task(task=None, asset=None, app=None):
     """
 
     changes = compute_session_changes(
-        Session, task=task, asset=asset, app=app
+        Session, task=task, asset=asset, app=app, template_key=template_key
     )
 
     # Update the Session and environments. Pop from environments all keys with
