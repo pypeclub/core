@@ -1407,9 +1407,9 @@ def compute_session_changes(
         task_info = asset_tasks.get(task) or {}
         task_type = task_info.get("type")
         template_key = get_workfile_template_key(
-            session["AVALON_PROJECT"],
             task_type,
-            app
+            app,
+            project_name=session["AVALON_PROJECT"]
         )
     changes["AVALON_WORKDIR"] = anatomy_filled[template_key]["folder"]
 
