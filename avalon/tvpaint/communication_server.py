@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 import time
 import subprocess
@@ -696,6 +695,7 @@ class Communicator:
         """
         # check if host still running
         if self.process.poll() is not None:
+            api.emit("application.exit")
             self.websocket_server.stop()
             return self.qt_app.quit()
 
