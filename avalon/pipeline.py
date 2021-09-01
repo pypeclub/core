@@ -2069,5 +2069,6 @@ def last_workfile(
         filename = format_template_with_optional_keys(data, file_template)
 
     if full_path:
-        return os.path.join(workdir, filename)
+        return os.path.normpath(os.path.join(workdir, filename))
+
     return filename
