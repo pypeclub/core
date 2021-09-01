@@ -2071,4 +2071,4 @@ def last_workfile(
     if full_path:
         return os.path.normpath(os.path.join(workdir, filename))
 
-    return os.path.normpath(filename)
+    return filename
