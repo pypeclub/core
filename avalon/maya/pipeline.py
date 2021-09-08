@@ -114,8 +114,6 @@ def _install_menu():
         libraryloader
     )
 
-    import mayalookassigner
-
     from . import interactive
 
     _uninstall_menu()
