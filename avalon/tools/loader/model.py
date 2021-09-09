@@ -883,18 +883,16 @@ class FamiliesFilterProxyModel(GroupMemberFilterProxyModel):
             return self.filter_accepts_group(index, model)
 
         families = item.get("families", [])
-
-        filterable_families = set()
-        for name in families:
-            family_config = self.family_config_cache.family_config(name)
-            if not family_config.get("hideFilter"):
-                filterable_families.add(name)
-
-        if not filterable_families:
+        if not families:
             return True
 
+        family = tuple(families)[0]
+        family_config = self.family_config_cache.family_config(family)
+        if family_config.get("hideFilter"):
+            return False
+
         # We want to keep the families which are not in the list
-        return filterable_families.issubset(self._families)
+        return family in self._families
 
     def sort(self, column, order):
         proxy = self.sourceModel()
