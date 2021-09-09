@@ -239,8 +239,8 @@ class SubsetWidget(QtWidgets.QWidget):
 
         self.model.refresh()
 
-        # Expose this from the widget as a method
-        self.set_family_filters = self.family_proxy.setFamiliesFilter
+    def set_family_filters(self, families):
+        self.family_proxy.setFamiliesFilter(families)
 
     def is_groupable(self):
         return self.data["state"]["groupable"].checkState()
