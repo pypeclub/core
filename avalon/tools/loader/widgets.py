@@ -870,18 +870,27 @@ class FamilyListWidget(QtWidgets.QListWidget):
 
         """
 
-        family = []
         families = []
         if self.dbcon.Session.get("AVALON_PROJECT"):
-            family = self.dbcon.distinct("data.family")
-            families = self.dbcon.distinct("data.families")
-        unique_families = list(set(family + families))
+            result = list(self.dbcon.aggregate([
+                {"$match": {
+                    "type": "subset"
+                }},
+                {"$project": {
+                    "family": {"$arrayElemAt": ["$data.families", 0]}
+                }},
+                {"$group": {
+                    "_id": "tada",
+                    "families": {"$addToSet": "$family"}
+                }}
+            ]))
+            if result:
+                families = result[0]["families"]
 
         # Rebuild list
         self.blockSignals(True)
         self.clear()
-        for name in sorted(unique_families):
-
+        for name in sorted(families):
             family = self.family_config_cache.family_config(name)
             if family.get("hideFilter"):
                 continue
