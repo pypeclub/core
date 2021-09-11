@@ -216,7 +216,7 @@ class Window(QtWidgets.QDialog):
 
     def get_filtered_projects(self):
         projects = list()
-        for project in self.dbcon.projects():
+        for project in self.dbcon.projects(no_archived=True):
             is_library = project.get("data", {}).get("library_project", False)
             if (
                 (is_library and self.show_libraries) or
