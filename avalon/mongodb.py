@@ -378,7 +378,7 @@ class AvalonMongoDB:
 
     @requires_install
     @auto_reconnect
-    def projects(self, query_filter=None, projection=None):
+    def projects(self, query_filter=None, projection=None, no_archived=False):
         """List available projects
 
         Returns:
@@ -390,6 +390,8 @@ class AvalonMongoDB:
 
         find_args = [query_filter]
         if projection:
+            if no_archived:
+                projection.update({"data.archive_confirm": 1})
             find_args.append(projection)
 
         for project_name in self._database.collection_names():
@@ -398,9 +400,14 @@ class AvalonMongoDB:
 
             # Each collection will have exactly one project document
 
-            document = self._database[project_name].find_one(*find_args)
-            if document is not None:
-                yield document
+            doc = self._database[project_name].find_one(*find_args)
+            if doc is not None:
+
+                if no_archived and \
+                        doc.get("data", {}).get("archive_confirm") == doc.get("name"):
+                    continue
+
+                yield doc
 
     @auto_reconnect
     def insert_one(self, item, *args, **kwargs):
