@@ -390,9 +390,9 @@ class AvalonMongoDB:
 
         find_args = [query_filter]
         if projection:
-            if no_archived:
-                projection.update({"data.archive_confirm": 1})
-            find_args.append(projection)
+            _projection = {"data.archived": 1}
+            _projection.update(projection)
+            find_args.append(_projection)
 
         for project_name in self._database.collection_names():
             if project_name in ("system.indexes",):
@@ -403,9 +403,11 @@ class AvalonMongoDB:
             doc = self._database[project_name].find_one(*find_args)
             if doc is not None:
 
-                if no_archived and \
-                        doc.get("data", {}).get("archive_confirm") == doc.get("name"):
+                if no_archived and doc.get("data", {}).get("archived"):
                     continue
+
+                if projection and not projection.get("data.archived"):
+                    doc.get("data", {}).pop("archived", None)
 
                 yield doc
 
