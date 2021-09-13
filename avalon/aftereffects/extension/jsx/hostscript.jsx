@@ -246,7 +246,6 @@ function importFile(path, item_name, import_options){
                  comp.parentFolder = app.project.selection[0]   
             }
         } catch (error) {
-            $.writeln(error);
             alert(error.toString() + importOptions.file.fsName, scriptName);
         } finally {
             fp.close();
@@ -255,7 +254,6 @@ function importFile(path, item_name, import_options){
     if (comp){
         comp.name = item_name;
         comp.label = 9; // Green
-        $.writeln(comp.id);
         ret = {"name": comp.name, "id": comp.id}
     }
     app.endUndoGroup();

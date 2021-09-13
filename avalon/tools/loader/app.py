@@ -6,11 +6,16 @@ from ... import api, io, style, pipeline
 
 from ..models import AssetModel
 from ..widgets import AssetWidget
+
 from .. import lib
 
 from .widgets import (
-    SubsetWidget, VersionWidget, FamilyListWidget, ThumbnailWidget,
-    RepresentationWidget
+    SubsetWidget,
+    VersionWidget,
+    FamilyListWidget,
+    ThumbnailWidget,
+    RepresentationWidget,
+    OverlayFrame
 )
 
 from openpype.modules import ModulesManager
@@ -134,12 +139,22 @@ class Window(QtWidgets.QDialog):
             }
         }
 
+        overlay_frame = OverlayFrame("Loading...", self)
+        overlay_frame.setVisible(False)
+
         families.active_changed.connect(subsets.set_family_filters)
         assets.selection_changed.connect(self.on_assetschanged)
         assets.refresh_triggered.connect(self.on_assetschanged)
         assets.view.clicked.connect(self.on_assetview_click)
         subsets.active_changed.connect(self.on_subsetschanged)
         subsets.version_changed.connect(self.on_versionschanged)
+
+        subsets.load_started.connect(self._on_load_start)
+        subsets.load_ended.connect(self._on_load_end)
+        representations.load_started.connect(self._on_load_start)
+        representations.load_ended.connect(self._on_load_end)
+
+        self._overlay_frame = overlay_frame
 
         self.family_config_cache.refresh()
         self.groups_config.refresh()
@@ -154,6 +169,14 @@ class Window(QtWidgets.QDialog):
         else:
             split.setSizes([250, 850, 200])
             self.resize(1300, 700)
+
+    def resizeEvent(self, event):
+        super(Window, self).resizeEvent(event)
+        self._overlay_frame.resize(self.size())
+
+    def moveEvent(self, event):
+        super(Window, self).moveEvent(event)
+        self._overlay_frame.move(0, 0)
 
     # -------------------------------
     # Delay calling blocking methods
@@ -185,6 +208,19 @@ class Window(QtWidgets.QDialog):
         self.echo("Setting context: {}".format(context))
         lib.schedule(lambda: self._set_context(context, refresh=refresh),
                      50, channel="mongo")
+
+    def _on_load_start(self):
+        # Show overlay and process events so it's repainted
+        self._overlay_frame.setVisible(True)
+        QtWidgets.QApplication.processEvents()
+
+    def _hide_overlay(self):
+        self._overlay_frame.setVisible(False)
+
+    def _on_load_end(self):
+        # Delay hiding as click events happened during loading should be
+        #   blocked
+        QtCore.QTimer.singleShot(100, self._hide_overlay)
 
     # ------------------------------
 
@@ -318,7 +354,6 @@ class Window(QtWidgets.QDialog):
         self._versionschanged()
 
     def _versionschanged(self):
-
         subsets = self.data["widgets"]["subsets"]
         selection = subsets.view.selectionModel()
 
@@ -368,7 +403,6 @@ class Window(QtWidgets.QDialog):
 
         # representations.change_visibility("subset", len(rows) > 1)
         # representations.change_visibility("asset", len(asset_docs) > 1)
-
 
     def _set_context(self, context, refresh=True):
         """Set the selection in the interface using a context.
@@ -467,7 +501,6 @@ class Window(QtWidgets.QDialog):
 
 
 class SubsetGroupingDialog(QtWidgets.QDialog):
-
     grouped = QtCore.Signal()
 
     def __init__(self, items, groups_config, parent=None):

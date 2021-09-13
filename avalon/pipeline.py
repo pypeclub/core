@@ -1317,7 +1317,9 @@ def template_data_from_session(session):
     }
 
 
-def compute_session_changes(session, task=None, asset=None, app=None):
+def compute_session_changes(
+    session, task=None, asset=None, app=None, template_key=None
+):
     """Compute the changes for a Session object on asset, task or app switch
 
     This does *NOT* update the Session object, but returns the changes
@@ -1346,16 +1348,26 @@ def compute_session_changes(session, task=None, asset=None, app=None):
 
     # Get asset document and asset
     asset_document = None
-    if asset:
-        if isinstance(asset, dict):
-            # Assume asset database document
-            asset_document = asset
-            asset = asset["name"]
-        else:
-            # Assume asset name
-            asset_document = io.find_one({"name": asset,
-                                          "type": "asset"})
-            assert asset_document, "Asset must exist"
+    asset_tasks = None
+    if isinstance(asset, dict):
+        # Assume asset database document
+        asset_document = asset
+        asset_tasks = asset_document.get("data", {}).get("tasks")
+        asset = asset["name"]
+
+    if not asset_document or not asset_tasks:
+        # Assume asset name
+        asset_document = io.find_one(
+            {
+                "name": asset,
+                "type": "asset"
+            },
+            {
+                "silo": True,
+                "data.tasks": True
+            }
+        )
+        assert asset_document, "Asset must exist"
 
     # Detect any changes compared session
     mapping = {
@@ -1363,8 +1375,11 @@ def compute_session_changes(session, task=None, asset=None, app=None):
         "AVALON_TASK": task,
         "AVALON_APP": app,
     }
-    changes = {key: value for key, value in mapping.items()
-               if value and value != session.get(key)}
+    changes = {
+        key: value
+        for key, value in mapping.items()
+        if value and value != session.get(key)
+    }
     if not changes:
         return changes
 
@@ -1375,18 +1390,33 @@ def compute_session_changes(session, task=None, asset=None, app=None):
         changes["AVALON_SILO"] = asset_document.get("silo") or ""
 
     # Compute work directory (with the temporary changed session so far)
-    project = io.find_one({"type": "project"})
+    project_doc = io.find_one(
+        {"type": "project"},
+        {"name": True}
+    )
     _session = session.copy()
     _session.update(changes)
-    anatomy = Anatomy(project["name"])
+
+    anatomy = Anatomy(project_doc["name"])
     template_data = template_data_from_session(_session)
     anatomy_filled = anatomy.format(template_data)
-    changes["AVALON_WORKDIR"] = anatomy_filled["work"]["folder"]
+
+    if not template_key:
+        from openpype.lib import get_workfile_template_key
+
+        task_info = asset_tasks.get(task) or {}
+        task_type = task_info.get("type")
+        template_key = get_workfile_template_key(
+            task_type,
+            app,
+            project_name=session["AVALON_PROJECT"]
+        )
+    changes["AVALON_WORKDIR"] = anatomy_filled[template_key]["folder"]
 
     return changes
 
 
-def update_current_task(task=None, asset=None, app=None):
+def update_current_task(task=None, asset=None, app=None, template_key=None):
     """Update active Session to a new task work area.
 
     This updates the live Session to a different `asset`, `task` or `app`.
@@ -1402,7 +1432,7 @@ def update_current_task(task=None, asset=None, app=None):
     """
 
     changes = compute_session_changes(
-        Session, task=task, asset=asset, app=app
+        Session, task=task, asset=asset, app=app, template_key=template_key
     )
 
     # Update the Session and environments. Pop from environments all keys with

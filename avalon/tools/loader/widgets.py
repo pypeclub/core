@@ -26,6 +26,26 @@ from .model import (
 from . import lib
 
 
+class OverlayFrame(QtWidgets.QFrame):
+    def __init__(self, label, parent):
+        super(OverlayFrame, self).__init__(parent)
+
+        label_widget = QtWidgets.QLabel(label, self)
+        main_layout = QtWidgets.QVBoxLayout(self)
+        main_layout.addWidget(label_widget, 1, QtCore.Qt.AlignCenter)
+
+        self.label_widget = label_widget
+
+        label_widget.setStyleSheet("background: transparent;")
+        self.setStyleSheet((
+            "background: rgba(0, 0, 0, 127);"
+            "font-size: 60pt;"
+        ))
+
+    def set_label(self, label):
+        self.label_widget.setText(label)
+
+
 class LoadErrorMessageBox(QtWidgets.QDialog):
     def __init__(self, messages, parent=None):
         super(LoadErrorMessageBox, self).__init__(parent)
@@ -94,6 +114,8 @@ class SubsetWidget(QtWidgets.QWidget):
 
     active_changed = QtCore.Signal()    # active index changed
     version_changed = QtCore.Signal()   # version state changed for a subset
+    load_started = QtCore.Signal()
+    load_ended = QtCore.Signal()
 
     default_widths = (
         ("subset", 200),
@@ -440,6 +462,8 @@ class SubsetWidget(QtWidgets.QWidget):
         # Find the representation name and loader to trigger
         action_representation, loader = action.data()
 
+        self.load_started.emit()
+
         if api.SubsetLoader in inspect.getmro(loader):
             subset_ids = []
             subset_version_docs = {}
@@ -491,6 +515,8 @@ class SubsetWidget(QtWidgets.QWidget):
             error_info = _load_representations_by_loader(
                 loader, repre_contexts, options=options
             )
+
+        self.load_ended.emit()
 
         if error_info:
             box = LoadErrorMessageBox(error_info)
@@ -928,6 +954,8 @@ class FamilyListWidget(QtWidgets.QListWidget):
 
 
 class RepresentationWidget(QtWidgets.QWidget):
+    load_started = QtCore.Signal()
+    load_ended = QtCore.Signal()
 
     default_widths = (
         ("name", 120),
@@ -1201,6 +1229,8 @@ class RepresentationWidget(QtWidgets.QWidget):
         if not action or not action.data():
             return
 
+        self.load_started.emit()
+
         # Find the representation name and loader to trigger
         action_representation, loader = action.data()
         repre_ids = []
@@ -1233,6 +1263,9 @@ class RepresentationWidget(QtWidgets.QWidget):
             options=options, data_by_repre_id=data_by_repre_id)
 
         self.model.refresh()
+
+        self.load_ended.emit()
+
         if errors:
             box = LoadErrorMessageBox(errors)
             box.show()
