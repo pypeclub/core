@@ -258,6 +258,16 @@ function main(websocket_url){
                return result;
            });
    });
+
+   RPC.addRoute('AfterEffects.render', function (data) {
+    log.warn('Server called client route "render":', data);
+    var escapedPath = EscapeStringForJSX(data.folder_url);
+    return runEvalScript("render('" + escapedPath +"')")
+        .then(function(result){
+            log.warn("render: " + result);
+            return result;
+        });
+    });
 }
 
 /** main entry point **/

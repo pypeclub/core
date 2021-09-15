@@ -190,20 +190,15 @@ class Loader(list):
     families = list()
     representations = list()
     order = 0
+    is_multiple_contexts_compatible = False
+
+    options = []
 
     def __init__(self, context):
         self.fname = self.filepath_from_context(context)
 
     def filepath_from_context(self, context):
-        representation = context['representation']
-        project_doc = context.get("project")
-        root = None
-        session_project = Session.get("AVALON_PROJECT")
-        if project_doc and project_doc["name"] != session_project:
-            anatomy = Anatomy(project_doc["name"])
-            root = anatomy.roots_obj
-
-        return get_representation_path(representation, root)
+        return get_representation_path_from_context(context)
 
     def load(self, context, name=None, namespace=None, options=None):
         """Load asset via database
@@ -244,6 +239,31 @@ class Loader(list):
 
         raise NotImplementedError("Loader.remove() must be "
                                   "implemented by subclass")
+
+    @classmethod
+    def get_options(cls, contexts):
+        """
+            Returns static (cls) options or could collect from 'contexts'.
+
+            Args:
+                contexts (list): of repre or subset contexts
+            Returns:
+                (list)
+        """
+        return cls.options or []
+
+
+@lib.log
+class SubsetLoader(Loader):
+    """Load subset into host application
+    Arguments:
+        context (dict): avalon-core:context-1.0
+        name (str, optional): Use pre-defined name
+        namespace (str, optional): Use pre-defined namespace
+    """
+
+    def __init__(self, context):
+        pass
 
 
 class CreatorError(Exception):
@@ -1051,6 +1071,11 @@ def get_repres_contexts(representation_ids, dbcon=None):
 
     Returns:
         dict: The full representation context by representation id.
+            keys are repre_id, value is dictionary with full:
+                                                        asset_doc
+                                                        version_doc
+                                                        subset_doc
+                                                        repre_doc
 
     """
     if not dbcon:
@@ -1148,6 +1173,67 @@ def get_repres_contexts(representation_ids, dbcon=None):
     return contexts
 
 
+def get_subset_contexts(subset_ids, dbcon=None):
+    """Return parenthood context for subset.
+
+        Provides context on subset granularity - less detail than
+        'get_repre_contexts'.
+    Args:
+        subset_ids (list): The subset ids.
+        dbcon (AvalonMongoDB): Mongo connection object. `avalon.io` used when
+            not entered.
+    Returns:
+        dict: The full representation context by representation id.
+    """
+    if not dbcon:
+        dbcon = io
+
+    contexts = {}
+    if not subset_ids:
+        return contexts
+
+    _subset_ids = set()
+    for subset_id in subset_ids:
+        if isinstance(subset_id, six.string_types):
+            subset_id = io.ObjectId(subset_id)
+        _subset_ids.add(subset_id)
+
+    subset_docs = dbcon.find({
+        "type": "subset",
+        "_id": {"$in": list(_subset_ids)}
+    })
+    subset_docs_by_id = {}
+    asset_ids = set()
+    for subset_doc in subset_docs:
+        subset_docs_by_id[subset_doc["_id"]] = subset_doc
+        asset_ids.add(subset_doc["parent"])
+
+    asset_docs = dbcon.find({
+        "type": "asset",
+        "_id": {"$in": list(asset_ids)}
+    })
+    asset_docs_by_id = {
+        asset_doc["_id"]: asset_doc
+        for asset_doc in asset_docs
+    }
+
+    project_doc = dbcon.find_one({"type": "project"})
+
+    for subset_id, subset_doc in subset_docs_by_id.items():
+        asset_doc = asset_docs_by_id[subset_doc["parent"]]
+        context = {
+            "project": {
+                "name": project_doc["name"],
+                "code": project_doc["data"].get("code")
+            },
+            "asset": asset_doc,
+            "subset": subset_doc
+        }
+        contexts[subset_id] = context
+
+    return contexts
+
+
 def get_representation_context(representation):
     """Return parenthood context for representation.
 
@@ -1231,7 +1317,9 @@ def template_data_from_session(session):
     }
 
 
-def compute_session_changes(session, task=None, asset=None, app=None):
+def compute_session_changes(
+    session, task=None, asset=None, app=None, template_key=None
+):
     """Compute the changes for a Session object on asset, task or app switch
 
     This does *NOT* update the Session object, but returns the changes
@@ -1260,16 +1348,26 @@ def compute_session_changes(session, task=None, asset=None, app=None):
 
     # Get asset document and asset
     asset_document = None
-    if asset:
-        if isinstance(asset, dict):
-            # Assume asset database document
-            asset_document = asset
-            asset = asset["name"]
-        else:
-            # Assume asset name
-            asset_document = io.find_one({"name": asset,
-                                          "type": "asset"})
-            assert asset_document, "Asset must exist"
+    asset_tasks = None
+    if isinstance(asset, dict):
+        # Assume asset database document
+        asset_document = asset
+        asset_tasks = asset_document.get("data", {}).get("tasks")
+        asset = asset["name"]
+
+    if not asset_document or not asset_tasks:
+        # Assume asset name
+        asset_document = io.find_one(
+            {
+                "name": asset,
+                "type": "asset"
+            },
+            {
+                "silo": True,
+                "data.tasks": True
+            }
+        )
+        assert asset_document, "Asset must exist"
 
     # Detect any changes compared session
     mapping = {
@@ -1277,8 +1375,11 @@ def compute_session_changes(session, task=None, asset=None, app=None):
         "AVALON_TASK": task,
         "AVALON_APP": app,
     }
-    changes = {key: value for key, value in mapping.items()
-               if value and value != session.get(key)}
+    changes = {
+        key: value
+        for key, value in mapping.items()
+        if value and value != session.get(key)
+    }
     if not changes:
         return changes
 
@@ -1289,18 +1390,33 @@ def compute_session_changes(session, task=None, asset=None, app=None):
         changes["AVALON_SILO"] = asset_document.get("silo") or ""
 
     # Compute work directory (with the temporary changed session so far)
-    project = io.find_one({"type": "project"})
+    project_doc = io.find_one(
+        {"type": "project"},
+        {"name": True}
+    )
     _session = session.copy()
     _session.update(changes)
-    anatomy = Anatomy(project["name"])
+
+    anatomy = Anatomy(project_doc["name"])
     template_data = template_data_from_session(_session)
     anatomy_filled = anatomy.format(template_data)
-    changes["AVALON_WORKDIR"] = anatomy_filled["work"]["folder"]
+
+    if not template_key:
+        from openpype.lib import get_workfile_template_key
+
+        task_info = asset_tasks.get(task) or {}
+        task_type = task_info.get("type")
+        template_key = get_workfile_template_key(
+            task_type,
+            app,
+            project_name=session["AVALON_PROJECT"]
+        )
+    changes["AVALON_WORKDIR"] = anatomy_filled[template_key]["folder"]
 
     return changes
 
 
-def update_current_task(task=None, asset=None, app=None):
+def update_current_task(task=None, asset=None, app=None, template_key=None):
     """Update active Session to a new task work area.
 
     This updates the live Session to a different `asset`, `task` or `app`.
@@ -1316,7 +1432,7 @@ def update_current_task(task=None, asset=None, app=None):
     """
 
     changes = compute_session_changes(
-        Session, task=task, asset=asset, app=app
+        Session, task=task, asset=asset, app=app, template_key=template_key
     )
 
     # Update the Session and environments. Pop from environments all keys with
@@ -1406,6 +1522,58 @@ def load_with_repre_context(
 
     loader = Loader(repre_context)
     return loader.load(repre_context, name, namespace, options)
+
+
+def load_with_subset_context(
+    Loader, subset_context, namespace=None, name=None, options=None, **kwargs
+):
+    Loader = _make_backwards_compatible_loader(Loader)
+
+    # Ensure options is a dictionary when no explicit options provided
+    if options is None:
+        options = kwargs.get("data", dict())  # "data" for backward compat
+
+    assert isinstance(options, dict), "Options must be a dictionary"
+
+    # Fallback to subset when name is None
+    if name is None:
+        name = subset_context["subset"]["name"]
+
+    log.info(
+        "Running '%s' on '%s'" % (
+            Loader.__name__, subset_context["asset"]["name"]
+        )
+    )
+
+    loader = Loader(subset_context)
+    return loader.load(subset_context, name, namespace, options)
+
+
+def load_with_subset_contexts(
+    Loader, subset_contexts, namespace=None, name=None, options=None, **kwargs
+):
+    Loader = _make_backwards_compatible_loader(Loader)
+
+    # Ensure options is a dictionary when no explicit options provided
+    if options is None:
+        options = kwargs.get("data", dict())  # "data" for backward compat
+
+    assert isinstance(options, dict), "Options must be a dictionary"
+
+    # Fallback to subset when name is None
+    joined_subset_names = " | ".join(
+        context["subset"]["name"]
+        for context in subset_contexts
+    )
+    if name is None:
+        name = joined_subset_names
+
+    log.info(
+        "Running '{}' on '{}'".format(Loader.__name__, joined_subset_names)
+    )
+
+    loader = Loader(subset_contexts)
+    return loader.load(subset_contexts, name, namespace, options)
 
 
 def load(Loader, representation, namespace=None, name=None, options=None,
@@ -1581,6 +1749,19 @@ def format_template_with_optional_keys(data, template):
     return work_file
 
 
+def get_representation_path_from_context(context):
+    """Preparation wrapper using only context as a argument"""
+    representation = context['representation']
+    project_doc = context.get("project")
+    root = None
+    session_project = Session.get("AVALON_PROJECT")
+    if project_doc and project_doc["name"] != session_project:
+        anatomy = Anatomy(project_doc["name"])
+        root = anatomy.roots_obj
+
+    return get_representation_path(representation, root)
+
+
 def get_representation_path(representation, root=None, dbcon=None):
     """Get filename from representation document
 
@@ -1614,6 +1795,10 @@ def get_representation_path(representation, root=None, dbcon=None):
             context = representation["context"]
             context["root"] = root
             path = format_template_with_optional_keys(context, template)
+            # Force replacing backslashes with forward slashed if not on
+            #   windows
+            if platform.system().lower() != "windows":
+                path = path.replace("\\", "/")
         except KeyError:
             # Template references unavailable data
             return None
@@ -1645,13 +1830,10 @@ def get_representation_path(representation, root=None, dbcon=None):
             )
             return None
 
-        # hierarchy may be equal to "" so it is not possible to use `or`
-        hierarchy = asset.get("data", {}).get("hierarchy")
-        if hierarchy is None:
-            # default list() in get would not discover missing parents on asset
-            parents = asset.get("data", {}).get("parents")
-            if parents is not None:
-                hierarchy = "/".join(parents)
+        # default list() in get would not discover missing parents on asset
+        parents = asset.get("data", {}).get("parents")
+        if parents is not None:
+            hierarchy = "/".join(parents)
 
         # Cannot fail, required members only
         data = {
@@ -1674,6 +1856,11 @@ def get_representation_path(representation, root=None, dbcon=None):
 
         try:
             path = format_template_with_optional_keys(data, template)
+            # Force replacing backslashes with forward slashed if not on
+            #   windows
+            if platform.system().lower() != "windows":
+                path = path.replace("\\", "/")
+
         except KeyError as e:
             log.debug("Template references unavailable data: %s" % e)
             return None
@@ -1688,6 +1875,11 @@ def get_representation_path(representation, root=None, dbcon=None):
             return None
 
         path = representation["data"]["path"]
+        # Force replacing backslashes with forward slashed if not on
+        #   windows
+        if platform.system().lower() != "windows":
+            path = path.replace("\\", "/")
+
         if os.path.exists(path):
             return os.path.normpath(path)
 

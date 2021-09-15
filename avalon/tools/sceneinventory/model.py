@@ -12,6 +12,8 @@ from ..models import TreeModel, Item
 
 from . import lib
 
+from openpype.modules import ModulesManager
+
 
 class InventoryModel(TreeModel):
     """The model for the inventory"""
@@ -31,6 +33,41 @@ class InventoryModel(TreeModel):
         self.family_config_cache = family_config_cache
 
         self._hierarchy_view = False
+
+        manager = ModulesManager()
+        sync_server = manager.modules_by_name["sync_server"]
+        self.sync_enabled = sync_server.enabled
+        self._icons = {}
+        self.active_site = self.remote_site = None
+        self.active_provider = self.remote_provider = None
+
+        if self.sync_enabled:
+            project = io.Session['AVALON_PROJECT']
+            active_site = sync_server.get_active_site(project)
+            remote_site = sync_server.get_remote_site(project)
+
+            # TODO refactor
+            active_provider = \
+                sync_server.get_provider_for_site(project,
+                                                  active_site)
+            if active_site == 'studio':
+                active_provider = 'studio'  # sanitized for icon
+
+            remote_provider = \
+                sync_server.get_provider_for_site(project,
+                                                  remote_site)
+            if remote_site == 'studio':
+                remote_provider = 'studio'
+
+            # self.sync_server = sync_server
+            self.active_site = active_site
+            self.active_provider = active_provider
+            self.remote_site = remote_site
+            self.remote_provider = remote_provider
+            self._icons = tools_lib.get_repre_icons()
+            if 'active_site' not in self.Columns and \
+                    'remote_site' not in self.Columns:
+                self.Columns.extend(['active_site', 'remote_site'])
 
     def outdated(self, item):
         value = item.get("version")
@@ -100,6 +137,23 @@ class InventoryModel(TreeModel):
                 # Family icon
                 return item.get("familyIcon", None)
 
+            if item.get("isGroupNode"):
+                column_name = self.Columns[index.column()]
+                if column_name == 'active_site':
+                    return self._icons.get(item.get('active_site_provider'))
+                if column_name == 'remote_site':
+                    return self._icons.get(item.get('remote_site_provider'))
+
+        if role == QtCore.Qt.DisplayRole and item.get("isGroupNode"):
+            column_name = self.Columns[index.column()]
+            progress = None
+            if column_name == 'active_site':
+                progress = item.get("active_site_progress", 0)
+            elif column_name == 'remote_site':
+                progress = item.get("remote_site_progress", 0)
+            if progress is not None:
+                return "{}%".format(max(progress, 0) * 100)
+
         if role == self.UniqueRole:
             return item["representation"] + item.get("objectName", "<none>")
 
@@ -112,11 +166,12 @@ class InventoryModel(TreeModel):
         if state != self._hierarchy_view:
             self._hierarchy_view = state
 
-    def refresh(self, selected=None):
+    def refresh(self, selected=None, items=None):
         """Refresh the model"""
 
         host = api.registered_host()
-        items = host.ls()
+        if not items:  # for debugging or testing, injecting items from outside
+            items = host.ls()
 
         self.clear()
 
@@ -336,6 +391,17 @@ class InventoryModel(TreeModel):
             group_node["familyIcon"] = family_icon
             group_node["count"] = len(group_items)
             group_node["isGroupNode"] = True
+
+            if self.sync_enabled:
+                progress = tools_lib.get_progress_for_repre(representation,
+                                                            self.active_site,
+                                                            self.remote_site)
+                group_node["active_site"] = self.active_site
+                group_node["active_site_provider"] = self.active_provider
+                group_node["remote_site"] = self.remote_site
+                group_node["remote_site_provider"] = self.remote_provider
+                group_node["active_site_progress"] = progress[self.active_site]
+                group_node["remote_site_progress"] = progress[self.remote_site]
 
             self.add_child(group_node, parent=parent)
 

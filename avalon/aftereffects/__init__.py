@@ -26,8 +26,7 @@ from .lib import (
     launch,
     stub,
     show,
-    maintained_selection,
-    execute_in_main_thread
+    maintained_selection
 )
 
 __all__ = [

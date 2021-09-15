@@ -15,6 +15,8 @@ from ..delegates import VersionDelegate
 from .proxy import FilterProxyModel
 from .model import InventoryModel
 
+from openpype.modules import ModulesManager
+
 DEFAULT_COLOR = "#fb9c15"
 
 module = sys.modules[__name__]
@@ -37,6 +39,10 @@ class View(QtWidgets.QTreeView):
         self.customContextMenuRequested.connect(self.show_right_mouse_menu)
         self._hierarchy_view = False
         self._selected = None
+
+        manager = ModulesManager()
+        self.sync_server = manager.modules_by_name["sync_server"]
+        self.sync_enabled = self.sync_server.enabled
 
     def enter_hierarchy(self, items):
         self._selected = set(i["objectName"] for i in items)
@@ -288,6 +294,79 @@ class View(QtWidgets.QTreeView):
         menu.addAction(remove_action)
 
         menu.addSeparator()
+
+        if self.sync_enabled:
+            menu = self.handle_sync_server(menu, repre_ids)
+
+    def handle_sync_server(self, menu, repre_ids):
+        """
+            Adds actions for download/upload when SyncServer is enabled
+
+            Args:
+                menu (OptionMenu)
+                repre_ids (list) of object_ids
+            Returns:
+                (OptionMenu)
+        """
+        download_icon = qtawesome.icon("fa.download", color=DEFAULT_COLOR)
+        download_active_action = QtWidgets.QAction(
+            download_icon,
+            "Download",
+            menu
+        )
+        download_active_action.triggered.connect(
+            lambda: self._add_sites(repre_ids, 'active_site'))
+
+        upload_icon = qtawesome.icon("fa.upload", color=DEFAULT_COLOR)
+        upload_remote_action = QtWidgets.QAction(
+            upload_icon,
+            "Upload",
+            menu
+        )
+        upload_remote_action.triggered.connect(
+            lambda: self._add_sites(repre_ids, 'remote_site'))
+
+        menu.addAction(download_active_action)
+        menu.addAction(upload_remote_action)
+
+        return menu
+
+    def _add_sites(self, repre_ids, side):
+        """
+            (Re)sync all 'repre_ids' to specific site.
+
+            It checks if opposite site has fully available content to limit
+            accidents. (ReSync active when no remote >> losing active content)
+
+            Args:
+                repre_ids (list)
+                side (str): 'active_site'|'remote_site'
+        """
+        project = io.Session["AVALON_PROJECT"]
+        active_site = self.sync_server.get_active_site(project)
+        remote_site = self.sync_server.get_remote_site(project)
+
+        for repre_id in repre_ids:
+            representation = io.find_one({"type": "representation",
+                                          "_id": repre_id})
+            if not representation:
+                continue
+
+            progress = tools_lib.get_progress_for_repre(representation,
+                                                        active_site,
+                                                        remote_site)
+            if side == 'active_site':
+                # check opposite from added site, must be 1 or unable to sync
+                check_progress = progress[remote_site]
+                site = active_site
+            else:
+                check_progress = progress[active_site]
+                site = remote_site
+
+            if check_progress == 1:
+                self.sync_server.add_site(project, repre_id, site, force=True)
+
+        self.data_changed.emit()
 
     def build_item_menu(self, items):
         """Create menu for the selected items"""
@@ -951,7 +1030,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
         # Fill combobox
         if values is not None:
-            combobox_widget.populate(values)
+            combobox_widget.populate(list(sorted(values)))
             if selected_value and selected_value in values:
                 index = None
                 for idx in range(combobox_widget.count()):
@@ -1734,19 +1813,20 @@ class Window(QtWidgets.QDialog):
 
         """
 
-    def refresh(self):
+    def refresh(self, items=None):
         with tools_lib.preserve_expanded_rows(tree_view=self.view,
                                               role=self.model.UniqueRole):
             with tools_lib.preserve_selection(tree_view=self.view,
                                               role=self.model.UniqueRole,
                                               current_index=False):
                 if self.view._hierarchy_view:
-                    self.model.refresh(selected=self.view._selected)
+                    self.model.refresh(selected=self.view._selected,
+                                       items=items)
                 else:
-                    self.model.refresh()
+                    self.model.refresh(items=items)
 
 
-def show(root=None, debug=False, parent=None):
+def show(root=None, debug=False, parent=None, items=None):
     """Display Scene Inventory GUI
 
     Arguments:
@@ -1754,6 +1834,8 @@ def show(root=None, debug=False, parent=None):
             defaults to False
         parent (QtCore.QObject, optional): When provided parent the interface
             to this QObject.
+        items (list) of dictionaries - for injection of items for standalone
+                testing
 
     """
 
@@ -1766,18 +1848,21 @@ def show(root=None, debug=False, parent=None):
     if debug is True:
         io.install()
 
-        any_project = next(
-            project for project in io.projects()
-            if project.get("active", True) is not False
-        )
+        if not os.environ.get("AVALON_PROJECT"):
+            any_project = next(
+                project for project in io.projects()
+                if project.get("active", True) is not False
+            )
 
-        api.Session["AVALON_PROJECT"] = any_project["name"]
+            api.Session["AVALON_PROJECT"] = any_project["name"]
+        else:
+            api.Session["AVALON_PROJECT"] = os.environ.get("AVALON_PROJECT")
 
     with tools_lib.application():
         window = Window(parent)
         window.setStyleSheet(style.load_stylesheet())
         window.show()
-        window.refresh()
+        window.refresh(items=items)
 
         module.window = window
 

@@ -2,7 +2,7 @@ import sys
 import time
 
 from ...api import AvalonMongoDB
-from ...vendor.Qt import QtWidgets, QtCore
+from ...vendor.Qt import QtWidgets, QtCore, QtGui
 from ... import style
 from .. import lib as tools_lib
 from . import lib
@@ -10,10 +10,13 @@ from .widgets import LibrarySubsetWidget
 from ..loader.widgets import (
     ThumbnailWidget,
     VersionWidget,
-    FamilyListWidget
+    FamilyListWidget,
+    RepresentationWidget
 )
 from ..widgets import AssetWidget
 from ..models import AssetModel
+
+from openpype.modules import ModulesManager
 
 module = sys.modules[__name__]
 module.window = None
@@ -32,6 +35,9 @@ class Window(QtWidgets.QDialog):
         self, parent=None, icon=None, show_projects=False, show_libraries=True
     ):
         super(Window, self).__init__(parent)
+
+        self._initial_refresh = False
+        self._ignore_project_change = False
 
         # Enable minimize and maximize for app
         self.setWindowTitle(self.tool_title)
@@ -71,14 +77,9 @@ class Window(QtWidgets.QDialog):
             tool_name=self.tool_name,
             parent=self
         )
+
         version = VersionWidget(self.dbcon)
         thumbnail = ThumbnailWidget(self.dbcon)
-
-        thumb_ver_body = QtWidgets.QWidget()
-        thumb_ver_layout = QtWidgets.QVBoxLayout(thumb_ver_body)
-        thumb_ver_layout.setContentsMargins(0, 0, 0, 0)
-        thumb_ver_layout.addWidget(thumbnail)
-        thumb_ver_layout.addWidget(version)
 
         # Project
         self.combo_projects = QtWidgets.QComboBox()
@@ -92,12 +93,25 @@ class Window(QtWidgets.QDialog):
         asset_filter_splitter.setStretchFactor(1, 65)
         asset_filter_splitter.setStretchFactor(2, 35)
 
+        manager = ModulesManager()
+        sync_server = manager.modules_by_name["sync_server"]
+
+        representations = RepresentationWidget(self.dbcon)
+        thumb_ver_splitter = QtWidgets.QSplitter()
+        thumb_ver_splitter.setOrientation(QtCore.Qt.Vertical)
+        thumb_ver_splitter.addWidget(thumbnail)
+        thumb_ver_splitter.addWidget(version)
+        if sync_server.enabled:
+            thumb_ver_splitter.addWidget(representations)
+        thumb_ver_splitter.setStretchFactor(0, 30)
+        thumb_ver_splitter.setStretchFactor(1, 35)
+
         container_layout = QtWidgets.QHBoxLayout(container)
         container_layout.setContentsMargins(0, 0, 0, 0)
         split = QtWidgets.QSplitter()
         split.addWidget(asset_filter_splitter)
         split.addWidget(subsets)
-        split.addWidget(thumb_ver_body)
+        split.addWidget(thumb_ver_splitter)
         split.setSizes([180, 950, 200])
         container_layout.addWidget(split)
 
@@ -122,7 +136,8 @@ class Window(QtWidgets.QDialog):
                 "assets": assets,
                 "subsets": subsets,
                 "version": version,
-                "thumbnail": thumbnail
+                "thumbnail": thumbnail,
+                "representations": representations
             },
             "label": {
                 "message": message,
@@ -140,11 +155,23 @@ class Window(QtWidgets.QDialog):
         subsets.version_changed.connect(self.on_versionschanged)
         self.combo_projects.currentTextChanged.connect(self.on_project_change)
 
+        self.sync_server = sync_server
+
         # Set default thumbnail on start
         thumbnail.set_thumbnail(None)
 
         # Defaults
-        self.resize(1330, 700)
+        if sync_server.enabled:
+            split.setSizes([250, 1000, 550])
+            self.resize(1800, 900)
+        else:
+            split.setSizes([250, 850, 200])
+            self.resize(1300, 700)
+
+    def showEvent(self, event):
+        super(Window, self).showEvent(event)
+        if not self._initial_refresh:
+            self.refresh()
 
     def on_assetview_click(self, *args):
         subsets_widget = self.data["widgets"]["subsets"]
@@ -152,26 +179,40 @@ class Window(QtWidgets.QDialog):
         if selection_model.selectedIndexes():
             selection_model.clearSelection()
 
-    def _set_projects(self, default=False):
-        projects = self.get_filtered_projects()
+    def _set_projects(self):
+        # Store current project
+        old_project_name = self.current_project
 
-        project_name = self.combo_projects.currentText()
+        self._ignore_project_change = True
 
+        # Cleanup
         self.combo_projects.clear()
-        if len(projects) > 0:
-            self.combo_projects.addItems(projects)
 
-        project_set = False
-        if project_name:
+        # Fill combobox with projects
+        select_project_item = QtGui.QStandardItem("< Select project >")
+        select_project_item.setData(None, QtCore.Qt.UserRole + 1)
+
+        combobox_items = [select_project_item]
+
+        project_names = self.get_filtered_projects()
+
+        for project_name in sorted(project_names):
+            item = QtGui.QStandardItem(project_name)
+            item.setData(project_name, QtCore.Qt.UserRole + 1)
+            combobox_items.append(item)
+
+        root_item = self.combo_projects.model().invisibleRootItem()
+        root_item.appendRows(combobox_items)
+
+        index = 0
+        self._ignore_project_change = False
+
+        if old_project_name:
             index = self.combo_projects.findText(
-                project_name, QtCore.Qt.MatchFixedString
+                old_project_name, QtCore.Qt.MatchFixedString
             )
-            if index:
-                project_set = True
-                self.combo_projects.setCurrentIndex(index)
 
-        if not project_set:
-            project_name = None
+        self.combo_projects.setCurrentIndex(index)
 
     def get_filtered_projects(self):
         projects = list()
@@ -186,9 +227,13 @@ class Window(QtWidgets.QDialog):
         return projects
 
     def on_project_change(self):
-        project_name = self.combo_projects.currentText()
-        if not project_name:
+        if self._ignore_project_change:
             return
+
+        row = self.combo_projects.currentIndex()
+        index = self.combo_projects.model().index(row, 0)
+        project_name = index.data(QtCore.Qt.UserRole + 1)
+
         self.dbcon.Session["AVALON_PROJECT"] = project_name
 
         _config = lib.find_config()
@@ -209,6 +254,11 @@ class Window(QtWidgets.QDialog):
         title = "{} - {}".format(self.tool_title, project_name)
         self.setWindowTitle(title)
 
+        subsets = self.data["widgets"]["subsets"]
+        subsets.on_project_change(self.dbcon.Session["AVALON_PROJECT"])
+
+        representations = self.data["widgets"]["representations"]
+        representations.on_project_change(self.dbcon.Session["AVALON_PROJECT"])
 
     @property
     def current_project(self):
@@ -249,16 +299,19 @@ class Window(QtWidgets.QDialog):
 
     # ------------------------------
     def _refresh(self):
-        project_name = self.combo_projects.currentText()
-        self._set_projects(bool(not project_name))
+        if not self._initial_refresh:
+            self._initial_refresh = True
+        self._set_projects()
 
     def _refresh_assets(self):
         """Load assets from database"""
-        if self.current_project is None:
-            return
-        # Ensure a project is loaded
-        project = self.dbcon.find_one({"type": "project"})
-        assert project, "This is a bug"
+        if self.current_project is not None:
+            # Ensure a project is loaded
+            project_doc = self.dbcon.find_one(
+                {"type": "project"},
+                {"type": 1}
+            )
+            assert project_doc, "This is a bug"
 
         assets_widget = self.data["widgets"]["assets"]
         assets_widget.model.stop_fetch_thread()
@@ -295,6 +348,13 @@ class Window(QtWidgets.QDialog):
         subsets_model.clear()
         self.clear_assets_underlines()
 
+        if not self.dbcon.Session.get("AVALON_PROJECT"):
+            subsets_widget.set_loading_state(
+                loading=False,
+                empty=True
+            )
+            return
+
         # filter None docs they are silo
         asset_docs = assets_widget.get_selected_assets()
         if len(asset_docs) == 0:
@@ -326,6 +386,9 @@ class Window(QtWidgets.QDialog):
         self.data["widgets"]["thumbnail"].set_thumbnail(asset_docs)
 
         self.data["state"]["assetIds"] = asset_ids
+
+        representations = self.data["widgets"]["representations"]
+        representations.set_version_ids([])  # reset repre list
 
         self.echo("Duration: %.3fs" % (time.time() - t1))
 
@@ -417,6 +480,10 @@ class Window(QtWidgets.QDialog):
                 thumbnail_docs = asset_docs
 
         self.data["widgets"]["thumbnail"].set_thumbnail(thumbnail_docs)
+
+        representations = self.data["widgets"]["representations"]
+        version_ids = [doc["_id"] for doc in version_docs or []]
+        representations.set_version_ids(version_ids)
 
     def _set_context(self, context, refresh=True):
         """Set the selection in the interface using a context.

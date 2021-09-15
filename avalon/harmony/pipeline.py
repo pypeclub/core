@@ -47,14 +47,15 @@ def ls():
         yield data
 
 
-def list_instances():
+def list_instances(remove_orphaned=True):
     """
         List all created instances from current workfile which
         will be published.
 
         Pulls from File > File Info
 
-        For SubsetManager
+        For SubsetManager, by default it check if instance has matching node
+        in the scene, if not, instance gets deleted from metadata.
 
         Returns:
             (list) of dictionaries matching instances format
@@ -65,11 +66,21 @@ def list_instances():
         # Skip non-tagged objects.
         if not data:
             continue
+
         # Filter out containers.
         if "container" in data.get("id"):
             continue
 
         data['uuid'] = key
+
+        if remove_orphaned:
+            node_name = key.split("/")[-1]
+            located_node = lib.find_node_by_name(node_name, 'WRITE')
+            if not located_node:
+                print("Removing orphaned instance {}".format(key))
+                lib.remove(key)
+                continue
+
         instances.append(data)
 
     return instances
@@ -77,7 +88,7 @@ def list_instances():
 
 def remove_instance(instance):
     """
-        Remove instance from current workfile metadata.
+        Remove instance from current workfile metadata and from scene!
 
         Updates metadata of current file in File > File Info and removes
         icon highlight on group layer.

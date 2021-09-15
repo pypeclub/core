@@ -18,6 +18,7 @@ self = sys.modules[__name__]
 self._events = dict()  # Registered Blender callbacks
 self._parent = None  # Main window
 
+AVALON_INSTANCES = "AVALON_INSTANCES"
 AVALON_CONTAINERS = "AVALON_CONTAINERS"
 AVALON_PROPERTY = 'avalon'
 IS_HEADLESS = bpy.app.background
@@ -41,6 +42,8 @@ def _on_load_post(*args):
         api.emit("open", args)
     else:
         api.emit("new", args)
+
+    ops.OpenFileCacher.post_load()
 
 
 def _register_callbacks():
