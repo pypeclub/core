@@ -367,7 +367,7 @@ def set_avalon_knob_data(node, data=None, prefix="avalon:"):
             (("warn", ""), warn),
             (("divd", ""), divd),
         ]
-        tab[avalon_data_group] = OrderedDict(head + create.items())
+        tab[avalon_data_group] = OrderedDict(head + list(create.items()))
         create = tab
 
     imprint(node, create, tab=tab_name)
