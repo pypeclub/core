@@ -865,7 +865,6 @@ class FamiliesFilterProxyModel(GroupMemberFilterProxyModel):
         self.invalidateFilter()
 
     def filterAcceptsRow(self, row=0, parent=None):
-
         if not self._families:
             return False
 
@@ -882,11 +881,10 @@ class FamiliesFilterProxyModel(GroupMemberFilterProxyModel):
         if item.get("isGroup"):
             return self.filter_accepts_group(index, model)
 
-        families = item.get("families", [])
-        if not families:
+        family = item.get("family")
+        if not family:
             return True
 
-        family = tuple(families)[0]
         family_config = self.family_config_cache.family_config(family)
         if family_config.get("hideFilter"):
             return False
