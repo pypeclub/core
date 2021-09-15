@@ -880,7 +880,7 @@ class FamilyListWidget(QtWidgets.QListWidget):
                     "family": {"$arrayElemAt": ["$data.families", 0]}
                 }},
                 {"$group": {
-                    "_id": "tada",
+                    "_id": "family_group",
                     "families": {"$addToSet": "$family"}
                 }}
             ]))
