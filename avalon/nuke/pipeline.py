@@ -3,7 +3,6 @@ import sys
 import importlib
 import logging
 from collections import OrderedDict
-from __builtin__ import reload
 
 import nuke
 from pyblish import api as pyblish
@@ -12,6 +11,11 @@ from . import lib, command
 from .. import api
 from ..vendor.Qt import QtWidgets
 from ..pipeline import AVALON_CONTAINER_ID
+
+try:
+    from __builtin__ import reload
+except ImportError:
+    from importlib import reload
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
 
