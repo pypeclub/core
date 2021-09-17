@@ -18,7 +18,11 @@ from Qt import QtWidgets
 from avalon import api
 from avalon.tools.webserver.app import WebServerTool
 
-from openpype.tools import workfiles
+from openpype.tools import (
+    workfiles,
+    loader,
+    libraryloader
+)
 from openpype.tools.tray_app.app import ConsoleTrayApp
 
 from .ws_stub import AfterEffectsServerStub
@@ -40,6 +44,13 @@ def show(module_name):
     if module_name == "workfiles":
         # Use OpenPype's workfiles tool
         tool_module = workfiles
+
+    elif module_name == "loader":
+        tool_module = loader
+
+    elif module_name == "libraryloader":
+        tool_module = libraryloader
+
     else:
         tool_module = importlib.import_module("avalon.tools." + module_name)
 

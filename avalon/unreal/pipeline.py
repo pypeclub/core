@@ -7,9 +7,11 @@ import unreal
 from ..tools import (
     projectmanager,
     creator,
-    loader,
     publish as publisher,
     sceneinventory,
+)
+from openpype.tools import (
+    loader
 )
 
 from .. import api

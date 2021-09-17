@@ -195,7 +195,7 @@ function start()
         {
           "module": "avalon.toonboom",
           "method": "show",
-          "args": ["avalon.tools.loader"]
+          "args": ["openpype.tools.loader"]
         },
         false
     );
