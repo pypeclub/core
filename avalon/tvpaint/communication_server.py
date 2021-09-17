@@ -302,9 +302,9 @@ class AvalonToolsHelper:
         if self._loader_tool is not None:
             return self._loader_tool
 
-        from ..tools.loader.app import Window
+        from openpype.tools.loader import LoaderWindow
 
-        window = Window()
+        window = LoaderWindow()
         window.setWindowFlags(
             window.windowFlags() | QtCore.Qt.WindowStaysOnTopHint
         )
@@ -396,9 +396,9 @@ class AvalonToolsHelper:
         if self._library_loader_tool is not None:
             return self._library_loader_tool
 
-        from ..tools.libraryloader.app import Window
+        from openpype.tools.libraryloader import LibraryLoaderWindow
 
-        window = Window()
+        window = LibraryLoaderWindow()
         window.setWindowFlags(
             window.windowFlags() | QtCore.Qt.WindowStaysOnTopHint
         )

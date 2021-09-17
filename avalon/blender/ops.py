@@ -15,7 +15,7 @@ import bpy
 import bpy.utils.previews
 
 from ..tools.creator.app import Window as creator_window
-from ..tools.loader.app import Window as loader_window
+from openpype.tools.loader import LoaderWindow
 from openpype.tools.workfiles.app import Window as workfiles_window
 from ..tools.sceneinventory.app import Window as sceneinventory_window
 from openpype.tools.pyblish_pype import app as pyblish_pype_app
@@ -282,7 +282,7 @@ class LaunchLoader(LaunchQtApp):
 
     bl_idname = "wm.avalon_loader"
     bl_label = "Load..."
-    _window_class = loader_window
+    _window_class = LoaderWindow
 
     def before_window_show(self):
         self._window.set_context(

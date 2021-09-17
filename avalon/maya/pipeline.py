@@ -108,9 +108,11 @@ def _install_menu():
     from ..tools import (
         projectmanager,
         creator,
-        loader,
         publish,
-        sceneinventory,
+        sceneinventory
+    )
+    from openpype.tools import (
+        loader,
         libraryloader
     )
 
