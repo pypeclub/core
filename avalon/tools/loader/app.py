@@ -51,7 +51,7 @@ class Window(QtWidgets.QDialog):
 
         # Groups config
         self.groups_config = lib.GroupsConfig(io)
-        self.family_config_cache = lib.global_family_cache()
+        self.family_config_cache = lib.FamilyConfigCache(io)
 
         # Enable minimize and maximize for app
         self.setWindowFlags(QtCore.Qt.Window)

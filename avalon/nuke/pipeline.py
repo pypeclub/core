@@ -269,9 +269,10 @@ def _install_menu():
         creator,
         publish,
         workfiles,
-        loader,
         sceneinventory
     )
+    from openpype.tools import loader
+
 
     # Create menu
     menubar = nuke.menu("Nuke")

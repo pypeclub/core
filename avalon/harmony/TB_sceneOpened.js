@@ -405,7 +405,7 @@ function start() {
         app.avalonClient.send({
             'module': 'avalon.harmony.lib',
             'method': 'show',
-            'args': ['avalon.tools.loader']
+            'args': ['openpype.tools.loader']
         }, false);
     };
     // add Loader item to menu
