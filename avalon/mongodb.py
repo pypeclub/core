@@ -378,19 +378,25 @@ class AvalonMongoDB:
 
     @requires_install
     @auto_reconnect
-    def projects(self, query_filter=None, projection=None):
-        """List available projects
+    def projects(self, projection=None, only_active=True):
+        """Iter project documents
+
+        Args:
+            projection (optional): MongoDB query projection operation
+            only_active (optional): Skip inactive projects, default True.
 
         Returns:
-            list of project documents
+            Project documents iterator
 
         """
-        if not query_filter:
-            query_filter = {"type": "project"}
-
-        find_args = [query_filter]
-        if projection:
-            find_args.append(projection)
+        query_filter = {"type": "project"}
+        if only_active:
+            query_filter.update({
+                "$or": [
+                    {"data.active": {"$exists": 0}},
+                    {"data.active": True},
+                ]
+            })
 
         for project_name in self._database.collection_names():
             if project_name in ("system.indexes",):
@@ -398,9 +404,11 @@ class AvalonMongoDB:
 
             # Each collection will have exactly one project document
 
-            document = self._database[project_name].find_one(*find_args)
-            if document is not None:
-                yield document
+            doc = self._database[project_name].find_one(
+                query_filter, projection=projection
+            )
+            if doc is not None:
+                yield doc
 
     @auto_reconnect
     def insert_one(self, item, *args, **kwargs):
