@@ -1054,10 +1054,16 @@ def create(Creator, name, asset, options=None, data=None):
 
     host = registered_host()
     plugin = Creator(name, asset, options, data)
-    with host.maintained_selection():
-        print("Running %s" % plugin)
-        instance = plugin.process()
 
+    maintain_selection = getattr(plugin, "maintain_selection")
+    if maintain_selection is None or maintain_selection is True:
+        with host.maintained_selection():
+            print("Running %s with maintained selection" % plugin)
+            instance = plugin.process()
+        return instance
+
+    print("Running %s" % plugin)
+    instance = plugin.process()
     return instance
 
 
