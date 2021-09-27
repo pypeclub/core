@@ -1054,9 +1054,13 @@ def create(Creator, name, asset, options=None, data=None):
 
     host = registered_host()
     plugin = Creator(name, asset, options, data)
+    maintain_selection = True
+    try:
+        maintain_selection = plugin.maintain_selection
+    except AttributeError:
+        pass
 
-    maintain_selection = getattr(plugin, "maintain_selection")
-    if maintain_selection is None or maintain_selection is True:
+    if maintain_selection is True:
         with host.maintained_selection():
             print("Running %s with maintained selection" % plugin)
             instance = plugin.process()
