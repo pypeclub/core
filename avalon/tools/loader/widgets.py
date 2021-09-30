@@ -6,11 +6,10 @@ import inspect
 import traceback
 import collections
 
-from ...vendor.Qt import QtWidgets, QtCore, QtGui, QtSvg
+from ...vendor.Qt import QtWidgets, QtCore, QtGui
 from ...vendor import qtawesome
 from ... import api
 from ... import pipeline
-from ... import style
 from ...lib import MasterVersionType
 
 from .. import lib as tools_lib
@@ -362,6 +361,11 @@ class SubsetWidget(QtWidgets.QWidget):
                     available_loaders,
                     repre_context
                 ):
+
+                    # Skip if its a SubsetLoader.
+                    if api.SubsetLoader in inspect.getmro(loader):
+                        continue
+
                     # skip multiple select variant if one is selected
                     if one_item_selected:
                         loaders.append((repre_doc, loader))
@@ -389,6 +393,11 @@ class SubsetWidget(QtWidgets.QWidget):
                 found_combinations = list(
                     set(found_combinations) & set(_found_combinations)
                 )
+
+        # Subset Loaders.
+        for loader in available_loaders:
+            if api.SubsetLoader in inspect.getmro(loader):
+                loaders.append((None, loader))
 
         if not one_item_selected:
             # Filter loaders from first subset by intersected combinations
@@ -431,7 +440,8 @@ class SubsetWidget(QtWidgets.QWidget):
                     label = loader.__name__
 
                 # Add the representation as suffix
-                label = "{0} ({1})".format(label, representation['name'])
+                if representation:
+                    label = "{0} ({1})".format(label, representation['name'])
 
                 # Support font-awesome icons using the `.icon` and `.color`
                 # attributes on plug-ins.
@@ -471,7 +481,9 @@ class SubsetWidget(QtWidgets.QWidget):
 
         # Find the representation name and loader to trigger
         action_representation, loader = action.data()
-        representation_name = action_representation["name"]  # extension
+        representation_name = None
+        if action_representation:
+            representation_name = action_representation["name"]  # extension
         options = None
 
         # Pop option dialog
@@ -492,6 +504,9 @@ class SubsetWidget(QtWidgets.QWidget):
         # Trigger
         repre_ids = []
         for item in items:
+            if not representation_name:
+                continue
+
             representation = self.dbcon.find_one(
                 {
                     "type": "representation",
@@ -508,6 +523,70 @@ class SubsetWidget(QtWidgets.QWidget):
             repre_ids.append(representation["_id"])
 
         error_info = []
+        if api.SubsetLoader in inspect.getmro(loader):
+            subset_ids = []
+            subset_version_docs = {}
+
+            for item in items:
+                subset_id = item["version_document"]["parent"]
+                subset_ids.append(subset_id)
+                subset_version_docs[subset_id] = item["version_document"]
+
+            subset_contexts_by_id = pipeline.get_subset_contexts(
+                subset_ids, self.dbcon
+            )
+            subset_contexts = list(subset_contexts_by_id.values())
+            for context in subset_contexts:
+                context["version"] = subset_version_docs[
+                    context["subset"]["_id"]]
+
+            if loader.is_multiple_contexts_compatible:
+                try:
+                    pipeline.load_with_subset_contexts(
+                        loader,
+                        subset_contexts,
+                        options=options
+                    )
+                except Exception as exc:
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    formatted_traceback = "".join(
+                        traceback.format_exception(
+                            exc_type, exc_value, exc_traceback
+                        )
+                    )
+                    error_info.append((
+                        str(exc),
+                        formatted_traceback,
+                        None,
+                        item["subset"],
+                        None
+                    ))
+            else:
+                for subset_context in subset_contexts_by_id.values():
+                    version_doc = subset_version_docs[
+                        subset_context["subset"]["_id"]]
+                    subset_context["version"] = version_doc
+                    try:
+                        pipeline.load_with_subset_context(
+                            loader,
+                            subset_context,
+                            options=options
+                        )
+                    except Exception as exc:
+                        exc_type, exc_value, exc_traceback = sys.exc_info()
+                        formatted_traceback = "".join(
+                            traceback.format_exception(
+                                exc_type, exc_value, exc_traceback
+                            )
+                        )
+                        error_info.append((
+                            str(exc),
+                            formatted_traceback,
+                            None,
+                            item["subset"],
+                            None
+                        ))
+
         repre_contexts = pipeline.get_repres_contexts(repre_ids, self.dbcon)
         for repre_context in repre_contexts.values():
             try:

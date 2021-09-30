@@ -1,4 +1,8 @@
-# Photoshop Integration
+# Aftereffects Integration
+
+Requirements: This extension requires use of Javascript engine, which is 
+available since CC 16.0.
+Please check your File>Project Settings>Expressions>Expressions Engine
 
 ## Setup
 

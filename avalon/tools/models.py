@@ -27,24 +27,21 @@ class TreeModel(QtCore.QAbstractItemModel):
             return self.item_class
         return Item
 
-    def rowCount(self, parent):
-        if parent.isValid():
-            item = parent.internalPointer()
+    def rowCount(self, parent=None):
+        if parent is None or not parent.isValid():
+            parent_item = self._root_item
         else:
-            item = self._root_item
-
-        return item.childCount()
+            parent_item = parent.internalPointer()
+        return parent_item.childCount()
 
     def columnCount(self, parent):
         return len(self.Columns)
 
     def data(self, index, role):
-
         if not index.isValid():
             return None
 
         if role == QtCore.Qt.DisplayRole or role == QtCore.Qt.EditRole:
-
             item = index.internalPointer()
             column = index.column()
 

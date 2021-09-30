@@ -7,8 +7,25 @@ import bpy
 from avalon import api
 
 
+class OpenFileCacher:
+    """Store information about opening file.
+
+    When file is opening QApplcation events should not be processed.
+    """
+    opening_file = False
+
+    @classmethod
+    def post_load(cls):
+        cls.opening_file = False
+
+    @classmethod
+    def set_opening(cls):
+        cls.opening_file = True
+
+
 def open_file(filepath: str) -> Optional[str]:
     """Open the scene file in Blender."""
+    OpenFileCacher.set_opening()
 
     preferences = bpy.context.preferences
     load_ui = preferences.filepaths.use_load_ui

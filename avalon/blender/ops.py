@@ -2,6 +2,7 @@
 
 import os
 import sys
+import platform
 from functools import partial
 from pathlib import Path
 from types import ModuleType
@@ -14,8 +15,9 @@ from ..tools.creator.app import Window as creator_window
 from ..tools.loader.app import Window as loader_window
 from ..tools.workfiles.app import Window as workfiles_window
 from ..tools.sceneinventory.app import Window as sceneinventory_window
-from ..tools import publish
+from pype.tools.pyblish_pype import app as pyblish_pype_app
 
+from .workio import OpenFileCacher
 from .. import api
 from ..vendor.Qt import QtWidgets, QtCore
 
@@ -62,20 +64,6 @@ class BlenderApplication(QtWidgets.QApplication):
         return cls.blender_windows.get(identifier)
 
 
-def _has_visible_windows(app: QtWidgets.QApplication) -> bool:
-    """Check if the Qt application has any visible top level windows."""
-    is_visible = False
-    for window in BlenderApplication.blender_windows.values():
-        try:
-            if window.isVisible():
-                is_visible = True
-                break
-        except RuntimeError:
-            continue
-
-    return False
-
-
 def _process_app_events(app: QtWidgets.QApplication) -> Optional[float]:
     """Process the events of the Qt app if the window is still visible.
 
@@ -83,7 +71,13 @@ def _process_app_events(app: QtWidgets.QApplication) -> Optional[float]:
     return the time after which this function should be run again. Else return
     None, so the function is not run again and will be unregistered.
     """
-    if app._instance and _has_visible_windows(app):
+    if platform.system().lower() == "windows":
+        return None
+
+    if OpenFileCacher.opening_file:
+        return TIMER_INTERVAL
+
+    if app._instance:
         app.processEvents()
         return TIMER_INTERVAL
 
@@ -212,8 +206,16 @@ class LaunchPublisher(LaunchQtApp):
     bl_label = "Publish..."
 
     def execute(self, context):
-        publish_show = publish._discover_gui()
-        publish.show()
+        wm = bpy.context.window_manager
+        if not wm.get('is_avalon_qt_timer_running', False):
+            bpy.app.timers.register(
+                partial(_process_app_events, self._app),
+                persistent=True,
+            )
+            wm['is_avalon_qt_timer_running'] = True
+
+        pyblish_pype_app.show()
+
         return {'FINISHED'}
 
 

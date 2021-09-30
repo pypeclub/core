@@ -951,7 +951,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
         # Fill combobox
         if values is not None:
-            combobox_widget.populate(values)
+            combobox_widget.populate(list(sorted(values)))
             if selected_value and selected_value in values:
                 index = None
                 for idx in range(combobox_widget.count()):

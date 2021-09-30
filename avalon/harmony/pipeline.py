@@ -47,6 +47,61 @@ def ls():
         yield data
 
 
+def list_instances():
+    """
+        List all created instances from current workfile which
+        will be published.
+
+        Pulls from File > File Info
+
+        For SubsetManager
+
+        Returns:
+            (list) of dictionaries matching instances format
+    """
+    objects = lib.get_scene_data() or {}
+    instances = []
+    for key, data in objects.items():
+        # Skip non-tagged objects.
+        if not data:
+            continue
+        # Filter out containers.
+        if "container" in data.get("id"):
+            continue
+
+        data['uuid'] = key
+        instances.append(data)
+
+    return instances
+
+
+def remove_instance(instance):
+    """
+        Remove instance from current workfile metadata.
+
+        Updates metadata of current file in File > File Info and removes
+        icon highlight on group layer.
+
+        For SubsetManager
+
+        Args:
+            instance (dict): instance representation from subsetmanager model
+    """
+    node = instance.get("uuid")
+    lib.remove(node)
+    lib.delete_node(node)
+
+
+def select_instance(instance):
+    """
+        Select instance in Node View
+
+        Args:
+            instance (dict): instance representation from subsetmanager model
+    """
+    lib.select_nodes([instance.get("uuid")])
+
+
 class Creator(api.Creator):
     """Creator plugin to create instances in Harmony.
 

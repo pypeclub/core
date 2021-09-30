@@ -40,6 +40,8 @@ self = sys.modules[__name__]
 self._is_installed = False
 self._config = None
 self.data = {}
+# The currently registered plugins from the last `discover` call.
+self.last_discovered_plugins = {}
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +58,7 @@ HOST_WORKFILE_EXTENSIONS = {
     "maya": [".ma", ".mb"],
     "nuke": [".nk"],
     "hiero": [".hrox"],
-    "photoshop": [".psd"],
+    "photoshop": [".psd", ".psb"],
     "premiere": [".prproj"],
     "resolve": [".drp"],
     "aftereffects": [".aep"]
@@ -190,6 +192,8 @@ class Loader(list):
     representations = list()
     order = 0
 
+    is_multiple_contexts_compatible = False
+
     def __init__(self, context):
         self.fname = self.filepath_from_context(context)
 
@@ -245,6 +249,20 @@ class Loader(list):
                                   "implemented by subclass")
 
 
+@lib.log
+class SubsetLoader(Loader):
+    """Load subset into host application
+
+    Arguments:
+        context (dict): avalon-core:context-1.0
+        name (str, optional): Use pre-defined name
+        namespace (str, optional): Use pre-defined namespace
+    """
+
+    def __init__(self, context):
+        pass
+
+
 class CreatorError(Exception):
     """Should be raised when creator failed because of known issue.
 
@@ -275,6 +293,37 @@ class Creator(object):
         self.data["active"] = True
 
         self.data.update(data or {})
+
+    @classmethod
+    def get_subset_name(
+        cls, variant, task_name, asset_id, project_name, host_name=None
+    ):
+        """Return subset name created with entered arguments.
+
+        Logic extracted from Creator tool. This method should give ability
+        to get subset name without the tool.
+
+        TODO: Maybe change `variant` variable.
+
+        By default is output concatenated family with user text.
+
+        Args:
+            variant (str): What is entered by user in creator tool.
+            task_name (str): Context's task name.
+            asset_id (ObjectId): Mongo ID of context's asset.
+            project_name (str): Context's project name.
+            host_name (str): Name of host.
+
+        Returns:
+            str: Formatted subset name with entered arguments. Should match
+                config's logic.
+        """
+        # Capitalize first letter of user input
+        if variant:
+            variant = variant[0].capitalize() + variant[1:]
+
+        family = cls.family.rsplit(".", 1)[-1]
+        return "{}{}".format(family, variant)
 
     def process(self):
         pass
@@ -549,7 +598,11 @@ class Application(Action):
             "name": session["AVALON_ASSET"]
         })
         tools = self.find_tools(asset)
-        tools_attr.extend(tools)
+        # Forwards compatibility - replace slash with underscore
+        modified_tools = []
+        for tool in tools:
+            modified_tools.append(tool.replace("/", "_"))
+        tools_attr.extend(modified_tools)
 
         tools_env = acre.get_tools(tools_attr)
         dyn_env = acre.compute(tools_env)
@@ -772,7 +825,11 @@ def discover(superclass):
             print("Warning: Overwriting %s" % plugin.__name__)
         plugins[plugin.__name__] = plugin
 
-    return sorted(plugins.values(), key=lambda Plugin: Plugin.__name__)
+    sorted_plugins = sorted(
+        plugins.values(), key=lambda Plugin: Plugin.__name__
+    )
+    self.last_discovered_plugins[superclass.__name__] = sorted_plugins
+    return sorted_plugins
 
 
 def plugin_from_module(superclass, module):
@@ -1282,6 +1339,67 @@ def get_repres_contexts(representation_ids, dbcon=None):
     return contexts
 
 
+def get_subset_contexts(subset_ids, dbcon=None):
+    """Return parenthood context for subset.
+
+    Args:
+        subset_ids (list): The subset ids.
+        dbcon (AvalonMongoDB): Mongo connection object. `avalon.io` used when
+            not entered.
+
+    Returns:
+        dict: The full representation context by representation id.
+
+    """
+    if not dbcon:
+        dbcon = io
+
+    contexts = {}
+    if not subset_ids:
+        return contexts
+
+    _subset_ids = []
+    for id in subset_ids:
+        if isinstance(id, six.string_types):
+            id = io.ObjectId(id)
+        _subset_ids.append(id)
+
+    subset_docs = dbcon.find({
+        "type": "subset",
+        "_id": {"$in": list(_subset_ids)}
+    })
+    subset_docs_by_id = {}
+    asset_ids = set()
+    for subset_doc in subset_docs:
+        subset_docs_by_id[subset_doc["_id"]] = subset_doc
+        asset_ids.add(subset_doc["parent"])
+
+    asset_docs = dbcon.find({
+        "type": "asset",
+        "_id": {"$in": list(asset_ids)}
+    })
+    asset_docs_by_id = {
+        asset_doc["_id"]: asset_doc
+        for asset_doc in asset_docs
+    }
+
+    project_doc = dbcon.find_one({"type": "project"})
+
+    for subset_id, subset_doc in subset_docs_by_id.items():
+        asset_doc = asset_docs_by_id[subset_doc["parent"]]
+        context = {
+            "project": {
+                "name": project_doc["name"],
+                "code": project_doc["data"].get("code")
+            },
+            "asset": asset_doc,
+            "subset": subset_doc
+        }
+        contexts[subset_id] = context
+
+    return contexts
+
+
 def get_representation_context(representation):
     """Return parenthood context for representation.
 
@@ -1518,6 +1636,57 @@ def load_with_repre_context(
     return loader.load(repre_context, name, namespace, options)
 
 
+def load_with_subset_context(
+    Loader, subset_context, namespace=None, name=None, options=None, **kwargs
+):
+    Loader = _make_backwards_compatible_loader(Loader)
+
+    # Ensure options is a dictionary when no explicit options provided
+    if options is None:
+        options = kwargs.get("data", dict())  # "data" for backward compat
+
+    assert isinstance(options, dict), "Options must be a dictionary"
+
+    # Fallback to subset when name is None
+    if name is None:
+        name = subset_context["subset"]["name"]
+
+    log.info(
+        "Running '%s' on '%s'" % (
+            Loader.__name__, subset_context["asset"]["name"]
+        )
+    )
+
+    loader = Loader(subset_context)
+    return loader.load(subset_context, name, namespace, options)
+
+
+def load_with_subset_contexts(
+    Loader, subset_contexts, namespace=None, name=None, options=None, **kwargs
+):
+    Loader = _make_backwards_compatible_loader(Loader)
+
+    # Ensure options is a dictionary when no explicit options provided
+    if options is None:
+        options = kwargs.get("data", dict())  # "data" for backward compat
+
+    assert isinstance(options, dict), "Options must be a dictionary"
+
+    # Fallback to subset when name is None
+    if name is None:
+        name = " | ".join(x["subset"]["name"] for x in subset_contexts)
+
+    log.info(
+        "Running '%s' on '%s'" % (
+            Loader.__name__,
+            " | ".join(x["asset"]["name"] for x in subset_contexts)
+        )
+    )
+
+    loader = Loader(subset_contexts)
+    return loader.load(subset_contexts, name, namespace, options)
+
+
 def load(Loader, representation, namespace=None, name=None, options=None,
          **kwargs):
     """Use Loader to load a representation.
@@ -1724,12 +1893,19 @@ def get_representation_path(representation, root=None, dbcon=None):
             context = representation["context"]
             context["root"] = root
             path = format_template_with_optional_keys(context, template)
+            # Force replacing backslashes with forward slashed if not on
+            #   windows
+            if platform.system().lower() != "windows":
+                path = path.replace("\\", "/")
+
         except KeyError:
             # Template references unavailable data
             return None
 
+        # Check if path is empty string
+        # - `os.path.normpath` would convert "" to "." which always exists
         if not path:
-            return path
+            return None
 
         normalized_path = os.path.normpath(path)
         if os.path.exists(normalized_path):
@@ -1875,7 +2051,10 @@ def is_compatible_loader(Loader, context):
     if maj_version < 3:
         families = context["version"]["data"].get("families", [])
     else:
-        families = context["subset"]["data"]["families"]
+        # PYPE specific Backwards compatibility
+        families = set(context["subset"]["data"].get("families") or [])
+        for _family in context["version"]["data"].get("families", []):
+            families.add(_family)
 
     representation = context["representation"]
     has_family = ("*" in Loader.families or

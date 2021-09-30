@@ -23,11 +23,14 @@ PluginRole = QtCore.Qt.UserRole + 5
 
 Separator = "---separator---"
 
+# TODO regex should be defined by schema
+SubsetAllowedSymbols = "a-zA-Z0-9_."
+
 
 class SubsetNameValidator(QtGui.QRegExpValidator):
 
     invalid = QtCore.Signal(set)
-    pattern = "^[a-zA-Z0-9_.]*$"
+    pattern = "^[{}]*$".format(SubsetAllowedSymbols)
 
     def __init__(self):
         reg = QtCore.QRegExp(self.pattern)
@@ -118,7 +121,6 @@ class SubsetNameLineEdit(QtWidgets.QLineEdit):
 class Window(QtWidgets.QDialog):
 
     stateChanged = QtCore.Signal(bool)
-    taskSubsetFamilies = ["render"]
 
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
@@ -280,14 +282,13 @@ class Window(QtWidgets.QDialog):
         name.setText(action.text())
 
     def _on_data_changed(self):
-
         listing = self.data["Listing"]
         asset_name = self.data["Asset"]
         subset = self.data["Subset"]
         result = self.data["Result"]
 
         item = listing.currentItem()
-        subset_name = subset.text()
+        user_input_text = subset.text()
         asset_name = asset_name.text()
 
         # Early exit if no asset name
@@ -299,70 +300,78 @@ class Window(QtWidgets.QDialog):
             return
 
         # Get the asset from the database which match with the name
-        asset = io.find_one({"name": asset_name, "type": "asset"},
-                            projection={"_id": 1})
+        asset_doc = io.find_one(
+            {"name": asset_name, "type": "asset"},
+            projection={"_id": 1}
+        )
         # Get plugin
         plugin = item.data(PluginRole)
+        if asset_doc and plugin:
+            project_name = io.Session["AVALON_PROJECT"]
+            asset_id = asset_doc["_id"]
+            task_name = io.Session["AVALON_TASK"]
 
-        if asset and plugin:
-            # Get family
-            family = plugin.family.rsplit(".", 1)[-1]
-            regex = "{}*".format(family)
-            existed_subset_split = family
-
-            if family in self.taskSubsetFamilies:
-                task = io.Session.get('AVALON_TASK', '')
-                sanitized_task = re.sub('[^0-9a-zA-Z]+', '', task)
-                regex = "{}{}*".format(
-                    family,
-                    sanitized_task.capitalize()
-                )
-                existed_subset_split = "{}{}".format(
-                    family,
-                    sanitized_task.capitalize()
-                )
+            # Calculate subset name with Creator plugin
+            subset_name = plugin.get_subset_name(
+                user_input_text, task_name, asset_id, project_name
+            )
+            # Force replacement of prohibited symbols
+            # QUESTION should Creator care about this and here should be only
+            #   validated with schema regex?
+            subset_name = re.sub(
+                "[^{}]+".format(SubsetAllowedSymbols),
+                "",
+                subset_name
+            )
+            result.setText(subset_name)
 
             # Get all subsets of the current asset
-            subsets = io.find(filter={"type": "subset",
-                                      "name": {"$regex": regex,
-                                               "$options": "i"},
-                                      "parent": asset["_id"]}) or []
+            subset_docs = io.find(
+                {
+                    "type": "subset",
+                    "parent": asset_id
+                },
+                {"name": 1}
+            )
+            existing_subset_names = set(subset_docs.distinct("name"))
+            existing_subset_names_low = set(
+                _name.lower()
+                for _name in existing_subset_names
+            )
 
-            # Get all subsets' their subset name, "Default", "High", "Low"
-            existed_subsets = [sub["name"].split(existed_subset_split)[-1]
-                               for sub in subsets]
+            # Defaults to dropdown
+            defaults = []
+            # Check if Creator plugin has set defaults
+            if (
+                plugin.defaults
+                and isinstance(plugin.defaults, (list, tuple, set))
+            ):
+                defaults = list(plugin.defaults)
 
-            if plugin.defaults and isinstance(plugin.defaults, list):
-                defaults = plugin.defaults[:] + [Separator]
-                lowered = [d.lower() for d in plugin.defaults]
-                for sub in [s for s in existed_subsets
-                            if s.lower() not in lowered]:
-                    defaults.append(sub)
-            else:
-                defaults = existed_subsets
+            # Replace
+            compare_regex = re.compile(re.sub(
+                user_input_text, "(.+)", subset_name, flags=re.IGNORECASE
+            ))
+            subset_hints = set()
+            if user_input_text:
+                for _name in existing_subset_names:
+                    _result = compare_regex.search(_name)
+                    if _result:
+                        subset_hints |= set(_result.groups())
 
+            if subset_hints:
+                if defaults:
+                    defaults.append(Separator)
+                defaults.extend(subset_hints)
             self._build_menu(defaults)
 
-            # Update the result
-            if subset_name:
-                subset_name = subset_name[0].upper() + subset_name[1:]
-
-            if family in self.taskSubsetFamilies:
-                result.setText("{}{}{}".format(
-                    family,
-                    sanitized_task.capitalize(),
-                    subset_name
-                ))
-            else:
-                result.setText("{}{}".format(
-                    family,
-                    subset_name
-                ))
-
             # Indicate subset existence
-            if not subset_name:
+            if not user_input_text:
                 subset.as_empty()
-            elif subset_name in existed_subsets:
+            elif subset_name.lower() in existing_subset_names_low:
+                # validate existence of subset name with lowered text
+                #   - "renderMain" vs. "rensermain" mean same path item for
+                #   windows
                 subset.as_exists()
             else:
                 subset.as_new()
@@ -370,6 +379,7 @@ class Window(QtWidgets.QDialog):
             item.setData(ExistsRole, True)
 
         else:
+            subset_name = user_input_text
             self._build_menu([])
             item.setData(ExistsRole, False)
 

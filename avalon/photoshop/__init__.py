@@ -6,6 +6,8 @@ Anything that isn't defined here is INTERNAL and unreliable for external use.
 
 from .pipeline import (
     ls,
+    list_instances,
+    remove_instance,
     Creator,
     install,
     containerise
@@ -32,6 +34,8 @@ from .lib import (
 __all__ = [
     # pipeline
     "ls",
+    "list_instances",
+    "remove_instance",
     "Creator",
     "install",
     "containerise",
