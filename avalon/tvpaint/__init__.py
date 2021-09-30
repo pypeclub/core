@@ -1,4 +1,6 @@
-from .communication_server import CommunicationWrapper
+from .communication_server import (
+    CommunicationWrapper, validate_george, HEADLESS
+)
 from . import lib
 from . import launch_script
 from .pipeline import (
@@ -24,6 +26,8 @@ from .workio import (
 
 __all__ = (
     "CommunicationWrapper",
+    "validate_george",
+    "HEADLESS",
 
     "lib",
 
@@ -32,6 +36,7 @@ __all__ = (
     "install",
     "uninstall",
     "maintained_selection",
+    "get_current_workfile_context",
     "remove_instance",
     "list_instances",
     "ls",
