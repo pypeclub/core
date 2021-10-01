@@ -10,18 +10,6 @@ from uuid import uuid4
 from avalon import schema
 
 
-def extract_port_from_url(url):
-    if sys.version_info[0] == 2:
-        from urlparse import urlparse
-    else:
-        from urllib.parse import urlparse
-    parsed_url = urlparse(url)
-    if parsed_url.scheme is None:
-        _url = "mongodb://{}".format(url)
-        parsed_url = urlparse(_url)
-    return parsed_url.port
-
-
 def requires_install(func):
     func_obj = getattr(func, "__self__", None)
 
