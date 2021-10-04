@@ -10,18 +10,6 @@ from uuid import uuid4
 from avalon import schema
 
 
-def extract_port_from_url(url):
-    if sys.version_info[0] == 2:
-        from urlparse import urlparse
-    else:
-        from urllib.parse import urlparse
-    parsed_url = urlparse(url)
-    if parsed_url.scheme is None:
-        _url = "mongodb://{}".format(url)
-        parsed_url = urlparse(_url)
-    return parsed_url.port
-
-
 def requires_install(func):
     func_obj = getattr(func, "__self__", None)
 
@@ -247,40 +235,12 @@ class AvalonMongoConnection:
 
     @classmethod
     def create_connection(cls):
-        timeout = int(os.environ["AVALON_TIMEOUT"])
+        from openpype.lib import OpenPypeMongoConnection
+
         mongo_url = os.environ["AVALON_MONGO"]
-        kwargs = {
-            "host": mongo_url,
-            "serverSelectionTimeoutMS": timeout
-        }
 
-        port = extract_port_from_url(mongo_url)
-        if port is not None:
-            kwargs["port"] = int(port)
+        mongo_client = OpenPypeMongoConnection.create_connection(mongo_url)
 
-        mongo_client = pymongo.MongoClient(**kwargs)
-
-        for _retry in range(3):
-            try:
-                t1 = time.time()
-                mongo_client.server_info()
-
-            except Exception:
-                cls.log.warning("Retrying...")
-                time.sleep(1)
-                timeout *= 1.5
-
-            else:
-                break
-
-        else:
-            raise IOError((
-                "ERROR: Couldn't connect to {} in less than {:.3f}ms"
-            ).format(mongo_url, timeout))
-
-        cls.log.info("Connected to {}, delay {:.3f}s".format(
-            mongo_url, time.time() - t1
-        ))
         return mongo_client
 
 
