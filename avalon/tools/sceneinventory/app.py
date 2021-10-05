@@ -692,7 +692,19 @@ class View(QtWidgets.QTreeView):
         if label:
             version = versions_by_label[label]
             for item in items:
-                api.update(item, version)
+                try:
+                    api.update(item, version)
+                except AssertionError:
+                    dialog = QtWidgets.QMessageBox()
+                    dialog.setStyleSheet(style.load_stylesheet())
+                    dialog.setWindowTitle("Update failed")
+                    msg = "Version update to 'v{:03d}' ".format(version) + \
+                          "failed as representation doesn't exist.\n\n"\
+                          "Please update to version with a valid "\
+                          "representation OR \n use 'Switch Asset' option "\
+                          "in the context menu to change asset"
+                    dialog.setText(msg)
+                    dialog.exec_()
             # refresh model when done
             self.data_changed.emit()
 
