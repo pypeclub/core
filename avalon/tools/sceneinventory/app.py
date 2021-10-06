@@ -194,6 +194,7 @@ class View(QtWidgets.QTreeView):
                             api.update(item, version_name)
                         except AssertionError:
                             self._show_version_error_dialog(version_name)
+                            self.log.warning("Update failed", exc_info=True)
 
                 self.data_changed.emit()
 
@@ -219,6 +220,7 @@ class View(QtWidgets.QTreeView):
                         api.update(item, -1)
                     except AssertionError:
                         self._show_version_error_dialog()
+                        self.log.warning("Update failed", exc_info=True)
                 self.data_changed.emit()
 
             update_icon = qtawesome.icon(
@@ -243,6 +245,7 @@ class View(QtWidgets.QTreeView):
                         api.update(item, HeroVersionType(-1))
                     except AssertionError:
                         self._show_version_error_dialog('hero')
+                        self.log.warning("Update failed", exc_info=True)
                 self.data_changed.emit()
 
             # TODO change icon
@@ -705,6 +708,7 @@ class View(QtWidgets.QTreeView):
                     api.update(item, version)
                 except AssertionError:
                     self._show_version_error_dialog(version)
+                    self.log.warning("Update failed", exc_info=True)
             # refresh model when done
             self.data_changed.emit()
 
