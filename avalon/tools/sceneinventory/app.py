@@ -22,7 +22,7 @@ DEFAULT_COLOR = "#fb9c15"
 module = sys.modules[__name__]
 module.window = None
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("SceneInventory")
 
 
 class View(QtWidgets.QTreeView):
