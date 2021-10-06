@@ -22,6 +22,8 @@ DEFAULT_COLOR = "#fb9c15"
 module = sys.modules[__name__]
 module.window = None
 
+log = logging.getLogger(__name__)
+
 
 class View(QtWidgets.QTreeView):
     data_changed = QtCore.Signal()
@@ -194,7 +196,7 @@ class View(QtWidgets.QTreeView):
                             api.update(item, version_name)
                         except AssertionError:
                             self._show_version_error_dialog(version_name)
-                            self.log.warning("Update failed", exc_info=True)
+                            log.warning("Update failed", exc_info=True)
 
                 self.data_changed.emit()
 
@@ -220,7 +222,7 @@ class View(QtWidgets.QTreeView):
                         api.update(item, -1)
                     except AssertionError:
                         self._show_version_error_dialog()
-                        self.log.warning("Update failed", exc_info=True)
+                        log.warning("Update failed", exc_info=True)
                 self.data_changed.emit()
 
             update_icon = qtawesome.icon(
@@ -245,7 +247,7 @@ class View(QtWidgets.QTreeView):
                         api.update(item, HeroVersionType(-1))
                     except AssertionError:
                         self._show_version_error_dialog('hero')
-                        self.log.warning("Update failed", exc_info=True)
+                        log.warning("Update failed", exc_info=True)
                 self.data_changed.emit()
 
             # TODO change icon
@@ -708,7 +710,7 @@ class View(QtWidgets.QTreeView):
                     api.update(item, version)
                 except AssertionError:
                     self._show_version_error_dialog(version)
-                    self.log.warning("Update failed", exc_info=True)
+                    log.warning("Update failed", exc_info=True)
             # refresh model when done
             self.data_changed.emit()
 
@@ -837,8 +839,6 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
         # Force and keep focus dialog
         self.setModal(True)
-
-        self.log = logging.getLogger(self.__class__.__name__)
 
         self._assets_box = SearchComboBox(placeholder="<asset>")
         self._subsets_box = SearchComboBox(placeholder="<subset>")
@@ -1746,7 +1746,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             try:
                 api.switch(container, repre_doc)
             except Exception:
-                self.log.warning(
+                log.warning(
                     (
                         "Couldn't switch asset."
                         "See traceback for more information."
