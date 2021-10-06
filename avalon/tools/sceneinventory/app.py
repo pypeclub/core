@@ -1749,6 +1749,13 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                     ),
                     exc_info=True
                 )
+                dialog = QtWidgets.QMessageBox()
+                dialog.setStyleSheet(style.load_stylesheet())
+                dialog.setWindowTitle("Switch asset failed")
+                msg = "Switch asset failed. "\
+                      "Search console log for more details"
+                dialog.setText(msg)
+                dialog.exec_()
 
         self.switched.emit()
 
