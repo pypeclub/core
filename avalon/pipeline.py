@@ -1672,6 +1672,11 @@ def update(container, version=-1):
         "name": current_representation["name"]
     })
 
+    assert new_representation is not None, "Representation wasn't found"
+
+    path = get_representation_path(new_representation)
+    assert os.path.exists(path), "Path {} doesn't exist".format(path)
+
     # Run update on the Loader for this container
     Loader = _get_container_loader(container)
     if not Loader:
