@@ -190,7 +190,10 @@ class View(QtWidgets.QTreeView):
                     version_id = version_id_by_repre_id.get(repre_id)
                     version_name = version_name_by_id.get(version_id)
                     if version_name is not None:
-                        api.update(item, version_name)
+                        try:
+                            api.update(item, version_name)
+                        except AssertionError:
+                            self._show_version_error_dialog(version_name)
 
                 self.data_changed.emit()
 
@@ -212,7 +215,10 @@ class View(QtWidgets.QTreeView):
             # update to latest version
             def _on_update_to_latest(items):
                 for item in items:
-                    api.update(item, -1)
+                    try:
+                        api.update(item, -1)
+                    except AssertionError:
+                        self._show_version_error_dialog()
                 self.data_changed.emit()
 
             update_icon = qtawesome.icon(
@@ -233,7 +239,10 @@ class View(QtWidgets.QTreeView):
             # change to hero version
             def _on_update_to_hero(items):
                 for item in items:
-                    api.update(item, HeroVersionType(-1))
+                    try:
+                        api.update(item, HeroVersionType(-1))
+                    except AssertionError:
+                        self._show_version_error_dialog('hero')
                 self.data_changed.emit()
 
             # TODO change icon
@@ -695,16 +704,7 @@ class View(QtWidgets.QTreeView):
                 try:
                     api.update(item, version)
                 except AssertionError:
-                    dialog = QtWidgets.QMessageBox()
-                    dialog.setStyleSheet(style.load_stylesheet())
-                    dialog.setWindowTitle("Update failed")
-                    msg = "Version update to 'v{:03d}' ".format(version) + \
-                          "failed as representation doesn't exist.\n\n"\
-                          "Please update to version with a valid "\
-                          "representation OR \n use 'Switch Asset' option "\
-                          "in the context menu to change asset"
-                    dialog.setText(msg)
-                    dialog.exec_()
+                    self._show_version_error_dialog(version)
             # refresh model when done
             self.data_changed.emit()
 
@@ -733,6 +733,32 @@ class View(QtWidgets.QTreeView):
         for item in items:
             api.remove(item)
         self.data_changed.emit()
+
+    def _show_version_error_dialog(self, version):
+        """Shows QMessageBox when version switch doesn't work
+
+            Args:
+                version: str or int or None
+        """
+        if not version:
+            version_str = "latest"
+        elif version == "hero":
+            version_str = "hero"
+        elif isinstance(version, int):
+            version_str = "v{:03d}".format(version)
+        else:
+            version_str = version
+
+        dialog = QtWidgets.QMessageBox()
+        dialog.setStyleSheet(style.load_stylesheet())
+        dialog.setWindowTitle("Update failed")
+        msg = "Version update to '{}' ".format(version_str) + \
+              "failed as representation doesn't exist.\n\n" \
+              "Please update to version with a valid " \
+              "representation OR \n use 'Switch Asset' option " \
+              "in the context menu to change asset"
+        dialog.setText(msg)
+        dialog.exec_()
 
 
 class SearchComboBox(QtWidgets.QComboBox):
