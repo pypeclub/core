@@ -195,7 +195,8 @@ class View(QtWidgets.QTreeView):
                         try:
                             api.update(item, version_name)
                         except AssertionError:
-                            self._show_version_error_dialog(version_name)
+                            self._show_version_error_dialog(version_name,
+                                                            [item])
                             log.warning("Update failed", exc_info=True)
 
                 self.data_changed.emit()
@@ -221,7 +222,7 @@ class View(QtWidgets.QTreeView):
                     try:
                         api.update(item, -1)
                     except AssertionError:
-                        self._show_version_error_dialog()
+                        self._show_version_error_dialog(None, [item])
                         log.warning("Update failed", exc_info=True)
                 self.data_changed.emit()
 
@@ -246,7 +247,7 @@ class View(QtWidgets.QTreeView):
                     try:
                         api.update(item, HeroVersionType(-1))
                     except AssertionError:
-                        self._show_version_error_dialog('hero')
+                        self._show_version_error_dialog('hero', [item])
                         log.warning("Update failed", exc_info=True)
                 self.data_changed.emit()
 
@@ -709,7 +710,7 @@ class View(QtWidgets.QTreeView):
                 try:
                     api.update(item, version)
                 except AssertionError:
-                    self._show_version_error_dialog(version)
+                    self._show_version_error_dialog(version, [item])
                     log.warning("Update failed", exc_info=True)
             # refresh model when done
             self.data_changed.emit()
@@ -740,7 +741,7 @@ class View(QtWidgets.QTreeView):
             api.remove(item)
         self.data_changed.emit()
 
-    def _show_version_error_dialog(self, version):
+    def _show_version_error_dialog(self, version, items):
         """Shows QMessageBox when version switch doesn't work
 
             Args:
@@ -756,13 +757,21 @@ class View(QtWidgets.QTreeView):
             version_str = version
 
         dialog = QtWidgets.QMessageBox()
+        dialog.setIcon(QtWidgets.QMessageBox.Warning)
         dialog.setStyleSheet(style.load_stylesheet())
         dialog.setWindowTitle("Update failed")
+
+        switch_btn = dialog.addButton("Switch Asset",
+                                      QtWidgets.QMessageBox.ActionRole)
+        switch_btn.clicked.connect(lambda: self.show_switch_dialog(items))
+
+        dialog.addButton(QtWidgets.QMessageBox.Cancel)
+
         msg = "Version update to '{}' ".format(version_str) + \
               "failed as representation doesn't exist.\n\n" \
               "Please update to version with a valid " \
-              "representation OR \n use 'Switch Asset' option " \
-              "in the context menu to change asset"
+              "representation OR \n use 'Switch Asset' button " \
+              "to change asset."
         dialog.setText(msg)
         dialog.exec_()
 
@@ -807,6 +816,12 @@ class SearchComboBox(QtWidgets.QComboBox):
             return None
 
         return text or None
+
+    def set_valid_value(self, value):
+        """Try to locate 'value' and pre-select it in dropdown."""
+        index = self.findText(value)
+        if index > -1:
+            self.setCurrentIndex(index)
 
 
 class ValidationState:
@@ -887,6 +902,10 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         self._accept_btn.clicked.connect(self._on_accept)
         self.current_asset_btn.clicked.connect(self._on_current_asset)
 
+        self._init_asset_name = None
+        self._init_subset_name = None
+        self._init_repre_name = None
+
         self._items = items
         self._prepare_content_data()
         self.refresh(True)
@@ -907,6 +926,12 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             "_id": {"$in": repre_ids}
         }))
         repres_by_id = {repre["_id"]: repre for repre in repres}
+
+        # stash context values, works only for single representation
+        if len(repres) == 1:
+            self._init_asset_name = repres[0]["context"]["asset"]
+            self._init_subset_name = repres[0]["context"]["subset"]
+            self._init_repre_name = repres[0]["context"]["representation"]
 
         content_repres = {}
         archived_repres = []
@@ -1036,6 +1061,11 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         # Fill comboboxes with values
         self.set_labels()
         self.apply_validations(validation_state)
+
+        if init_refresh:  # pre select context if possible
+            self._assets_box.set_valid_value(self._init_asset_name)
+            self._subsets_box.set_valid_value(self._init_subset_name)
+            self._representations_box.set_valid_value(self._init_repre_name)
 
         self.fill_check = True
 
