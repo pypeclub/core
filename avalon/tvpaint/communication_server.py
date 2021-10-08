@@ -902,6 +902,14 @@ class Communicator:
         }
         self.process = subprocess.Popen(launch_args, **kwargs)
 
+    def _create_routes(self):
+        self.websocket_rpc = TVPaintRpc(
+            self, loop=self.websocket_server.loop
+        )
+        self.websocket_server.add_route(
+            "*", "/", self.websocket_rpc.handle_request
+        )
+
     def launch(self, launch_args):
         """Prepare all required data and launch host.
 
@@ -917,14 +925,13 @@ class Communicator:
         # Launch TVPaint and the websocket server.
         log.info("Launching TVPaint")
         self.websocket_server = WebSocketServer()
-        self.websocket_rpc = TVPaintRpc(self, loop=self.websocket_server.loop)
+
+        self._create_routes()
 
         os.environ["WEBSOCKET_URL"] = "ws://localhost:{}".format(
             self.websocket_server.port
         )
-        self.websocket_server.add_route(
-            "*", "/", self.websocket_rpc.handle_request
-        )
+
         log.info("Added request handler for url: {}".format(
             os.environ["WEBSOCKET_URL"]
         ))
