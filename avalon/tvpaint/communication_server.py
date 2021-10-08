@@ -47,7 +47,7 @@ class CommunicationWrapper:
 
     @classmethod
     def create_communicator(cls, *args, **kwargs):
-        communicator = Communicator(*args, **kwargs)
+        communicator = QtCommunicator(*args, **kwargs)
         cls.set_communicator(communicator)
         return communicator
 
