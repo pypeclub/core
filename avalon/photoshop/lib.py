@@ -222,12 +222,17 @@ def launch(*subprocess_args):
     ConsoleTrayApp.websocket_server = websocket_server
 
     if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
-        save = False
-        if os.getenv("WORKFILES_SAVE_AS"):
-            save = True
+        if not os.environ.get("IS_HEADLESS"):
+            save = False
+            if os.getenv("WORKFILES_SAVE_AS"):
+                save = True
 
-        ConsoleTrayApp.execute_in_main_thread(lambda: workfiles.show(save))
+            ConsoleTrayApp.execute_in_main_thread(lambda: workfiles.show(save))
 
+    if os.environ.get("IS_HEADLESS"):
+        import pyblish.util
+        ConsoleTrayApp.execute_in_main_thread(lambda: pyblish.util.publish())
+        # ConsoleTrayApp.execute_in_main_thread(lambda: sys.exit(1))
 
 @contextlib.contextmanager
 def maintained_selection():

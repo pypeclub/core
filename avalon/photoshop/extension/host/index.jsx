@@ -79,8 +79,9 @@ function getLayers() {
       
       layer.id = desc.getInteger(stringIDToTypeID("layerID")); 
       layer.name = desc.getString(stringIDToTypeID("name"));
-      layer.group = false
-      layer.parents = parents;
+      layer.color_code = typeIDToStringID(desc.getEnumerationValue(stringIDToTypeID('color')));
+      layer.group = false;
+      layer.parents = parents.slice();
       layer.type = getLayerTypeWithName(layer.name);
       layer.visible = desc.getBoolean(stringIDToTypeID("visible"));
       //log(" name: " + layer.name + " groupId " + layer.groupId + 
@@ -432,6 +433,10 @@ function savePSB(output_path){
     desc1.putPath( charIDToTypeID('In  '), new File(output_path) );       
     desc1.putBoolean( charIDToTypeID('LwCs'), true );        
     executeAction( charIDToTypeID('save'), desc1, DialogModes.NO );      
+}
+
+function close(){
+    executeAction(stringIDToTypeID("quit"), undefined, DialogModes.NO );
 }
 
 function renameLayer(layer_id, new_name){

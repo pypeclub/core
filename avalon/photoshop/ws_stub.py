@@ -3,9 +3,11 @@
     Used anywhere solution is calling client methods.
 """
 import json
-from avalon.tools.webserver.app import WebServerTool
+import sys
 from wsrpc_aiohttp import WebSocketAsync
 import attr
+
+from avalon.tools.webserver.app import WebServerTool
 
 
 @attr.s
@@ -25,6 +27,7 @@ class PSItem(object):
     # all imported elements, single for
     members = attr.ib(factory=list)
     long_name = attr.ib(default=None)
+    color_code = attr.ib(default=None)  # color code of layer
 
 
 class PhotoshopServerStub:
@@ -418,6 +421,13 @@ class PhotoshopServerStub:
                                   )
 
     def close(self):
+        """Shutting down PS and process too.
+
+            For webpublishing only.
+        """
+        self.websocketserver.call(self.client.call
+                                  ('Photoshop.close')
+                                  )
         self.client.close()
 
     def _to_records(self, res):
@@ -447,7 +457,8 @@ class PhotoshopServerStub:
                           d.get('visible'),
                           d.get('type'),
                           d.get('members'),
-                          d.get('long_name'))
+                          d.get('long_name'),
+                          d.get("color_code"))
 
             ret.append(item)
         return ret

@@ -244,6 +244,15 @@
                       return result;
                   });
       });
+
+      RPC.addRoute('Photoshop.close', function (data) {
+        log.warn('Server called client route "close":', data);
+        return runEvalScript("close()")
+            .then(function(result){
+                log.warn("close: " + result);
+                return result;
+            });
+});
         
       RPC.call('Photoshop.ping').then(function (data) {
           log.warn('Result for calling server route "ping": ', data);
