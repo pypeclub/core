@@ -671,44 +671,12 @@ class MainThreadItem:
 
 
 class Communicator:
-    def __init__(self, qt_app):
-        self.callback_queue = Queue()
-        self.qt_app = qt_app
-
+    def __init__(self):
         self.process = None
         self.websocket_route = None
         self.websocket_server = None
         self.websocket_rpc = None
 
-    def execute_in_main_thread(self, main_thread_item, wait=True):
-        """Add `MainThreadItem` to callback queue and wait for result."""
-        self.callback_queue.put(main_thread_item)
-        if wait:
-            return main_thread_item.wait()
-        return
-
-    async def async_execute_in_main_thread(self, main_thread_item, wait=True):
-        """Add `MainThreadItem` to callback queue and wait for result."""
-        self.callback_queue.put(main_thread_item)
-        if wait:
-            return await main_thread_item.async_wait()
-
-    def main_thread_listen(self):
-        """Get last `MainThreadItem` from queue.
-
-        Must be called from main thread.
-
-        Method checks if host process is still running as it may cause
-        issues if not.
-        """
-        # check if host still running
-        if self.process.poll() is not None:
-            self.websocket_server.stop()
-            return self.qt_app.quit()
-
-        if self.callback_queue.empty():
-            return None
-        return self.callback_queue.get()
 
     def _windows_file_process(self, src_dst_mapping, to_remove):
         """Windows specific file processing asking for admin permissions.
