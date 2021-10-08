@@ -47,9 +47,16 @@ class CommunicationWrapper:
 
     @classmethod
     def create_communicator(cls, *args, **kwargs):
+        communicator = Communicator(*args, **kwargs)
+        cls.set_communicator(communicator)
+        return communicator
+
+    @classmethod
+    def set_communicator(cls, communicator):
         if not cls.communicator:
-            cls.communicator = Communicator(*args, **kwargs)
-        return cls.communicator
+            cls.communicator = communicator
+        else:
+            cls.log.warning("Communicator was set multiple times.")
 
     @classmethod
     def _client(cls):
