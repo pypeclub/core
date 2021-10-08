@@ -677,6 +677,11 @@ class Communicator:
         self.websocket_server = None
         self.websocket_rpc = None
 
+    @property
+    def server_is_running(self):
+        if self.websocket_server is None:
+            return False
+        return self.websocket_server.server_is_running
 
     def _windows_file_process(self, src_dst_mapping, to_remove):
         """Windows specific file processing asking for admin permissions.
