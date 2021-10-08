@@ -917,6 +917,12 @@ class Communicator:
             "*", "/", self.websocket_rpc.handle_request
         )
 
+    def _start_webserver(self):
+        self.websocket_server.start()
+        # Make sure RPC is using same loop as websocket server
+        while not self.websocket_server.server_is_running:
+            time.sleep(0.1)
+
     def launch(self, launch_args):
         """Prepare all required data and launch host.
 
@@ -940,10 +946,7 @@ class Communicator:
             os.environ["WEBSOCKET_URL"]
         ))
 
-        self.websocket_server.start()
-        # Make sure RPC is using same loop as websocket server
-        while not self.websocket_server.server_is_running:
-            time.sleep(0.1)
+        self._start_webserver()
 
         # Start TVPaint when server is running
         self._launch_tv_paint(launch_args)
