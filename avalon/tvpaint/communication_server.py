@@ -677,7 +677,7 @@ class MainThreadItem:
         raise self.exception
 
 
-class Communicator:
+class BaseCommunicator:
     def __init__(self):
         self.process = None
         self.websocket_server = None
@@ -1008,7 +1008,7 @@ class Communicator:
             log.warning("User didn't confirm saving files.")
 
 
-class QtCommunicator(Communicator):
+class QtCommunicator(BaseCommunicator):
     def __init__(self, qt_app):
         super().__init__()
         self.callback_queue = Queue()
