@@ -673,7 +673,6 @@ class MainThreadItem:
 class Communicator:
     def __init__(self):
         self.process = None
-        self.websocket_route = None
         self.websocket_server = None
         self.websocket_rpc = None
 
