@@ -282,6 +282,7 @@ class Creator(object):
     label = None
     family = None
     defaults = None
+    maintain_selection = True
 
     def __init__(self, name, asset, options=None, data=None):
         self.name = name  # For backwards compatibility
@@ -1054,10 +1055,15 @@ def create(Creator, name, asset, options=None, data=None):
 
     host = registered_host()
     plugin = Creator(name, asset, options, data)
-    with host.maintained_selection():
-        print("Running %s" % plugin)
-        instance = plugin.process()
 
+    if plugin.maintain_selection is True:
+        with host.maintained_selection():
+            print("Running %s with maintained selection" % plugin)
+            instance = plugin.process()
+        return instance
+
+    print("Running %s" % plugin)
+    instance = plugin.process()
     return instance
 
 
