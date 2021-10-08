@@ -472,6 +472,62 @@ class TVPaintRpc(JsonRpc):
             return True
         return False
 
+    def send_notification(self, client, method, params=[]):
+        asyncio.run_coroutine_threadsafe(
+            client.ws.send_str(encode_request(method, params=params)),
+            loop=self.loop
+        )
+
+    def send_request(self, client, method, params=[], timeout=0):
+        client_host = client.host
+
+        request_id = self.requests_ids[client_host]
+        self.requests_ids[client_host] += 1
+
+        self.waiting_requests[client_host].append(request_id)
+
+        log.debug("Sending request to client {} ({}, {}) id: {}".format(
+            client_host, method, params, request_id
+        ))
+        future = asyncio.run_coroutine_threadsafe(
+            client.ws.send_str(encode_request(method, request_id, params)),
+            loop=self.loop
+        )
+        result = future.result()
+
+        not_found = object()
+        response = not_found
+        start = time.time()
+        while True:
+            if client.ws.closed:
+                return None
+
+            for _response in self.responses[client_host]:
+                _id = _response.get("id")
+                if _id == request_id:
+                    response = _response
+                    break
+
+            if response is not not_found:
+                break
+
+            if timeout > 0 and (time.time() - start) > timeout:
+                raise Exception("Timeout passed")
+                return
+
+            time.sleep(0.1)
+
+        if response is not_found:
+            raise Exception("Connection closed")
+
+        self.responses[client_host].remove(response)
+
+        error = response.get("error")
+        result = response.get("result")
+        if error:
+            raise Exception("Error happened: {}".format(error))
+        return result
+
     # Panel routes for tools
     async def workfiles_tool(self):
         log.info("Triggering Workfile tool")
@@ -529,62 +585,6 @@ class TVPaintRpc(JsonRpc):
 
     def _execute_in_main_thread(self, item, **kwargs):
         return self.communication_obj.execute_in_main_thread(item, **kwargs)
-
-    def send_notification(self, client, method, params=[]):
-        asyncio.run_coroutine_threadsafe(
-            client.ws.send_str(encode_request(method, params=params)),
-            loop=self.loop
-        )
-
-    def send_request(self, client, method, params=[], timeout=0):
-        client_host = client.host
-
-        request_id = self.requests_ids[client_host]
-        self.requests_ids[client_host] += 1
-
-        self.waiting_requests[client_host].append(request_id)
-
-        log.debug("Sending request to client {} ({}, {}) id: {}".format(
-            client_host, method, params, request_id
-        ))
-        future = asyncio.run_coroutine_threadsafe(
-            client.ws.send_str(encode_request(method, request_id, params)),
-            loop=self.loop
-        )
-        result = future.result()
-
-        not_found = object()
-        response = not_found
-        start = time.time()
-        while True:
-            if client.ws.closed:
-                return None
-
-            for _response in self.responses[client_host]:
-                _id = _response.get("id")
-                if _id == request_id:
-                    response = _response
-                    break
-
-            if response is not not_found:
-                break
-
-            if timeout > 0 and (time.time() - start) > timeout:
-                raise Exception("Timeout passed")
-                return
-
-            time.sleep(0.1)
-
-        if response is not_found:
-            raise Exception("Connection closed")
-
-        self.responses[client_host].remove(response)
-
-        error = response.get("error")
-        result = response.get("result")
-        if error:
-            raise Exception("Error happened: {}".format(error))
-        return result
 
 
 class MainThreadItem:
