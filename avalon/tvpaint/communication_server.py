@@ -923,9 +923,6 @@ class Communicator:
         First is prepared websocket server as communication point for host,
         when server is ready to use host is launched as subprocess.
         """
-        log.info("Installing TVPaint implementation")
-        api.install(tvpaint)
-
         if platform.system().lower() == "windows":
             self._prepare_windows_plugin(launch_args)
 
