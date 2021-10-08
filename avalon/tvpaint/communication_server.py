@@ -682,6 +682,7 @@ class Communicator:
         self.process = None
         self.websocket_server = None
         self.websocket_rpc = None
+        self.exit_code = None
 
     @property
     def server_is_running(self):
@@ -923,6 +924,19 @@ class Communicator:
         while not self.websocket_server.server_is_running:
             time.sleep(0.1)
 
+    def _stop_webserver(self):
+        self.websocket_server.stop()
+
+    def _exit(self, exit_code=None):
+        self._stop_webserver()
+        if exit_code is not None:
+            self.exit_code = exit_code
+
+    def stop(self):
+        """Stop communication and currently running python process."""
+        log.info("Stopping communication")
+        self._exit()
+
     def launch(self, launch_args):
         """Prepare all required data and launch host.
 
@@ -955,8 +969,7 @@ class Communicator:
         while True:
             if self.process.poll() is not None:
                 log.debug("Host process is not alive. Exiting")
-                self.websocket_server.stop()
-                self.qt_app.quit()
+                self._exit(1)
                 return
 
             if self.websocket_rpc.client_connected():
@@ -993,12 +1006,6 @@ class Communicator:
             )
         elif result.lower() == "forbidden":
             log.warning("User didn't confirm saving files.")
-
-    def stop(self):
-        """Stop communication and currently running python process."""
-        log.info("Stopping communication")
-        self.websocket_server.stop()
-        self.qt_app.quit()
 
 
 class QtCommunicator(Communicator):
@@ -1044,3 +1051,7 @@ class QtCommunicator(Communicator):
         if self.callback_queue.empty():
             return None
         return self.callback_queue.get()
+
+    def _exit(self, *args, **kwargs):
+        super()._exit(*args, **kwargs)
+        self.qt_app.exit(self.exit_code)
