@@ -422,7 +422,7 @@ class AvalonToolsHelper:
         library_loader_tool.refresh()
 
 
-class TVPaintRpc(JsonRpc):
+class BaseTVPaintRpc(JsonRpc):
     def __init__(self, communication_obj, route_name="", **kwargs):
         super().__init__(**kwargs)
         self.requests_ids = collections.defaultdict(lambda: 0)
@@ -431,19 +431,6 @@ class TVPaintRpc(JsonRpc):
 
         self.route_name = route_name
         self.communication_obj = communication_obj
-
-        self.tools_helper = AvalonToolsHelper()
-
-        # Register methods
-        self.add_methods(
-            (route_name, self.workfiles_tool),
-            (route_name, self.loader_tool),
-            (route_name, self.creator_tool),
-            (route_name, self.subset_manager_tool),
-            (route_name, self.publish_tool),
-            (route_name, self.scene_inventory_tool),
-            (route_name, self.library_loader_tool)
-        )
 
     async def _handle_rpc_msg(self, http_request, raw_msg):
         # This is duplicated code from super but there is no way how to do it
@@ -527,6 +514,26 @@ class TVPaintRpc(JsonRpc):
         if error:
             raise Exception("Error happened: {}".format(error))
         return result
+
+
+class QtTVPaintRpc(BaseTVPaintRpc):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.tools_helper = AvalonToolsHelper()
+
+        route_name = self.route_name
+
+        # Register methods
+        self.add_methods(
+            (route_name, self.workfiles_tool),
+            (route_name, self.loader_tool),
+            (route_name, self.creator_tool),
+            (route_name, self.subset_manager_tool),
+            (route_name, self.publish_tool),
+            (route_name, self.scene_inventory_tool),
+            (route_name, self.library_loader_tool)
+        )
 
     # Panel routes for tools
     async def workfiles_tool(self):
@@ -903,7 +910,7 @@ class Communicator:
         self.process = subprocess.Popen(launch_args, **kwargs)
 
     def _create_routes(self):
-        self.websocket_rpc = TVPaintRpc(
+        self.websocket_rpc = BaseTVPaintRpc(
             self, loop=self.websocket_server.loop
         )
         self.websocket_server.add_route(
@@ -999,6 +1006,14 @@ class QtCommunicator(Communicator):
         super().__init__()
         self.callback_queue = Queue()
         self.qt_app = qt_app
+
+    def _create_routes(self):
+        self.websocket_rpc = QtTVPaintRpc(
+            self, loop=self.websocket_server.loop
+        )
+        self.websocket_server.add_route(
+            "*", "/", self.websocket_rpc.handle_request
+        )
 
     def execute_in_main_thread(self, main_thread_item, wait=True):
         """Add `MainThreadItem` to callback queue and wait for result."""
