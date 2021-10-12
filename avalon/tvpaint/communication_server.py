@@ -937,11 +937,11 @@ class BaseCommunicator:
                 break
             time.sleep(0.5)
 
-        self.on_client_connect()
+        self._on_client_connect()
 
         api.emit("application.launched")
 
-    def on_client_connect(self):
+    def _on_client_connect(self):
         self._initial_textfile_write()
 
     def _initial_textfile_write(self):
