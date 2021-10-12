@@ -37,7 +37,6 @@ LOCALIZATION_FILENAME = "avalon.loc"
 class CommunicationWrapper:
     # TODO add logs and exceptions
     communicator = None
-    _connected_client = None
 
     log = logging.getLogger("CommunicationWrapper")
 
@@ -59,57 +58,17 @@ class CommunicationWrapper:
             cls.log.warning("Communicator was set multiple times.")
 
     @classmethod
-    def _client(cls):
-        if not cls.communicator:
-            cls.log.warning("Communicator object was not created yet.")
-            return None
-
-        if not cls.communicator.websocket_rpc:
-            cls.log.warning("Communicator's server did not start yet.")
-            return None
-
-        for client in cls.communicator.websocket_rpc.clients:
-            if not client.ws.closed:
-                return client
-        cls.log.warning("Client is not yet connected to Communicator.")
-        return None
-
-    @classmethod
     def client(cls):
-        if not cls._connected_client or cls._connected_client.ws.closed:
-            cls._connected_client = cls._client()
-        return cls._connected_client
-
-    @classmethod
-    def send_request(cls, method, params=[], client=None):
-        if client is None:
-            client = cls.client()
-
-        if not client:
-            return
-
-        return cls.communicator.websocket_rpc.send_request(
-            client, method, params
-        )
-
-    @classmethod
-    def send_notification(cls, method, params=[], client=None):
-        if client is None:
-            client = cls.client()
-
-        if not client:
-            return
-
-        cls.communicator.websocket_rpc.send_notification(
-            client, method, params
-        )
+        if not cls.communicator:
+            return None
+        return cls.communicator.client()
 
     @classmethod
     def execute_george(cls, george_script):
         """Execute passed goerge script in TVPaint."""
-        return cls.send_request(
-            "execute_george", [george_script]
-        )
+        if not cls.communicator:
+            return
+        return cls.communicator.execute_george(george_script)
 
 
 def register_localization_file(filepath):
@@ -683,6 +642,7 @@ class BaseCommunicator:
         self.websocket_server = None
         self.websocket_rpc = None
         self.exit_code = None
+        self._connected_client = None
 
     @property
     def server_is_running(self):
@@ -1006,6 +966,46 @@ class BaseCommunicator:
             )
         elif result.lower() == "forbidden":
             log.warning("User didn't confirm saving files.")
+
+    def _client(self):
+        if not self.websocket_rpc:
+            self.log.warning("Communicator's server did not start yet.")
+            return None
+
+        for client in self.websocket_rpc.clients:
+            if not client.ws.closed:
+                return client
+        self.log.warning("Client is not yet connected to Communicator.")
+        return None
+
+    def client(self):
+        if not self._connected_client or self._connected_client.ws.closed:
+            self._connected_client = self._client()
+        return self._connected_client
+
+    def send_request(self, method, params=[]):
+        client = self.client()
+        if not client:
+            return
+
+        return self.websocket_rpc.send_request(
+            client, method, params
+        )
+
+    def send_notification(self, method, params=[]):
+        client = self.client()
+        if not client:
+            return
+
+        self.websocket_rpc.send_notification(
+            client, method, params
+        )
+
+    def execute_george(self, george_script):
+        """Execute passed goerge script in TVPaint."""
+        return self.send_request(
+            "execute_george", [george_script]
+        )
 
 
 class QtCommunicator(BaseCommunicator):
