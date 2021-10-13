@@ -40,12 +40,14 @@
     }
              
     function main(websocket_url){
-      // creates connection to 'websocket_url', registers routes      
+      // creates connection to 'websocket_url', registers routes    
+      log.warn("env var host:", websocket_url);   
       var default_url = 'ws://localhost:8099/ws/';
       
       if  (websocket_url == ''){
            websocket_url = default_url;
       }
+      log.warn("connecting to:", websocket_url);  
       RPC = new WSRPC(websocket_url, 5000); // spin connection
   
       RPC.connect();
@@ -247,11 +249,7 @@
 
       RPC.addRoute('Photoshop.close', function (data) {
         log.warn('Server called client route "close":', data);
-        return runEvalScript("close()")
-            .then(function(result){
-                log.warn("close: " + result);
-                return result;
-            });
+        return runEvalScript("close()");
 });
         
       RPC.call('Photoshop.ping').then(function (data) {
