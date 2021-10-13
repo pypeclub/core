@@ -230,9 +230,20 @@ def launch(*subprocess_args):
             ConsoleTrayApp.execute_in_main_thread(lambda: workfiles.show(save))
 
     if os.environ.get("IS_HEADLESS"):
-        import pyblish.util
-        ConsoleTrayApp.execute_in_main_thread(lambda: pyblish.util.publish())
-        # ConsoleTrayApp.execute_in_main_thread(lambda: sys.exit(1))
+        ConsoleTrayApp.execute_in_main_thread(headless_publish)
+
+
+def headless_publish():
+    """Run publish and close Python process.
+
+        Host is being closed via ClosePS pyblish plugin.
+    """
+    import pyblish.util
+    pyblish.util.publish()
+    if ConsoleTrayApp.websocket_server:
+        ConsoleTrayApp.websocket_server.stop()
+    ConsoleTrayApp.process.kill()
+    ConsoleTrayApp.process.wait()
 
 @contextlib.contextmanager
 def maintained_selection():
