@@ -425,10 +425,8 @@ class PhotoshopServerStub:
 
             For webpublishing only.
         """
-        self.websocketserver.call(self.client.call
-                                  ('Photoshop.close')
-                                  )
-        self.client.close()
+        # TODO change client.call to method with checks for client
+        self.websocketserver.call(self.client.call('Photoshop.close'))
 
     def _to_records(self, res):
         """
