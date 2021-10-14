@@ -333,14 +333,16 @@ def get_layers_exposure_frames(layer_ids, layers_data=None, communicator=None):
     ]
 
     output = {}
+    layer_id_mapping = {}
     for layer_id, layer_data in layers_by_id.items():
+        layer_id_mapping[str(layer_id)] = layer_id
         output[layer_id] = []
         if not layer_data:
             continue
         first_frame = layer_data["frame_start"]
         last_frame = layer_data["frame_end"]
         george_script_lines.extend([
-            "line = \"\""
+            "line = \"\"",
             "layer_id = {}".format(layer_id),
             "line = line''layer_id",
             "tv_layerset layer_id",
@@ -372,7 +374,8 @@ def get_layers_exposure_frames(layer_ids, layers_data=None, communicator=None):
     for line in lines:
         line_items = list(line.split("|"))
         layer_id = line_items.pop(0)
-        output[layer_id] = [int(frame) for frame in line_items]
+        _layer_id = layer_id_mapping[layer_id]
+        output[_layer_id] = [int(frame) for frame in line_items]
 
     return output
 
