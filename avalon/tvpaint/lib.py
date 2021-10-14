@@ -4,11 +4,13 @@ import tempfile
 from . import CommunicationWrapper
 
 
-def execute_george(george_script):
-    return CommunicationWrapper.execute_george(george_script)
+def execute_george(george_script, communicator=None):
+    if not communicator:
+        communicator = CommunicationWrapper.communicator
+    return communicator.execute_george(george_script)
 
 
-def execute_george_through_file(george_script):
+def execute_george_through_file(george_script, communicator=None):
     """Execute george script with temp file.
 
     Allows to execute multiline george script without stopping websocket
@@ -20,7 +22,10 @@ def execute_george_through_file(george_script):
     Args:
         george_script (str): George script to execute. May be multilined.
     """
-    return CommunicationWrapper.execute_george_through_file(george_script)
+    if not communicator:
+        communicator = CommunicationWrapper.communicator
+
+    return communicator.execute_george_through_file(george_script)
 
 
 def parse_layers_data(data):
@@ -118,11 +123,11 @@ def get_layers_data_george_script(output_filepath, layer_ids=None):
     return "\n".join(george_script_lines)
 
 
-def layers_data(layer_ids=None):
-    return get_layers_data(layer_ids)
+def layers_data(layer_ids=None, communicator=None):
+    return get_layers_data(layer_ids, communicator)
 
 
-def get_layers_data(layer_ids=None):
+def get_layers_data(layer_ids=None, communicator=None):
     output_file = tempfile.NamedTemporaryFile(
         mode="w", prefix="a_tvp_", suffix=".txt", delete=False
     )
@@ -134,7 +139,7 @@ def get_layers_data(layer_ids=None):
 
     george_script = get_layers_data_george_script(output_filepath, layer_ids)
 
-    execute_george_through_file(george_script)
+    execute_george_through_file(george_script, communicator)
 
     with open(output_filepath, "r") as stream:
         data = stream.read()
@@ -172,7 +177,7 @@ def parse_group_data(data):
     return output
 
 
-def groups_data():
+def groups_data(communicator=None):
     output_file = tempfile.NamedTemporaryFile(
         mode="w", prefix="a_tvp_", suffix=".txt", delete=False
     )
@@ -189,7 +194,7 @@ def groups_data():
         "END"
     )
     george_script = "\n".join(george_script_lines)
-    execute_george_through_file(george_script)
+    execute_george_through_file(george_script, communicator)
 
     with open(output_filepath, "r") as stream:
         data = stream.read()
@@ -199,7 +204,7 @@ def groups_data():
     return output
 
 
-def get_layers_pre_post_behavior(layer_ids):
+def get_layers_pre_post_behavior(layer_ids, communicator=None):
     """Collect data about pre and post behavior of layer ids.
 
     Pre and Post behaviors is enumerator of possible values:
@@ -252,7 +257,7 @@ def get_layers_pre_post_behavior(layer_ids):
         ])
 
     george_script = "\n".join(george_script_lines)
-    execute_george_through_file(george_script)
+    execute_george_through_file(george_script, communicator)
 
     # Read data
     with open(output_filepath, "r") as stream:
@@ -279,7 +284,7 @@ def get_layers_pre_post_behavior(layer_ids):
     return output
 
 
-def get_layers_exposure_frames(layer_ids, layers_data=None):
+def get_layers_exposure_frames(layer_ids, layers_data=None, communicator=None):
     if layers_data is None:
         layers_data = get_layers_data(layer_ids)
     _layers_by_id = {
@@ -323,7 +328,7 @@ def get_layers_exposure_frames(layer_ids, layers_data=None):
             "tv_writetextfile \"strict\" \"append\" '\"'output_path'\"' line"
         ])
 
-    execute_george_through_file("\n".join(george_script_lines))
+    execute_george_through_file("\n".join(george_script_lines), communicator)
 
     with open(tmp_output_path, "r") as stream:
         data = stream.read()
@@ -344,7 +349,9 @@ def get_layers_exposure_frames(layer_ids, layers_data=None):
     return output
 
 
-def get_exposure_frames(layer_id, first_frame=None, last_frame=None):
+def get_exposure_frames(
+    layer_id, first_frame=None, last_frame=None, communicator=None
+):
     """Get exposure frames.
 
     Easily said returns frames where keyframes are. Recognized with george
@@ -393,7 +400,7 @@ def get_exposure_frames(layer_id, first_frame=None, last_frame=None):
         "tv_writetextfile \"strict\" \"append\" '\"'output_path'\"' output"
     ]
 
-    execute_george_through_file("\n".join(george_script_lines))
+    execute_george_through_file("\n".join(george_script_lines), communicator)
 
     with open(tmp_output_path, "r") as stream:
         data = stream.read()
