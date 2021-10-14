@@ -56,15 +56,8 @@ def parse_layers_data(data):
     return layers
 
 
-def layers_data(layer_ids=None):
-    output_file = tempfile.NamedTemporaryFile(
-        mode="w", prefix="a_tvp_", suffix=".txt", delete=False
-    )
-    output_file.close()
-    if layer_ids is not None and isinstance(layer_ids, int):
-        layer_ids = [layer_ids]
-
-    output_filepath = output_file.name.replace("\\", "/")
+def get_layers_data_george_script(output_filepath, layer_ids=None):
+    output_filepath = output_filepath.replace("\\", "/")
     george_script_lines = [
         # Variable containing full path to output file
         "output_path = \"{}\"".format(output_filepath),
@@ -122,7 +115,21 @@ def layers_data(layer_ids=None):
             george_script_lines.append("layer_id = {}".format(layer_id))
             george_script_lines.extend(layer_data_getter)
 
-    george_script = "\n".join(george_script_lines)
+    return "\n".join(george_script_lines)
+
+
+def layers_data(layer_ids=None):
+    output_file = tempfile.NamedTemporaryFile(
+        mode="w", prefix="a_tvp_", suffix=".txt", delete=False
+    )
+    output_file.close()
+    if layer_ids is not None and isinstance(layer_ids, int):
+        layer_ids = [layer_ids]
+
+    output_filepath = output_file.name
+
+    george_script = get_layers_data_george_script(output_filepath, layer_ids)
+
     execute_george_through_file(george_script)
 
     with open(output_filepath, "r") as stream:
