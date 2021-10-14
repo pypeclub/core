@@ -1969,11 +1969,15 @@ def is_compatible_loader(Loader, context):
         families = context["subset"]["data"]["families"]
 
     representation = context["representation"]
-    has_family = ("*" in Loader.families or
-                  any(family in Loader.families for family in families))
+    has_family = (
+        "*" in Loader.families or any(
+            family in Loader.families for family in families
+        )
+    )
     representations = Loader.get_representations()
-    has_representation = ("*" in representations or
-                          representation["name"] in representations)
+    has_representation = (
+        "*" in representations or representation["name"] in representations
+    )
     return has_family and has_representation
 
 
