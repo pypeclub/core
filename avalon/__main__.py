@@ -16,8 +16,6 @@ def main():
                         help="Launch Asset Loader in standalone mode")
     parser.add_argument("--sceneinventory", action="store_true",
                         help="Launch Scene Inventory in standalone mode")
-    parser.add_argument("--projectmanager", action="store_true",
-                        help="Launch Manager in standalone mode")
     parser.add_argument("--workfiles", action="store_true",
                         help="Launch Workfiles in standalone mode")
 
@@ -42,10 +40,6 @@ def main():
     elif args.sceneinventory:
         from .tools import sceneinventory
         sceneinventory.show(debug=True)
-
-    elif args.projectmanager:
-        from .tools import projectmanager
-        projectmanager.cli(unknown)
 
     elif args.workfiles:
         from .tools import workfiles
