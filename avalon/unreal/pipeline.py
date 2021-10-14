@@ -5,7 +5,6 @@ from ..pipeline import AVALON_CONTAINER_ID
 
 import unreal
 from ..tools import (
-    projectmanager,
     creator,
     publish as publisher,
     sceneinventory,
@@ -240,4 +239,5 @@ def show_manager():
 
 
 def show_project_manager():
-    projectmanager.show()
+    # TODO remove this function from unreal integration
+    pass
