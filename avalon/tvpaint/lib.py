@@ -20,14 +20,7 @@ def execute_george_through_file(george_script):
     Args:
         george_script (str): George script to execute. May be multilined.
     """
-    temporary_file = tempfile.NamedTemporaryFile(
-        mode="w", prefix="a_tvp_", suffix=".grg", delete=False
-    )
-    temporary_file.write(george_script)
-    temporary_file.close()
-    temp_file_path = temporary_file.name.replace("\\", "/")
-    execute_george("tv_runscript {}".format(temp_file_path))
-    os.remove(temp_file_path)
+    return CommunicationWrapper.execute_george_through_file(george_script)
 
 
 def parse_layers_data(data):

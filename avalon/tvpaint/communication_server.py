@@ -1007,6 +1007,27 @@ class BaseCommunicator:
             "execute_george", [george_script]
         )
 
+    def execute_george_through_file(self, george_script):
+        """Execute george script with temp file.
+
+        Allows to execute multiline george script without stopping websocket
+        client.
+
+        On windows make sure script does not contain paths with backwards
+        slashes in paths, TVPaint won't execute properly in that case.
+
+        Args:
+            george_script (str): George script to execute. May be multilined.
+        """
+        temporary_file = tempfile.NamedTemporaryFile(
+            mode="w", prefix="a_tvp_", suffix=".grg", delete=False
+        )
+        temporary_file.write(george_script)
+        temporary_file.close()
+        temp_file_path = temporary_file.name.replace("\\", "/")
+        self.execute_george("tv_runscript {}".format(temp_file_path))
+        os.remove(temp_file_path)
+
 
 class QtCommunicator(BaseCommunicator):
     def __init__(self, qt_app):
