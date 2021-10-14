@@ -84,12 +84,6 @@ def reload_pipeline(*args):
                    # "avalon.tools.sceneinventory.model",
                    # "avalon.tools.sceneinventory.proxy",
                    # "avalon.tools.sceneinventory.app",
-                   # "avalon.tools.projectmanager.dialogs",
-                   # "avalon.tools.projectmanager.lib",
-                   # "avalon.tools.projectmanager.model",
-                   # "avalon.tools.projectmanager.style",
-                   # "avalon.tools.projectmanager.widget",
-                   # "avalon.tools.projectmanager.app",
 
                    "avalon.api",
                    "avalon.tools",
