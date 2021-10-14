@@ -279,6 +279,71 @@ def get_layers_pre_post_behavior(layer_ids):
     return output
 
 
+def get_layers_exposure_frames(layer_ids, layers_data=None):
+    if layers_data is None:
+        layers_data = get_layers_data(layer_ids)
+    _layers_by_id = {
+        layer["layer_id"]: layer
+        for layer in layers_data
+    }
+    layers_by_id = {
+        layer_id: _layers_by_id.get(layer_id)
+        for layer_id in layer_ids
+    }
+    tmp_file = tempfile.NamedTemporaryFile(
+        mode="w", prefix="a_tvp_", suffix=".txt", delete=False
+    )
+    tmp_file.close()
+    tmp_output_path = tmp_file.name.replace("\\", "/")
+    george_script_lines = [
+        "output_path = \"{}\"".format(tmp_output_path)
+    ]
+
+    output = {}
+    for layer_id, layer_data in layers_by_id.items():
+        output[layer_id] = []
+        if not layer_data:
+            continue
+        first_frame = layer_data["frame_start"]
+        last_frame = layer_data["frame_end"]
+        george_script_lines.extend([
+            "line = \"\""
+            "layer_id = {}".format(layer_id),
+            "line = line''layer_id",
+            "tv_layerset layer_id",
+            "frame = {}".format(first_frame),
+            "WHILE (frame <= {})".format(last_frame),
+            "tv_exposureinfo frame",
+            "exposure = result",
+            "IF (CMP(exposure, \"Head\") == 1)",
+            "line = line'|'frame",
+            "END",
+            "frame = frame + 1",
+            "END",
+            "tv_writetextfile \"strict\" \"append\" '\"'output_path'\"' line"
+        ])
+
+    execute_george_through_file("\n".join(george_script_lines))
+
+    with open(tmp_output_path, "r") as stream:
+        data = stream.read()
+
+    os.remove(tmp_output_path)
+
+    lines = []
+    for line in data.split("\n"):
+        line = line.strip()
+        if line:
+            lines.append(line)
+
+    for line in lines:
+        line_items = list(line.split("|"))
+        layer_id = line_items.pop(0)
+        output[layer_id] = [int(frame) for frame in line_items]
+
+    return output
+
+
 def get_exposure_frames(layer_id, first_frame=None, last_frame=None):
     """Get exposure frames.
 
