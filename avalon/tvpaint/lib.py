@@ -119,6 +119,10 @@ def get_layers_data_george_script(output_filepath, layer_ids=None):
 
 
 def layers_data(layer_ids=None):
+    return get_layers_data(layer_ids)
+
+
+def get_layers_data(layer_ids=None):
     output_file = tempfile.NamedTemporaryFile(
         mode="w", prefix="a_tvp_", suffix=".txt", delete=False
     )
