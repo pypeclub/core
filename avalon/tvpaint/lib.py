@@ -422,3 +422,73 @@ def get_exposure_frames(
         for frame in line.split("|"):
             exposure_frames.append(int(frame))
     return exposure_frames
+
+
+def get_scene_data(communicator=None):
+    workfile_info = execute_george("tv_projectinfo", communicator)
+    workfile_info_parts = workfile_info.split(" ")
+
+    # Project frame start - not used
+    workfile_info_parts.pop(-1)
+    field_order = workfile_info_parts.pop(-1)
+    frame_rate = float(workfile_info_parts.pop(-1))
+    pixel_apsect = float(workfile_info_parts.pop(-1))
+    height = int(workfile_info_parts.pop(-1))
+    width = int(workfile_info_parts.pop(-1))
+
+    # Marks return as "{frame - 1} {state} ", example "0 set".
+    result = execute_george("tv_markin", communicator)
+    mark_in_frame, mark_in_state, _ = result.split(" ")
+
+    result = execute_george("tv_markout", communicator)
+    mark_out_frame, mark_out_state, _ = result.split(" ")
+
+    start_frame = execute_george("tv_startframe", communicator)
+    return {
+        "width": width,
+        "height": height,
+        "pixel_aspect": pixel_apsect,
+        "fps": frame_rate,
+        "field_order": field_order,
+        "mark_in": int(mark_in_frame),
+        "mark_in_state": mark_in_state,
+        "mark_in_set": mark_in_state == "set",
+        "mark_out": int(mark_out_frame),
+        "mark_out_state": mark_out_state,
+        "mark_out_set": mark_out_state == "set",
+        "start_frame": int(start_frame),
+        "bg_color": get_scene_bg_color(communicator)
+    }
+
+
+def get_scene_bg_color(communicator=None):
+    """Background color set on scene.
+
+    Is important for review exporting where scene bg color is used as
+    background.
+    """
+    output_file = tempfile.NamedTemporaryFile(
+        mode="w", prefix="a_tvp_", suffix=".txt", delete=False
+    )
+    output_file.close()
+    output_filepath = output_file.name.replace("\\", "/")
+    george_script_lines = [
+        # Variable containing full path to output file
+        "output_path = \"{}\"".format(output_filepath),
+        "tv_background",
+        "bg_color = result",
+        # Write data to output file
+        "tv_writetextfile \"strict\" \"append\" '\"'output_path'\"' bg_color"
+    ]
+
+    george_script = "\n".join(george_script_lines)
+    execute_george_through_file(george_script, communicator)
+
+    with open(output_filepath, "r") as stream:
+        data = stream.read()
+
+    os.remove(output_filepath)
+    data = data.strip()
+    if not data:
+        return None
+    return data.split(" ")
