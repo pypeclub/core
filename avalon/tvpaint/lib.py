@@ -178,6 +178,10 @@ def parse_group_data(data):
 
 
 def groups_data(communicator=None):
+    return get_groups_data(communicator)
+
+
+def get_groups_data(communicator=None):
     output_file = tempfile.NamedTemporaryFile(
         mode="w", prefix="a_tvp_", suffix=".txt", delete=False
     )
