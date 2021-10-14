@@ -106,7 +106,6 @@ def uninstall():
 
 def _install_menu():
     from ..tools import (
-        projectmanager,
         creator,
         publish,
         sceneinventory
@@ -166,23 +165,6 @@ def _install_menu():
 
         cmds.menuItem("Work Files", command=launch_workfiles_app)
 
-        system = cmds.menuItem("System",
-                               label="System",
-                               tearOff=True,
-                               subMenu=True,
-                               parent=self._menu)
-
-        cmds.menuItem("Project Manager",
-                      command=lambda *args: projectmanager.show(
-                        parent=self._parent))
-
-        cmds.menuItem("Reinstall Avalon",
-                      label="Reinstall Avalon",
-                      subMenu=True,
-                      parent=system)
-
-        cmds.menuItem("Confirm", command=reload_pipeline)
-
         cmds.setParent(self._menu, menu=True)
 
         cmds.menuItem("Reset Frame Range",
@@ -235,12 +217,6 @@ def reload_pipeline(*args):
                    # "avalon.tools.sceneinventory.model",
                    # "avalon.tools.sceneinventory.proxy",
                    # "avalon.tools.sceneinventory.app",
-                   # "avalon.tools.projectmanager.dialogs",
-                   # "avalon.tools.projectmanager.lib",
-                   # "avalon.tools.projectmanager.model",
-                   # "avalon.tools.projectmanager.style",
-                   # "avalon.tools.projectmanager.widget",
-                   # "avalon.tools.projectmanager.app",
 
                    "mayalookassigner",
                    "avalon.api",
