@@ -29,6 +29,7 @@ def execute_george_through_file(george_script, communicator=None):
 
 
 def parse_layers_data(data):
+    """Parse layers data loaded in 'get_layers_data'."""
     layers = []
     layers_raw = data.split("\n")
     for layer_raw in layers_raw:
@@ -62,6 +63,7 @@ def parse_layers_data(data):
 
 
 def get_layers_data_george_script(output_filepath, layer_ids=None):
+    """Prepare george script which will collect all layers from workfile."""
     output_filepath = output_filepath.replace("\\", "/")
     george_script_lines = [
         # Variable containing full path to output file
@@ -124,10 +126,12 @@ def get_layers_data_george_script(output_filepath, layer_ids=None):
 
 
 def layers_data(layer_ids=None, communicator=None):
+    """Backwards compatible function of 'get_layers_data'."""
     return get_layers_data(layer_ids, communicator)
 
 
 def get_layers_data(layer_ids=None, communicator=None):
+    """Collect all layers information from currently opened workfile."""
     output_file = tempfile.NamedTemporaryFile(
         mode="w", prefix="a_tvp_", suffix=".txt", delete=False
     )
@@ -150,6 +154,7 @@ def get_layers_data(layer_ids=None, communicator=None):
 
 
 def parse_group_data(data):
+    """Paser group data collected in 'get_groups_data'."""
     output = []
     groups_raw = data.split("\n")
     for group_raw in groups_raw:
@@ -178,10 +183,12 @@ def parse_group_data(data):
 
 
 def groups_data(communicator=None):
+    """Backwards compatible function of 'get_groups_data'."""
     return get_groups_data(communicator)
 
 
 def get_groups_data(communicator=None):
+    """Information about groups from current workfile."""
     output_file = tempfile.NamedTemporaryFile(
         mode="w", prefix="a_tvp_", suffix=".txt", delete=False
     )
@@ -213,7 +220,7 @@ def get_layers_pre_post_behavior(layer_ids, communicator=None):
 
     Pre and Post behaviors is enumerator of possible values:
     - "none"
-    - "repeat"
+    - "repeat" / "loop"
     - "pingpong"
     - "hold"
 
@@ -289,6 +296,23 @@ def get_layers_pre_post_behavior(layer_ids, communicator=None):
 
 
 def get_layers_exposure_frames(layer_ids, layers_data=None, communicator=None):
+    """Get exposure frames.
+
+    Easily said returns frames where keyframes are. Recognized with george
+    function `tv_exposureinfo` returning "Head".
+
+    Args:
+        layer_ids (list): Ids of a layers for which exposure frames should
+            look for.
+        layers_data (list): Precollected layers data. If are not passed then
+            'get_layers_data' is used.
+        communicator (BaseCommunicator): Communicator used for communication
+            with TVPaint.
+
+    Returns:
+        dict: Frames where exposure is set to "Head" by layer id.
+    """
+
     if layers_data is None:
         layers_data = get_layers_data(layer_ids)
     _layers_by_id = {
@@ -425,6 +449,14 @@ def get_exposure_frames(
 
 
 def get_scene_data(communicator=None):
+    """Scene data of currently opened scene.
+
+    Result contains resolution, pixel aspect, fps mark in/out with states,
+    frame start and background color.
+
+    Returns:
+        dict: Scene data collected in many ways.
+    """
     workfile_info = execute_george("tv_projectinfo", communicator)
     workfile_info_parts = workfile_info.split(" ")
 
