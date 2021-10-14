@@ -126,6 +126,10 @@ class Window(QtWidgets.QDialog):
         super(Window, self).__init__(parent)
         self.setWindowTitle("Instance Creator")
         self.setFocusPolicy(QtCore.Qt.StrongFocus)
+        if not parent:
+            self.setWindowFlags(
+                self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint
+            )
 
         # Store the widgets for lookup in here
         self.data = dict()
