@@ -45,7 +45,8 @@ class CommunicationWrapper:
     localization_file = None
 
     @classmethod
-    def create_communicator(cls, *args, **kwargs):
+    def create_qt_communicator(cls, *args, **kwargs):
+        """Create communicator for Artist usage."""
         communicator = QtCommunicator(*args, **kwargs)
         cls.set_communicator(communicator)
         return communicator
