@@ -13,7 +13,7 @@ import filecmp
 from uuid import uuid4
 
 from .server import Server
-from openpype.tools import workfiles
+from openpype.tools.utils import host_tools
 from ..vendor.Qt import QtWidgets
 
 self = sys.modules[__name__]
@@ -142,7 +142,7 @@ def launch(application_path, zip_file):
     setup_startup_scripts()
 
     if os.environ.get("AVALON_TOONBOOM_WORKFILES_ON_LAUNCH", False):
-        workfiles.show(save=False)
+        host_tools.show_workfiles(save=False)
 
     # No launch through Workfiles happened.
     if not self.workfile_path:
@@ -308,14 +308,23 @@ def show(module_name):
     if not app:
         app = QtWidgets.QApplication(sys.argv)
 
-    # Import and show tool.
-    module = importlib.import_module(module_name)
-    module.show()
-
-    # QApplication needs to always execute, except when publishing.
-    if "publish" in module_name:
+    # Get tool name from module name
+    # TODO this is for backwards compatibility not sure if `avalon.js`
+    #   is automatically updated.
+    # Previous javascript sent 'module_name' which contained whole tool import
+    #   string e.g. "avalon.tools.workfiles" now it should be only "workfiles"
+    tool_name = module_name.split(".")[-1]
+    if tool_name == "publish":
+        host_tools.show_tool_by_name(tool_name)
         return
 
+    # Get and show tool.
+    # TODO convert toonboom implementation to run in Qt application as main
+    #   thread
+    tool_window = host_tools.get_tool_by_name(tool_name)
+    tool_window.show()
+
+    # QApplication needs to always execute, except when publishing.
     app.exec_()
 
 
