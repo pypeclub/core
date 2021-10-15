@@ -1,7 +1,7 @@
 import avalon.api
 import avalon.fusion
-import avalon.tools.sceneinventory as tool
+from openpype.tools.utils import host_tools
 
 
 avalon.api.install(avalon.fusion)
-tool.show()
+host_tools.show_scene_inventory()
