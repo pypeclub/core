@@ -419,13 +419,18 @@ class BaseTVPaintRpc(JsonRpc):
             return True
         return False
 
-    def send_notification(self, client, method, params=[]):
+    def send_notification(self, client, method, params=None):
+        if params is None:
+            params = []
         asyncio.run_coroutine_threadsafe(
             client.ws.send_str(encode_request(method, params=params)),
             loop=self.loop
         )
 
-    def send_request(self, client, method, params=[], timeout=0):
+    def send_request(self, client, method, params=None, timeout=0):
+        if params is None:
+            params = []
+
         client_host = client.host
 
         request_id = self.requests_ids[client_host]
@@ -984,7 +989,7 @@ class BaseCommunicator:
             self._connected_client = self._client()
         return self._connected_client
 
-    def send_request(self, method, params=[]):
+    def send_request(self, method, params=None):
         client = self.client()
         if not client:
             return
@@ -993,7 +998,7 @@ class BaseCommunicator:
             client, method, params
         )
 
-    def send_notification(self, method, params=[]):
+    def send_notification(self, method, params=None):
         client = self.client()
         if not client:
             return
