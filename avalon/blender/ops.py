@@ -6,7 +6,6 @@ import platform
 import time
 import traceback
 import collections
-from functools import partial
 from pathlib import Path
 from types import ModuleType
 from typing import Dict, List, Optional, Union
@@ -14,11 +13,7 @@ from typing import Dict, List, Optional, Union
 import bpy
 import bpy.utils.previews
 
-from ..tools.creator.app import Window as creator_window
-from openpype.tools.loader import LoaderWindow
-from openpype.tools.workfiles.app import Window as workfiles_window
-from ..tools.sceneinventory.app import Window as sceneinventory_window
-from openpype.tools.pyblish_pype import app as pyblish_pype_app
+from openpype.tools.utils import host_tools
 
 from .workio import OpenFileCacher
 from .. import api
@@ -184,7 +179,7 @@ class LaunchQtApp(bpy.types.Operator):
 
     _app: QtWidgets.QApplication
     _window = Union[QtWidgets.QDialog, ModuleType]
-    _window_class: QtWidgets.QDialog = None
+    _tool_name: str = None
     _init_args: Optional[List] = list()
     _init_kwargs: Optional[Dict] = dict()
     bl_idname: str = None
@@ -214,16 +209,14 @@ class LaunchQtApp(bpy.types.Operator):
         dictionary.
         """
 
-        if self._window_class is None:
+        if self._tool_name is None:
             if self._window is None:
                 raise AttributeError("`self._window` is not set.")
 
         else:
             window = self._app.get_window(self.bl_idname)
             if window is None:
-                window = self._window_class(
-                    *self._init_args, **self._init_kwargs
-                )
+                window = host_tools.get_tool_by_name(self._tool_name)
                 self._app.store_window(self.bl_idname, window)
             self._window = window
 
@@ -271,7 +264,7 @@ class LaunchCreator(LaunchQtApp):
 
     bl_idname = "wm.avalon_creator"
     bl_label = "Create..."
-    _window_class = creator_window
+    _tool_name = "creator"
 
     def before_window_show(self):
         self._window.refresh()
@@ -282,7 +275,7 @@ class LaunchLoader(LaunchQtApp):
 
     bl_idname = "wm.avalon_loader"
     bl_label = "Load..."
-    _window_class = LoaderWindow
+    _tool_name = "loader"
 
     def before_window_show(self):
         self._window.set_context(
@@ -298,7 +291,7 @@ class LaunchPublisher(LaunchQtApp):
     bl_label = "Publish..."
 
     def execute(self, context):
-        pyblish_pype_app.show()
+        host_tools.show_publish()
         return {"FINISHED"}
 
 
@@ -307,7 +300,7 @@ class LaunchManager(LaunchQtApp):
 
     bl_idname = "wm.avalon_manager"
     bl_label = "Manage..."
-    _window_class = sceneinventory_window
+    _tool_name = "sceneinventory"
 
     def before_window_show(self):
         self._window.refresh()
@@ -318,7 +311,7 @@ class LaunchWorkFiles(LaunchQtApp):
 
     bl_idname = "wm.avalon_workfiles"
     bl_label = "Work Files..."
-    _window_class = workfiles_window
+    _tool_name = "workfiles"
 
     def execute(self, context):
         result = super().execute(context)
