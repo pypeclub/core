@@ -351,7 +351,7 @@ class PhotoshopServerStub:
 
         return layers_data
 
-    def import_smart_object(self, path, layer_name):
+    def import_smart_object(self, path, layer_name, as_reference=False):
         """
             Import the file at `path` as a smart object to active document.
 
@@ -359,11 +359,14 @@ class PhotoshopServerStub:
             path (str): File path to import.
             layer_name (str): Unique layer name to differentiate how many times
                 same smart object was loaded
+            as_reference (bool): pull in content or reference
         """
         enhanced_name = self.LOADED_ICON + layer_name
         res = self.websocketserver.call(self.client.call
                                         ('Photoshop.import_smart_object',
-                                         path=path, name=enhanced_name))
+                                         path=path, name=enhanced_name,
+                                         as_reference=as_reference
+                                         ))
         rec = self._to_records(res).pop()
         if rec:
             rec.name = rec.name.replace(self.LOADED_ICON, '')

@@ -163,16 +163,17 @@
                   });
       });
       
-      RPC.addRoute('Photoshop.import_smart_object', function (data) {
-              log.warn('Server called client "import_smart_object":', data);
-              var escapedPath = EscapeStringForJSX(data.path);
-              return runEvalScript("importSmartObject('" + escapedPath +"', " +
-                                                      "'"+ data.name +"')")
-                  .then(function(result){
-                      log.warn("import_smart_object: " + result);
-                      return result;
-                  });
-      });
+    //   RPC.addRoute('Photoshop.import_smart_object', function (data) {
+    //           log.warn('Server called client "import_smart_object":', data);
+    //           var escapedPath = EscapeStringForJSX(data.path);
+    //           return runEvalScript("importSmartObject('" + escapedPath +"', " +
+    //                                                   "'"+ data.name +"',"+
+    //                                                   + data.as_reference +")")
+    //               .then(function(result){
+    //                   log.warn("import_smart_object: " + result);
+    //                   return result;
+    //               });
+    //   });
       
       RPC.addRoute('Photoshop.replace_smart_object', function (data) {
               log.warn('Server called route "replace_smart_object":', data);

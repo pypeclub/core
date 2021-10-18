@@ -335,7 +335,7 @@ function groupSelectedLayers(doc, name) {
     return JSON.stringify(layer);        
 };
 
-function importSmartObject(path, name){
+function importSmartObject(path, name, link=false){
     /**
      *  Creates new layer with an image from 'path'
      *  
@@ -345,6 +345,9 @@ function importSmartObject(path, name){
      **/
     var desc1 = new ActionDescriptor();
     desc1.putPath( app.charIDToTypeID("null"), new File(path) );
+    if (link) {
+        desc1.putBoolean( stringIDToTypeID('Lnkd'), true );    
+    }  
     desc1.putEnumerated(app.charIDToTypeID("FTcs"), app.charIDToTypeID("QCSt"), 
                        app.charIDToTypeID("Qcsa"));
                        
@@ -475,3 +478,4 @@ function _get_parents_names(layer, itself_name){
 // var a = app.activeDocument.activeLayer;
 // log(a);
 // getSelectedLayers();
+//importSmartObject("c:/projects/test.jpg", "NewLayer");
