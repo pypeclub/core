@@ -4,7 +4,7 @@ import sys
 import avalon.api
 import avalon.fusion
 
-import pyblish_qml
+from openpype.tools.utils import host_tools
 
 
 def _install_fusion():
@@ -59,4 +59,4 @@ _install_fusion()
 # server in the main thread and keeps this process
 # open until QML finishes.
 print("Running publish_qml.show(modal=True)..")
-pyblish_qml.show(modal=True)
+host_tools.show_publish()

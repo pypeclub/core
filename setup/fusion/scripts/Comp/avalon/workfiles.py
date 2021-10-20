@@ -1,7 +1,7 @@
 import avalon.api
 import avalon.fusion
-import avalon.tools.workfiles as tool
+from openpype.tools.utils import host_tools
 
 
 avalon.api.install(avalon.fusion)
-tool.show()
+host_tools.show_workfiles()

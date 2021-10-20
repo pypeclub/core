@@ -263,15 +263,8 @@ def uninstall():
 
 
 def _install_menu():
-    """Installing Avalon menu to Nuke
-    """
-    from ..tools import (
-        creator,
-        publish,
-        workfiles,
-        sceneinventory
-    )
-    from openpype.tools import loader
+    """Installing Avalon menu to Nuke."""
+    from openpype.tools.utils import host_tools
 
 
     # Create menu
@@ -285,22 +278,31 @@ def _install_menu():
     context_action.setEnabled(False)
 
     menu.addSeparator()
-    menu.addCommand("Create...",
-                    lambda: creator.show(parent=get_main_window()))
-    menu.addCommand("Load...",
-                    lambda: loader.show(parent=get_main_window(),
-                                        use_context=True))
-    menu.addCommand("Publish...",
-                    lambda: publish.show(parent=get_main_window()))
-    menu.addCommand("Manage...",
-                    lambda: sceneinventory.show(parent=get_main_window()))
+    menu.addCommand(
+        "Create...",
+        lambda: host_tools.show_creator(parent=get_main_window())
+    )
+    menu.addCommand(
+        "Load...",
+        lambda: host_tools.show_loader(
+            parent=get_main_window(),
+            use_context=True
+        )
+    )
+    menu.addCommand(
+        "Publish...",
+        lambda: host_tools.show_publish(parent=get_main_window())
+    )
+    menu.addCommand(
+        "Manage...",
+        lambda: host_tools.show_scene_inventory(parent=get_main_window())
+    )
 
     menu.addSeparator()
-    menu.addCommand("Work Files...",
-                    lambda: workfiles.show(
-                        os.environ["AVALON_WORKDIR"],
-                        parent=get_main_window())
-                    )
+    menu.addCommand(
+        "Work Files...",
+        lambda: host_tools.show_workfiles(parent=get_main_window())
+    )
 
     menu.addSeparator()
     menu.addCommand("Reset Frame Range", command.reset_frame_range)

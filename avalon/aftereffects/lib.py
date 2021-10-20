@@ -18,12 +18,8 @@ from Qt import QtWidgets
 from avalon import api
 from avalon.tools.webserver.app import WebServerTool
 
-from openpype.tools import (
-    workfiles,
-    loader,
-    libraryloader
-)
 from openpype.tools.tray_app.app import ConsoleTrayApp
+from openpype.tools.utils import host_tools
 
 from .ws_stub import AfterEffectsServerStub
 
@@ -31,7 +27,7 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
 
-def show(module_name):
+def show(tool_name):
     """Call show on "module_name".
 
     This allows to make a QApplication ahead of time and always "exec_" to
@@ -40,24 +36,11 @@ def show(module_name):
     Args:
         module_name (str): Name of module to call "show" on.
     """
-    # Import and show tool.
-    if module_name == "workfiles":
-        # Use OpenPype's workfiles tool
-        tool_module = workfiles
+    kwargs = {}
+    if tool_name == "loader":
+        kwargs["use_context"] = True
 
-    elif module_name == "loader":
-        tool_module = loader
-
-    elif module_name == "libraryloader":
-        tool_module = libraryloader
-
-    else:
-        tool_module = importlib.import_module("avalon.tools." + module_name)
-
-    if "loader" in module_name:
-        tool_module.show(use_context=True)
-    else:
-        tool_module.show()
+    host_tools.show_tool_by_name(tool_name, **kwargs)
 
 
 class ConnectionNotEstablishedYet(Exception):
