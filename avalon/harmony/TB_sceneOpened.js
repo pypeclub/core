@@ -375,7 +375,7 @@ function start() {
         app.avalonClient.send({
             'module': 'avalon.harmony.lib',
             'method': 'show',
-            'args': ['avalon.tools.creator']
+            'args': ['creator']
         }, false);
     };
 
@@ -390,7 +390,7 @@ function start() {
         app.avalonClient.send({
             'module': 'avalon.harmony.lib',
             'method': 'show',
-            'args': ['openpype.tools.workfiles']
+            'args': ['workfiles']
         }, false);
     };
     if (app.avalonMenu == null) {
@@ -405,7 +405,7 @@ function start() {
         app.avalonClient.send({
             'module': 'avalon.harmony.lib',
             'method': 'show',
-            'args': ['openpype.tools.loader']
+            'args': ['loader']
         }, false);
     };
     // add Loader item to menu
@@ -421,7 +421,7 @@ function start() {
         app.avalonClient.send({
             'module': 'avalon.harmony.lib',
             'method': 'show',
-            'args': ['avalon.tools.publish']
+            'args': ['publish']
         }, false);
     };
     // add Publisher item to menu
@@ -437,7 +437,7 @@ function start() {
         app.avalonClient.send({
             'module': 'avalon.harmony.lib',
             'method': 'show',
-            'args': ['avalon.tools.sceneinventory']
+            'args': ['sceneinventory']
         }, false);
     };
     // add Scene Manager item to menu
@@ -453,7 +453,7 @@ function start() {
         app.avalonClient.send({
             'module': 'avalon.harmony.lib',
             'method': 'show',
-            'args': ['avalon.tools.subsetmanager']
+            'args': ['subsetmanager']
         }, false);
     };
     // add Subset Manager item to menu

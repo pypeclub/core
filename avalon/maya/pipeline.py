@@ -105,15 +105,8 @@ def uninstall():
 
 
 def _install_menu():
-    from ..tools import (
-        creator,
-        publish,
-        sceneinventory
-    )
-    from openpype.tools import (
-        loader,
-        libraryloader
-    )
+    from openpype.tools.utils import host_tools
+    from ..tools import publish
 
     from . import interactive
 
@@ -142,28 +135,47 @@ def _install_menu():
         cmds.menuItem(divider=True)
 
         # Create default items
-        cmds.menuItem("Create...",
-                      command=lambda *args: creator.show(parent=self._parent))
+        cmds.menuItem(
+            "Create...",
+            command=lambda *args: host_tools.show_creator(parent=self._parent)
+        )
 
-        cmds.menuItem("Load...",
-                      command=lambda *args: loader.show(parent=self._parent,
-                                                        use_context=True))
+        cmds.menuItem(
+            "Load...",
+            command=lambda *args: host_tools.show_loader(
+                parent=self._parent,
+                use_context=True
+            )
+        )
 
-        cmds.menuItem("Publish...",
-                      command=lambda *args: publish.show(parent=self._parent),
-                      image=publish.ICON)
+        cmds.menuItem(
+            "Publish...",
+            command=lambda *args: host_tools.show_publish(parent=self._parent),
+            image=publish.ICON
+        )
 
-        cmds.menuItem("Manage...",
-                      command=lambda *args: sceneinventory.show(
-                          parent=self._parent))
+        cmds.menuItem(
+            "Manage...",
+            command=lambda *args: host_tools.show_scene_inventory(
+                parent=self._parent
+            )
+        )
 
-        cmds.menuItem("Library...", command=lambda *args: libraryloader.show(
-            parent=self._parent)
+        cmds.menuItem(
+            "Library...",
+            command=lambda *args: host_tools.show_library_loader(
+                parent=self._parent
+            )
         )
 
         cmds.menuItem(divider=True)
 
-        cmds.menuItem("Work Files", command=launch_workfiles_app)
+        cmds.menuItem(
+            "Work Files",
+            command=lambda *args: host_tools.show_scene_inventory(
+                parent=self._parent
+            )
+        )
 
         cmds.setParent(self._menu, menu=True)
 

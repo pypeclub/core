@@ -32,6 +32,10 @@ class View(QtWidgets.QTreeView):
     def __init__(self, parent=None):
         super(View, self).__init__(parent=parent)
 
+        if not parent:
+            self.setWindowFlags(
+                self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint
+            )
         # view settings
         self.setIndentation(12)
         self.setAlternatingRowColors(True)

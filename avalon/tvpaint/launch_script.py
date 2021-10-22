@@ -1,7 +1,6 @@
 import os
 import sys
 import signal
-import time
 import traceback
 import ctypes
 import platform
@@ -50,7 +49,7 @@ def main(launch_args):
 
     # Create Communicator object and trigger launch
     # - this must be done before anything is processed
-    communicator = CommunicationWrapper.create_communicator(qt_app)
+    communicator = CommunicationWrapper.create_qt_communicator(qt_app)
     communicator.launch(launch_args)
 
     def process_in_main_thread():
