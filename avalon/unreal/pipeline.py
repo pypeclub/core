@@ -4,14 +4,9 @@ import pyblish.api
 from ..pipeline import AVALON_CONTAINER_ID
 
 import unreal
+from openpype.tools.utils import host_tools
 from ..tools import (
     projectmanager,
-    creator,
-    publish as publisher,
-    sceneinventory,
-)
-from openpype.tools import (
-    loader
 )
 
 from .. import api
@@ -224,19 +219,19 @@ def imprint(node, data):
 
 
 def show_creator():
-    creator.show()
+    host_tools.show_creator()
 
 
 def show_loader():
-    loader.show(use_context=True)
+    host_tools.show_loader(use_context=True)
 
 
 def show_publisher():
-    publisher.show()
+    host_tools.show_publish()
 
 
 def show_manager():
-    sceneinventory.show()
+    host_tools.show_scene_inventory()
 
 
 def show_project_manager():

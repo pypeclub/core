@@ -22,6 +22,8 @@ DEFAULT_COLOR = "#fb9c15"
 module = sys.modules[__name__]
 module.window = None
 
+log = logging.getLogger("SceneInventory")
+
 
 class View(QtWidgets.QTreeView):
     data_changed = QtCore.Signal()
@@ -30,6 +32,10 @@ class View(QtWidgets.QTreeView):
     def __init__(self, parent=None):
         super(View, self).__init__(parent=parent)
 
+        if not parent:
+            self.setWindowFlags(
+                self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint
+            )
         # view settings
         self.setIndentation(12)
         self.setAlternatingRowColors(True)
@@ -190,7 +196,12 @@ class View(QtWidgets.QTreeView):
                     version_id = version_id_by_repre_id.get(repre_id)
                     version_name = version_name_by_id.get(version_id)
                     if version_name is not None:
-                        api.update(item, version_name)
+                        try:
+                            api.update(item, version_name)
+                        except AssertionError:
+                            self._show_version_error_dialog(version_name,
+                                                            [item])
+                            log.warning("Update failed", exc_info=True)
 
                 self.data_changed.emit()
 
@@ -212,7 +223,11 @@ class View(QtWidgets.QTreeView):
             # update to latest version
             def _on_update_to_latest(items):
                 for item in items:
-                    api.update(item, -1)
+                    try:
+                        api.update(item, -1)
+                    except AssertionError:
+                        self._show_version_error_dialog(None, [item])
+                        log.warning("Update failed", exc_info=True)
                 self.data_changed.emit()
 
             update_icon = qtawesome.icon(
@@ -233,7 +248,11 @@ class View(QtWidgets.QTreeView):
             # change to hero version
             def _on_update_to_hero(items):
                 for item in items:
-                    api.update(item, HeroVersionType(-1))
+                    try:
+                        api.update(item, HeroVersionType(-1))
+                    except AssertionError:
+                        self._show_version_error_dialog('hero', [item])
+                        log.warning("Update failed", exc_info=True)
                 self.data_changed.emit()
 
             # TODO change icon
@@ -692,7 +711,11 @@ class View(QtWidgets.QTreeView):
         if label:
             version = versions_by_label[label]
             for item in items:
-                api.update(item, version)
+                try:
+                    api.update(item, version)
+                except AssertionError:
+                    self._show_version_error_dialog(version, [item])
+                    log.warning("Update failed", exc_info=True)
             # refresh model when done
             self.data_changed.emit()
 
@@ -721,6 +744,40 @@ class View(QtWidgets.QTreeView):
         for item in items:
             api.remove(item)
         self.data_changed.emit()
+
+    def _show_version_error_dialog(self, version, items):
+        """Shows QMessageBox when version switch doesn't work
+
+            Args:
+                version: str or int or None
+        """
+        if not version:
+            version_str = "latest"
+        elif version == "hero":
+            version_str = "hero"
+        elif isinstance(version, int):
+            version_str = "v{:03d}".format(version)
+        else:
+            version_str = version
+
+        dialog = QtWidgets.QMessageBox()
+        dialog.setIcon(QtWidgets.QMessageBox.Warning)
+        dialog.setStyleSheet(style.load_stylesheet())
+        dialog.setWindowTitle("Update failed")
+
+        switch_btn = dialog.addButton("Switch Asset",
+                                      QtWidgets.QMessageBox.ActionRole)
+        switch_btn.clicked.connect(lambda: self.show_switch_dialog(items))
+
+        dialog.addButton(QtWidgets.QMessageBox.Cancel)
+
+        msg = "Version update to '{}' ".format(version_str) + \
+              "failed as representation doesn't exist.\n\n" \
+              "Please update to version with a valid " \
+              "representation OR \n use 'Switch Asset' button " \
+              "to change asset."
+        dialog.setText(msg)
+        dialog.exec_()
 
 
 class SearchComboBox(QtWidgets.QComboBox):
@@ -764,6 +821,12 @@ class SearchComboBox(QtWidgets.QComboBox):
 
         return text or None
 
+    def set_valid_value(self, value):
+        """Try to locate 'value' and pre-select it in dropdown."""
+        index = self.findText(value)
+        if index > -1:
+            self.setCurrentIndex(index)
+
 
 class ValidationState:
     def __init__(self):
@@ -795,8 +858,6 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
         # Force and keep focus dialog
         self.setModal(True)
-
-        self.log = logging.getLogger(self.__class__.__name__)
 
         self._assets_box = SearchComboBox(placeholder="<asset>")
         self._subsets_box = SearchComboBox(placeholder="<subset>")
@@ -845,6 +906,10 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         self._accept_btn.clicked.connect(self._on_accept)
         self.current_asset_btn.clicked.connect(self._on_current_asset)
 
+        self._init_asset_name = None
+        self._init_subset_name = None
+        self._init_repre_name = None
+
         self._items = items
         self._prepare_content_data()
         self.refresh(True)
@@ -865,6 +930,12 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             "_id": {"$in": repre_ids}
         }))
         repres_by_id = {repre["_id"]: repre for repre in repres}
+
+        # stash context values, works only for single representation
+        if len(repres) == 1:
+            self._init_asset_name = repres[0]["context"]["asset"]
+            self._init_subset_name = repres[0]["context"]["subset"]
+            self._init_repre_name = repres[0]["context"]["representation"]
 
         content_repres = {}
         archived_repres = []
@@ -994,6 +1065,11 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         # Fill comboboxes with values
         self.set_labels()
         self.apply_validations(validation_state)
+
+        if init_refresh:  # pre select context if possible
+            self._assets_box.set_valid_value(self._init_asset_name)
+            self._subsets_box.set_valid_value(self._init_subset_name)
+            self._representations_box.set_valid_value(self._init_repre_name)
 
         self.fill_check = True
 
@@ -1704,13 +1780,20 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             try:
                 api.switch(container, repre_doc)
             except Exception:
-                self.log.warning(
+                log.warning(
                     (
                         "Couldn't switch asset."
                         "See traceback for more information."
                     ),
                     exc_info=True
                 )
+                dialog = QtWidgets.QMessageBox()
+                dialog.setStyleSheet(style.load_stylesheet())
+                dialog.setWindowTitle("Switch asset failed")
+                msg = "Switch asset failed. "\
+                      "Search console log for more details"
+                dialog.setText(msg)
+                dialog.exec_()
 
         self.switched.emit()
 

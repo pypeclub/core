@@ -167,7 +167,7 @@ function start()
       {
         "module": "avalon.toonboom",
         "method": "show",
-        "args": ["avalon.tools.creator"]
+        "args": ["creator"]
       },
       false
     );
@@ -181,7 +181,7 @@ function start()
       {
         "module": "avalon.toonboom",
         "method": "show",
-        "args": ["openpype.tools.workfiles"]
+        "args": ["workfiles"]
       },
       false
     );
@@ -195,7 +195,7 @@ function start()
         {
           "module": "avalon.toonboom",
           "method": "show",
-          "args": ["openpype.tools.loader"]
+          "args": ["loader"]
         },
         false
     );
@@ -209,7 +209,7 @@ function start()
         {
           "module": "avalon.toonboom",
           "method": "show",
-          "args": ["avalon.tools.publish"]
+          "args": ["publish"]
         },
         false
     );
@@ -223,7 +223,7 @@ function start()
         {
           "module": "avalon.toonboom",
           "method": "show",
-          "args": ["avalon.tools.sceneinventory"]
+          "args": ["sceneinventory"]
         },
         false
     );
