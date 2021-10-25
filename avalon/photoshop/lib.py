@@ -21,6 +21,10 @@ from avalon.tools.webserver.app import WebServerTool
 from openpype.tools.utils import host_tools
 from openpype.tools.tray_app.app import ConsoleTrayApp
 
+from openpype.lib.remote_publish import (
+    get_webpublish_conn, publish_and_log
+)
+
 from .ws_stub import PhotoshopServerStub
 
 log = logging.getLogger(__name__)
@@ -204,12 +208,33 @@ def launch(*subprocess_args):
 
     ConsoleTrayApp.websocket_server = websocket_server
 
-    if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
-        save = False
-        if os.getenv("WORKFILES_SAVE_AS"):
-            save = True
+    if os.environ.get("IS_HEADLESS"):
+        # reusing ConsoleTrayApp approach as it was already implemented
+        ConsoleTrayApp.execute_in_main_thread(headless_publish)
+        return
 
-        ConsoleTrayApp.execute_in_main_thread(lambda: workfiles.show(save))
+    if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
+        if not os.environ.get("IS_HEADLESS"):
+            save = False
+            if os.getenv("WORKFILES_SAVE_AS"):
+                save = True
+
+            ConsoleTrayApp.execute_in_main_thread(lambda: workfiles.show(save))
+
+
+def headless_publish():
+    """Runs publish in a opened host with a context and closes Python process.
+
+        Host is being closed via ClosePS pyblish plugin which triggers 'exit'
+        method in ConsoleTrayApp.
+    """
+    dbcon = get_webpublish_conn()
+    _id = os.environ.get("BATCH_LOG_ID")
+    if not _id:
+        log.warning("Unable to store log records, batch will be unfinished!")
+        return
+
+    publish_and_log(dbcon, _id, log, 'ClosePS')
 
 
 @contextlib.contextmanager

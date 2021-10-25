@@ -32,6 +32,7 @@
 
     // get websocket server url from environment value
     async function startUp(url){
+        log.warn("url", url);  
         promis = runEvalScript("getEnv('" + url + "')");
         
         var res = await promis; 
@@ -40,12 +41,14 @@
     }
              
     function main(websocket_url){
-      // creates connection to 'websocket_url', registers routes      
+      // creates connection to 'websocket_url', registers routes    
+      log.warn("websocket_url", websocket_url);   
       var default_url = 'ws://localhost:8099/ws/';
       
       if  (websocket_url == ''){
            websocket_url = default_url;
       }
+      log.warn("connecting to:", websocket_url);  
       RPC = new WSRPC(websocket_url, 5000); // spin connection
   
       RPC.connect();
@@ -165,7 +168,8 @@
               log.warn('Server called client "import_smart_object":', data);
               var escapedPath = EscapeStringForJSX(data.path);
               return runEvalScript("importSmartObject('" + escapedPath +"', " +
-                                                      "'"+ data.name +"')")
+                                                      "'"+ data.name +"',"+
+                                                      + data.as_reference +")")
                   .then(function(result){
                       log.warn("import_smart_object: " + result);
                       return result;
@@ -244,6 +248,11 @@
                       return result;
                   });
       });
+
+      RPC.addRoute('Photoshop.close', function (data) {
+        log.warn('Server called client route "close":', data);
+        return runEvalScript("close()");
+});
         
       RPC.call('Photoshop.ping').then(function (data) {
           log.warn('Result for calling server route "ping": ', data);
