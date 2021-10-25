@@ -5,9 +5,6 @@ from ..pipeline import AVALON_CONTAINER_ID
 
 import unreal
 from openpype.tools.utils import host_tools
-from ..tools import (
-    projectmanager,
-)
 
 from .. import api
 from .lib import (
@@ -235,4 +232,5 @@ def show_manager():
 
 
 def show_project_manager():
-    projectmanager.show()
+    # TODO remove this function from unreal integration
+    pass
