@@ -32,6 +32,7 @@
 
     // get websocket server url from environment value
     async function startUp(url){
+        log.warn("url", url);  
         promis = runEvalScript("getEnv('" + url + "')");
         
         var res = await promis; 
@@ -41,7 +42,7 @@
              
     function main(websocket_url){
       // creates connection to 'websocket_url', registers routes    
-      log.warn("env var host:", websocket_url);   
+      log.warn("websocket_url", websocket_url);   
       var default_url = 'ws://localhost:8099/ws/';
       
       if  (websocket_url == ''){
@@ -163,17 +164,17 @@
                   });
       });
       
-    //   RPC.addRoute('Photoshop.import_smart_object', function (data) {
-    //           log.warn('Server called client "import_smart_object":', data);
-    //           var escapedPath = EscapeStringForJSX(data.path);
-    //           return runEvalScript("importSmartObject('" + escapedPath +"', " +
-    //                                                   "'"+ data.name +"',"+
-    //                                                   + data.as_reference +")")
-    //               .then(function(result){
-    //                   log.warn("import_smart_object: " + result);
-    //                   return result;
-    //               });
-    //   });
+      RPC.addRoute('Photoshop.import_smart_object', function (data) {
+              log.warn('Server called client "import_smart_object":', data);
+              var escapedPath = EscapeStringForJSX(data.path);
+              return runEvalScript("importSmartObject('" + escapedPath +"', " +
+                                                      "'"+ data.name +"',"+
+                                                      + data.as_reference +")")
+                  .then(function(result){
+                      log.warn("import_smart_object: " + result);
+                      return result;
+                  });
+      });
       
       RPC.addRoute('Photoshop.replace_smart_object', function (data) {
               log.warn('Server called route "replace_smart_object":', data);
