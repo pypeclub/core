@@ -197,6 +197,10 @@ class Loader(list):
     def __init__(self, context):
         self.fname = self.filepath_from_context(context)
 
+    @classmethod
+    def get_representations(cls):
+        return cls.representations
+
     def filepath_from_context(self, context):
         return get_representation_path_from_context(context)
 
@@ -1965,10 +1969,15 @@ def is_compatible_loader(Loader, context):
         families = context["subset"]["data"]["families"]
 
     representation = context["representation"]
-    has_family = ("*" in Loader.families or
-                  any(family in Loader.families for family in families))
-    has_representation = ("*" in Loader.representations or
-                          representation["name"] in Loader.representations)
+    has_family = (
+        "*" in Loader.families or any(
+            family in Loader.families for family in families
+        )
+    )
+    representations = Loader.get_representations()
+    has_representation = (
+        "*" in representations or representation["name"] in representations
+    )
     return has_family and has_representation
 
 
