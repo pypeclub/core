@@ -16,8 +16,6 @@ def main():
                         help="Launch Asset Loader in standalone mode")
     parser.add_argument("--sceneinventory", action="store_true",
                         help="Launch Scene Inventory in standalone mode")
-    parser.add_argument("--workfiles", action="store_true",
-                        help="Launch Workfiles in standalone mode")
 
     args, unknown = parser.parse_known_args()
     host = pipeline.debug_host()
@@ -40,10 +38,6 @@ def main():
     elif args.sceneinventory:
         from .tools import sceneinventory
         sceneinventory.show(debug=True)
-
-    elif args.workfiles:
-        from .tools import workfiles
-        workfiles.show(debug=True)
 
     else:
         parser.print_help()

@@ -219,7 +219,9 @@ def launch(*subprocess_args):
             if os.getenv("WORKFILES_SAVE_AS"):
                 save = True
 
-            ConsoleTrayApp.execute_in_main_thread(lambda: workfiles.show(save))
+            ConsoleTrayApp.execute_in_main_thread(
+                lambda: host_tools.show_workfiles(save=save)
+            )
 
 
 def headless_publish():

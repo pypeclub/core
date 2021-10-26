@@ -12,7 +12,6 @@ from pyblish import api as pyblish
 from . import lib, compat
 from ..lib import logger, find_submodule
 from .. import api
-from ..tools import workfiles
 from ..vendor.Qt import QtCore, QtWidgets
 
 from ..pipeline import AVALON_CONTAINER_ID
@@ -190,16 +189,6 @@ def _install_menu():
     # This is crucial with Maya 2020+ which initializes without UI
     # first as a QCoreApplication
     maya.utils.executeDeferred(deferred)
-
-
-def launch_workfiles_app(*args):
-    workfiles.show(
-        os.path.join(
-            cmds.workspace(query=True, rootDirectory=True),
-            cmds.workspace(fileRuleEntry="scene")
-        ),
-        parent=self._parent
-    )
 
 
 def reload_pipeline(*args):

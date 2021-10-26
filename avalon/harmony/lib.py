@@ -18,7 +18,6 @@ from Qt import QtWidgets
 
 from .server import Server
 
-from openpype.tools import workfiles
 from openpype.tools.tray_app.app import ConsoleTrayApp
 from openpype.tools.utils import host_tools
 from ..toonboom import setup_startup_scripts, check_libs
@@ -99,7 +98,7 @@ def launch(application_path, *args):
     check_libs()
 
     if os.environ.get("AVALON_HARMONY_WORKFILES_ON_LAUNCH", False):
-        workfiles.show(save=False)
+        host_tools.show_workfiles(save=False)
 
     # No launch through Workfiles happened.
     if not self.workfile_path:
