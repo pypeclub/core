@@ -25,7 +25,6 @@ from .pipeline import (
     Creator,
     Action,
     InventoryAction,
-    Application,
     discover,
     Session,
 
@@ -93,7 +92,6 @@ __all__ = [
     "Creator",
     "Action",
     "InventoryAction",
-    "Application",
     "discover",
     "Session",
     "session",
