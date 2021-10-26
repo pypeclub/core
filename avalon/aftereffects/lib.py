@@ -2,7 +2,6 @@ import os
 import sys
 import contextlib
 import subprocess
-import importlib
 import traceback
 import logging
 import functools
@@ -210,7 +209,9 @@ def launch(*subprocess_args):
         if os.getenv("WORKFILES_SAVE_AS"):
             save = True
 
-        ConsoleTrayApp.execute_in_main_thread(lambda: workfiles.show(save))
+        ConsoleTrayApp.execute_in_main_thread(
+            lambda: host_tools.show_tool_by_name("workfiles", save=save)
+        )
 
 
 @contextlib.contextmanager
