@@ -137,7 +137,6 @@ def reload_pipeline(*args):
             "avalon.pipeline",
             "avalon.blender.pipeline",
             "avalon.blender.lib",
-            "avalon.tools.loader.app",
             "avalon.tools.creator.app",
             "avalon.tools.manager.app",
             "avalon.api",

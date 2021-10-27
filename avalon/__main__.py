@@ -12,8 +12,6 @@ def main():
                         help="Absolute path to root directory of assets")
     parser.add_argument("--creator", action="store_true",
                         help="Launch Instance Creator in standalone mode")
-    parser.add_argument("--loader", action="store_true",
-                        help="Launch Asset Loader in standalone mode")
     parser.add_argument("--sceneinventory", action="store_true",
                         help="Launch Scene Inventory in standalone mode")
 
@@ -29,11 +27,6 @@ def main():
         from .tools import creator
         api.Session["AVALON_ASSET"] = "Mock"
         creator.show(debug=True)
-
-    elif args.loader:
-        from .tools import loader
-        api.Session["AVALON_PROJECTS"] = os.path.expanduser("~/projects")
-        loader.show(debug=True)
 
     elif args.sceneinventory:
         from .tools import sceneinventory
