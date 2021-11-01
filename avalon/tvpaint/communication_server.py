@@ -915,4 +915,5 @@ class QtCommunicator(BaseCommunicator):
 
     def _exit(self, *args, **kwargs):
         super()._exit(*args, **kwargs)
+        api.emit("application.exit")
         self.qt_app.exit(self.exit_code)
