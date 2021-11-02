@@ -910,6 +910,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         self._init_subset_name = None
         self._init_repre_name = None
 
+        self.content_loaders = set()
         self.content_assets = {}
         self.content_subsets = {}
         self.content_versions = {}
@@ -941,13 +942,15 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         accept_btn.setFocus()
 
     def _prepare_content_data(self):
-        repre_ids = [
-            io.ObjectId(item["representation"])
-            for item in self._items
-        ]
+        repre_ids = set()
+        content_loaders = set()
+        for item in self._items:
+            repre_ids.add(io.ObjectId(item["representation"]))
+            content_loaders.add(item["loader"])
+
         repres = list(io.find({
             "type": {"$in": ["representation", "archived_representation"]},
-            "_id": {"$in": repre_ids}
+            "_id": {"$in": list(repre_ids)}
         }))
         repres_by_id = {repre["_id"]: repre for repre in repres}
 
@@ -1031,6 +1034,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             else:
                 content_assets[asset_id] = assets_by_id[asset_id]
 
+        self.content_loaders = content_loaders
         self.content_assets = content_assets
         self.content_subsets = content_subsets
         self.content_versions = content_versions
