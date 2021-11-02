@@ -112,6 +112,9 @@ class AfterEffectsRoute(WebSocketRoute):
     async def subsetmanager_route(self):
         self._tool_route("subsetmanager")
 
+    async def experimental_tools_route(self):
+        self._tool_route("experimental_tools")
+
     def _tool_route(self, tool_name):
         """The address accessed when clicking on the buttons."""
         partial_method = functools.partial(show, tool_name)

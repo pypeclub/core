@@ -86,6 +86,17 @@
               });
             });
     </script>
+    
+    <script type=text/javascript>
+            $(function() {
+              $("a#experimental-button").bind("click", function() {
+                RPC.call('Photoshop.experimental_tools_route').then(function (data) {
+                }, function (error) {
+                    alert(error);
+                });
+              });
+            });
+    </script>
 </head>
 <body>
   <script type="text/javascript" src="./client/wsrpc.js"></script>
@@ -103,5 +114,6 @@
     <a href=# id=publish-button><button>Publish...</button></a>
     <a href=# id=sceneinventory-button><button>Manage...</button></a>
     <a href=# id=subsetmanager-button><button>Subset Manager...</button></a>
+    <a href=# id=experimental-button><button>Experimental Tools...</button></a>
 </body>
 </html>
