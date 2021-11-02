@@ -1067,7 +1067,10 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
         # Fill comboboxes with values
         self.set_labels()
+
         self.apply_validations(validation_state)
+
+        self._build_loaders_menu()
 
         if init_refresh:  # pre select context if possible
             self._assets_box.set_valid_value(self._init_asset_name)
@@ -1075,6 +1078,56 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             self._representations_box.set_valid_value(self._init_repre_name)
 
         self.fill_check = True
+
+    def _build_loaders_menu(self):
+        repre_ids = self._get_current_output_repre_ids()
+        loaders = self._get_loaders(repre_ids)
+        if not loaders:
+            self._accept_btn.setMenu(None)
+            return
+
+        # Get and destroy the action group
+        self._loaders_menu.clear()
+
+        self._accept_btn.setMenu(self._loaders_menu)
+
+        # Build new action group
+        group = QtWidgets.QActionGroup(self._accept_btn)
+
+        action = group.addAction("Use origin loader")
+        self._loaders_menu.addAction(action)
+        self._loaders_menu.addSeparator()
+
+        for loader in loaders:
+            # Label
+            label = getattr(loader, "label", None)
+            if label is None:
+                label = loader.__name__
+
+            action = group.addAction(label)
+            action.setData(loader)
+
+            # Support font-awesome icons using the `.icon` and `.color`
+            # attributes on plug-ins.
+            icon = getattr(loader, "icon", None)
+            if icon is not None:
+                try:
+                    key = "fa.{0}".format(icon)
+                    color = getattr(loader, "color", "white")
+                    action.setIcon(qtawesome.icon(key, color=color))
+
+                except Exception as exc:
+                    print("Unable to set icon for loader {}: {}".format(
+                        loader, str(exc)
+                    ))
+
+            self._loaders_menu.addAction(action)
+
+        group.triggered.connect(self._on_action_clicked)
+
+    def _on_action_clicked(self, action):
+        loader_plugin = action.data()
+        self._trigger_switch(loader_plugin)
 
     def _get_loaders(self, repre_ids):
         repre_contexts = None
