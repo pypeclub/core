@@ -879,6 +879,8 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         accept_btn.setFixedWidth(24)
         accept_btn.setFixedHeight(24)
 
+        loaders_menu = QtWidgets.QMenu(accept_btn)
+
         # Asset column
         main_layout.addWidget(self.current_asset_btn, 0, 0)
         main_layout.addWidget(self._assets_box, 1, 0)
@@ -892,8 +894,6 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         # Btn column
         main_layout.addWidget(accept_btn, 1, 3)
 
-        self._accept_btn = accept_btn
-
         self._assets_box.currentIndexChanged.connect(
             self._combobox_value_changed
         )
@@ -903,12 +903,15 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         self._representations_box.currentIndexChanged.connect(
             self._combobox_value_changed
         )
-        self._accept_btn.clicked.connect(self._on_accept)
+        accept_btn.clicked.connect(self._on_accept)
         self.current_asset_btn.clicked.connect(self._on_current_asset)
 
         self._init_asset_name = None
         self._init_subset_name = None
         self._init_repre_name = None
+
+        self._accept_btn = accept_btn
+        self._loaders_menu = loaders_menu
 
         self._items = items
         self._prepare_content_data()
