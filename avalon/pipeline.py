@@ -1554,7 +1554,7 @@ def update(container, version=-1):
     return loader.update(container, new_representation)
 
 
-def switch(container, representation):
+def switch(container, representation, loader_plugin=None):
     """Switch a container to representation
 
     Args:
@@ -1566,17 +1566,18 @@ def switch(container, representation):
     """
 
     # Get the Loader for this container
-    Loader = _get_container_loader(container)
+    if loader_plugin is None:
+        loader_plugin = _get_container_loader(container)
 
-    if not Loader:
+    if not loader_plugin:
         raise RuntimeError("Can't switch container. See log for details.")
 
-    if not hasattr(Loader, "switch"):
+    if not hasattr(loader_plugin, "switch"):
         # Backwards compatibility (classes without switch support
         # might be better to just have "switch" raise NotImplementedError
         # on the base class of Loader\
         raise RuntimeError("Loader '{}' does not support 'switch'".format(
-            Loader.label
+            loader_plugin.label
         ))
 
     # Get the new representation to switch to
@@ -1586,11 +1587,11 @@ def switch(container, representation):
     })
 
     new_context = get_representation_context(new_representation)
-    assert is_compatible_loader(Loader, new_context), ("Must be compatible "
-                                                       "Loader")
+    if not is_compatible_loader(loader_plugin, new_context):
+        raise AssertionError("Must be compatible Loader")
 
-    Loader = _make_backwards_compatible_loader(Loader)
-    loader = Loader(new_context)
+    loader_plugin = _make_backwards_compatible_loader(loader_plugin)
+    loader = loader_plugin(new_context)
 
     return loader.switch(container, new_representation)
 
