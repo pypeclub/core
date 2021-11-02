@@ -4,10 +4,8 @@ import os
 import sys
 import re
 import json
-import errno
 import types
 import copy
-import shutil
 import getpass
 import logging
 import weakref
