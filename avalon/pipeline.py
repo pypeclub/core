@@ -1472,15 +1472,25 @@ def load(Loader, representation, namespace=None, name=None, options=None,
     )
 
 
+def get_loader_identifier(loader):
+    """Loader identifier from loader plugin or object.
+
+    Identifier should be stored to container for future management.
+    """
+    if not inspect.isclass(loader):
+        loader = loader.__class__
+    return loader.__name__
+
+
 def _get_container_loader(container):
     """Return the Loader corresponding to the container"""
 
     loader = container["loader"]
     for Plugin in discover(Loader):
-
         # TODO: Ensure the loader is valid
-        if Plugin.__name__ == loader:
+        if get_loader_identifier(Plugin) == loader:
             return Plugin
+    return None
 
 
 def remove(container):
