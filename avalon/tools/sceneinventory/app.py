@@ -910,6 +910,23 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         self._init_subset_name = None
         self._init_repre_name = None
 
+        self.content_assets = {}
+        self.content_subsets = {}
+        self.content_versions = {}
+        self.content_repres = {}
+
+        self.hero_version_ids = set()
+
+        self.missing_assets = []
+        self.missing_versions = []
+        self.missing_subsets = []
+        self.missing_repres = []
+        self.missing_docs = False
+
+        self.archived_assets = []
+        self.archived_subsets = []
+        self.archived_repres = []
+
         self._accept_btn = accept_btn
         self._loaders_menu = loaders_menu
 
