@@ -1185,7 +1185,19 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             if not loaders:
                 break
 
-        return list(loaders)
+        if loaders is None:
+            loaders = []
+        else:
+            loaders = list(loaders)
+
+        # Remove loader if there is only one which is same as context loader
+        if len(loaders) == 1 and len(self.content_loaders) == 1:
+            loader = loaders[0]
+            loader_name = pipeline.get_loader_identifier(loader)
+            if loader_name in self.content_loaders:
+                loaders.remove(loader)
+
+        return loaders
 
     def _fill_combobox(self, values, combobox_type):
         if combobox_type == "asset":
