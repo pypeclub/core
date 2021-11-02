@@ -1155,6 +1155,251 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         self._accept_btn.setEnabled(validation_state.all_ok)
         self._accept_btn.setStyleSheet(accept_sheet or "")
 
+    def _get_current_output_repre_ids(self):
+        # NOTE hero versions are not used because it is expected that
+        # hero version has same representations as latests
+        selected_asset = self._assets_box.currentText()
+        selected_subset = self._subsets_box.currentText()
+        selected_repre = self._representations_box.currentText()
+
+        # Nothing is selected
+        # [ ] [ ] [ ]
+        if not selected_asset and not selected_subset and not selected_repre:
+            return list(self.content_repres.keys())
+
+        # Prepare asset document if asset is selcted
+        if selected_asset:
+            asset_doc = io.find_one(
+                {"type": "asset", "name": selected_asset},
+                {"_id": True}
+            )
+            if not asset_doc:
+                return []
+
+        # Everything is selected
+        # [x] [x] [x]
+        if selected_asset and selected_subset and selected_repre:
+            subset_doc = io.find_one(
+                {
+                    "type": "subset",
+                    "name": selected_subset,
+                    "parent": asset_doc["_id"]
+                },
+                {"_id": 1}
+            )
+            subset_id = subset_doc["_id"]
+            last_versions_by_subset_id = self.find_last_versions([subset_id])
+            version_doc = last_versions_by_subset_id.get(subset_id)
+            if not version_doc:
+                return []
+
+            repre_docs = io.find(
+                {
+                    "type": "representation",
+                    "parent": version_doc["_id"]
+                },
+                {"_id": True}
+            )
+            return [
+                repre_doc["_id"]
+                for repre_doc in repre_docs
+            ]
+
+        # [x] [x] [ ]
+        # If asset and subset is selected
+        if selected_asset and selected_subset:
+            subset_doc = io.find_one(
+                {
+                    "type": "subset",
+                    "parent": asset_doc["_id"],
+                    "name": selected_subset
+                },
+                {"_id": 1}
+            )
+            if not subset_doc:
+                return []
+
+            repre_names = set()
+            for repre_doc in self.content_repres.values():
+                repre_names.add(repre_doc["name"])
+
+            repre_docs = io.find(
+                {
+                    "type": "rerpesentation",
+                    "parent": subset_doc["_id"],
+                    "name": {"$in": list(repre_names)}
+                },
+                {"_id": True}
+            )
+            return [
+                repre_doc["_id"]
+                for repre_doc in repre_docs
+            ]
+
+        # [x] [ ] [x]
+        # If asset and repre is selected
+        if selected_asset and selected_repre:
+            susbet_names = set()
+            for subset_doc in self.content_subsets.values():
+                susbet_names.add(subset_doc["name"])
+
+            subset_docs = io.find(
+                {
+                    "type": "subset",
+                    "name": {"$in": list(susbet_names)}
+                },
+                {"_id": True}
+            )
+            subset_ids = [subset_doc["_id"] for subset_doc in subset_docs]
+            repre_docs = io.find(
+                {
+                    "type": "representation",
+                    "parent": {"$in": subset_ids}
+                },
+                {"_id": True}
+            )
+            return [repre_doc["_id"] for repre_doc in repre_docs]
+
+        # [x] [ ] [ ]
+        # If asset and subset is selected
+        if selected_asset:
+            repres_by_subset_name = collections.defaultdict(set)
+            for repre_doc in self.content_repres.values():
+                repre_name = repre_doc["name"]
+                version_doc = self.content_versions[repre_doc["parent"]]
+                subset_doc = self.content_subsets[version_doc["parent"]]
+                subset_name = subset_doc["name"]
+                repres_by_subset_name[subset_name].add(repre_name)
+
+            asset_doc = io.find_one(
+                {"type": "asset", "name": selected_asset},
+                {"_id": 1}
+            )
+            subset_docs = list(io.find(
+                {
+                    "type": "subset",
+                    "parent": asset_doc["_id"],
+                    "name": {"$in": list(repres_by_subset_name.keys())}
+                },
+                {"_id": True, "name": True}
+            ))
+            subset_name_by_id = {
+                subset_doc["_id"]: subset_doc["name"]
+                for subset_doc in subset_docs
+            }
+            subset_ids = list(subset_name_by_id.keys())
+            last_versions_by_subset_id = self.find_last_versions(subset_ids)
+            last_version_id_by_subset_name = {}
+            for subset_id, last_version in last_versions_by_subset_id.items():
+                subset_name = subset_name_by_id[subset_id]
+                last_version_id_by_subset_name[subset_name] = (
+                    last_version["_id"]
+                )
+
+            repre_or_query = []
+            for subset_name, repre_names in repres_by_subset_name.items():
+                version_id = last_version_id_by_subset_name.get(subset_name)
+                # This should not happen but why to crash?
+                if version_id is None:
+                    continue
+                repre_or_query.append({
+                    "parent": version_id,
+                    "name": {"$in": list(repre_names)}
+                })
+            repre_docs = io.find(
+                {"$or": repre_or_query},
+                {"_id": True}
+            )
+            return [
+                repre_doc["_id"]
+                for repre_doc in repre_docs
+            ]
+
+        # [ ] [x] [x]
+        if selected_subset and selected_repre:
+            subset_docs = list(io.find({
+                "type": "subset",
+                "parent": {"$in": list(self.content_assets.keys())},
+                "name": selected_subset
+            }))
+            subset_ids = [subset_doc["_id"] for subset_doc in subset_docs]
+            last_versions_by_subset_id = self.find_last_versions(subset_ids)
+            last_version_ids = [
+                last_version["_id"]
+                for last_version in last_versions_by_subset_id.values()
+            ]
+            repre_docs = io.find({
+                "type": "representation",
+                "parent": {"$in": last_version_ids},
+                "name": selected_repre
+            })
+
+            return [
+                repre_doc["_id"]
+                for repre_doc in repre_docs
+            ]
+
+        # [ ] [x] [ ]
+        subset_docs = list(io.find(
+            {
+                "type": "subset",
+                "parent": {"$in": list(self.content_assets.keys())},
+                "name": selected_subset
+            },
+            {"_id": 1, "parent": 1}
+        ))
+        if not subset_docs:
+            return list()
+
+        subset_docs_by_id = {
+            subset_doc["_id"]: subset_doc
+            for subset_doc in subset_docs
+        }
+        last_versions_by_subset_id = self.find_last_versions(
+            subset_docs_by_id.keys()
+        )
+
+        subset_id_by_version_id = {}
+        for subset_id, last_version in last_versions_by_subset_id.items():
+            version_id = last_version["_id"]
+            subset_id_by_version_id[version_id] = subset_id
+
+        if not subset_id_by_version_id:
+            return list()
+
+        repre_names_by_asset_id = collections.defaultdict(set)
+        for repre_doc in self.content_repres.values():
+            version_doc = self.content_versions[repre_doc["parent"]]
+            subset_doc = self.content_versions[version_doc["parent"]]
+            asset_doc = self.content_assets[subset_doc["parent"]]
+            repre_name = repre_doc["name"]
+            asset_id = asset_doc["_id"]
+            repre_names_by_asset_id[asset_id].add(repre_name)
+
+        repre_or_query = []
+        for last_version_id, subset_id in subset_id_by_version_id.items():
+            subset_doc = subset_docs_by_id[subset_id]
+            asset_id = subset_doc["parent"]
+            repre_names = repre_names_by_asset_id.get(asset_id)
+            if not repre_names:
+                continue
+            repre_or_query.append({
+                "parent": last_version_id,
+                "name": {"$in": repre_names}
+            })
+        repre_docs = io.find(
+            {
+                "type": "representation",
+                "$or": repre_or_query
+            },
+            {"_id": 1}
+        )
+
+        return [
+            repre_doc["_id"]
+            for repre_doc in repre_docs
+        ]
+
     def _get_asset_box_values(self):
         asset_docs = io.find(
             {"type": "asset"},
