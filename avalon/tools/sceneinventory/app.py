@@ -6,7 +6,7 @@ from functools import partial
 
 from ...vendor.Qt import QtWidgets, QtCore
 from ...vendor import qtawesome
-from ... import io, api, style
+from ... import io, api, style, pipeline
 from ...lib import HeroVersionType
 
 from .. import lib as tools_lib
@@ -1073,25 +1073,42 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
         self.fill_check = True
 
-    def _get_loaders(self, representations):
-        if not representations:
+    def _get_loaders(self, repre_ids):
+        repre_contexts = None
+        if repre_ids:
+            repre_contexts = pipeline.get_repres_contexts(repre_ids)
+
+        if not repre_contexts:
             return list()
 
-        available_loaders = filter(
-            lambda l: not (hasattr(l, "is_utility") and l.is_utility),
-            api.discover(api.Loader)
-        )
+        available_loaders = []
+        for loader_plugin in api.discover(api.Loader):
+            # Skip loaders without switch method
+            if not hasattr(loader_plugin, "switch"):
+                continue
 
-        loaders = set()
-
-        for representation in representations:
-            for loader in api.loaders_from_representation(
-                available_loaders,
-                representation
+            # Skip utility loaders
+            if (
+                hasattr(loader_plugin, "is_utility")
+                and loader_plugin.is_utility
             ):
-                loaders.add(loader)
+                continue
+            available_loaders.append(loader_plugin)
 
-        return loaders
+        loaders = None
+        for repre_context in repre_contexts.values():
+            _loaders = set(pipeline.loaders_from_repre_context(
+                available_loaders, repre_context
+            ))
+            if loaders is None:
+                loaders = _loaders
+            else:
+                loaders = _loaders.intersection(loaders)
+
+            if not loaders:
+                break
+
+        return list(loaders)
 
     def _fill_combobox(self, values, combobox_type):
         if combobox_type == "asset":
