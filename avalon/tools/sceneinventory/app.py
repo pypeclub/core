@@ -1656,6 +1656,9 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             self._assets_box.setCurrentIndex(index)
 
     def _on_accept(self):
+        self._trigger_switch()
+
+    def _trigger_switch(self, loader=None):
         # Use None when not a valid value or when placeholder value
         selected_asset = self._assets_box.get_valid_value()
         selected_subset = self._subsets_box.get_valid_value()
@@ -1778,7 +1781,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                     repre_doc = repres_by_name[container_repre_name]
 
             try:
-                api.switch(container, repre_doc)
+                api.switch(container, repre_doc, loader)
             except Exception:
                 log.warning(
                     (
