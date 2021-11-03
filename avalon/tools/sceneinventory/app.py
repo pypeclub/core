@@ -1467,7 +1467,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             repre_names_by_asset_id = collections.defaultdict(set)
             for repre_doc in self.content_repres.values():
                 version_doc = self.content_versions[repre_doc["parent"]]
-                subset_doc = self.content_versions[version_doc["parent"]]
+                subset_doc = self.content_subsets[version_doc["parent"]]
                 asset_doc = self.content_assets[subset_doc["parent"]]
                 repre_name = repre_doc["name"]
                 asset_id = asset_doc["_id"]
@@ -1482,7 +1482,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                     continue
                 repre_or_query.append({
                     "parent": last_version_id,
-                    "name": {"$in": repre_names}
+                    "name": {"$in": list(repre_names)}
                 })
             repre_docs = io.find(
                 {
