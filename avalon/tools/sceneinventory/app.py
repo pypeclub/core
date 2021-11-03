@@ -1507,6 +1507,19 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                 for repre_doc in repre_docs
             ]
 
+        # [ ] [ ] [x]
+        repre_docs = io.find(
+            {
+                "name": selected_repre,
+                "parent": {"$in": list(self.content_versions.keys())}
+            },
+            {"_id": True}
+        )
+        return [
+            repre_doc["_id"]
+            for repre_doc in repre_docs
+        ]
+
     def _get_asset_box_values(self):
         asset_docs = io.find(
             {"type": "asset"},
