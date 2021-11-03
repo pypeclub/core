@@ -1352,7 +1352,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                 {"_id": True}
             )
             subset_ids = [subset_doc["_id"] for subset_doc in subset_docs]
-            repre_doc = io.find(
+            repre_docs = io.find(
                 {
                     "type": "representation",
                     "parent": {"$in": subset_ids},
