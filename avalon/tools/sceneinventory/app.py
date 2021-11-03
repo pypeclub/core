@@ -1291,7 +1291,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                     "name": selected_subset,
                     "parent": asset_doc["_id"]
                 },
-                {"_id": 1}
+                {"_id": True}
             )
             subset_id = subset_doc["_id"]
             last_versions_by_subset_id = self.find_last_versions([subset_id])
@@ -1302,14 +1302,12 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             repre_docs = io.find(
                 {
                     "type": "representation",
-                    "parent": version_doc["_id"]
+                    "parent": version_doc["_id"],
+                    "name": selected_repre
                 },
                 {"_id": True}
             )
-            return [
-                repre_doc["_id"]
-                for repre_doc in repre_docs
-            ]
+            return [repre_doc["_id"] for repre_doc in repre_docs]
 
         # [x] [x] [ ]
         # If asset and subset is selected
@@ -1320,7 +1318,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                     "parent": asset_doc["_id"],
                     "name": selected_subset
                 },
-                {"_id": 1}
+                {"_id": True}
             )
             if not subset_doc:
                 return []
@@ -1337,10 +1335,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                 },
                 {"_id": True}
             )
-            return [
-                repre_doc["_id"]
-                for repre_doc in repre_docs
-            ]
+            return [repre_doc["_id"] for repre_doc in repre_docs]
 
         # [x] [ ] [x]
         # If asset and repre is selected
@@ -1357,10 +1352,11 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                 {"_id": True}
             )
             subset_ids = [subset_doc["_id"] for subset_doc in subset_docs]
-            repre_docs = io.find(
+            repre_doc = io.find(
                 {
                     "type": "representation",
-                    "parent": {"$in": subset_ids}
+                    "parent": {"$in": subset_ids},
+                    "name": selected_repre
                 },
                 {"_id": True}
             )
@@ -1379,7 +1375,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
 
             asset_doc = io.find_one(
                 {"type": "asset", "name": selected_asset},
-                {"_id": 1}
+                {"_id": True}
             )
             subset_docs = list(io.find(
                 {
@@ -1416,10 +1412,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                 {"$or": repre_or_query},
                 {"_id": True}
             )
-            return [
-                repre_doc["_id"]
-                for repre_doc in repre_docs
-            ]
+            return [repre_doc["_id"] for repre_doc in repre_docs]
 
         # [ ] [x] [x]
         if selected_subset and selected_repre:
@@ -1440,10 +1433,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                 "name": selected_repre
             })
 
-            return [
-                repre_doc["_id"]
-                for repre_doc in repre_docs
-            ]
+            return [repre_doc["_id"] for repre_doc in repre_docs]
 
         # [ ] [x] [ ]
         if selected_subset:
@@ -1502,10 +1492,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                 {"_id": True}
             )
 
-            return [
-                repre_doc["_id"]
-                for repre_doc in repre_docs
-            ]
+            return [repre_doc["_id"] for repre_doc in repre_docs]
 
         # [ ] [ ] [x]
         repre_docs = io.find(
@@ -1515,10 +1502,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             },
             {"_id": True}
         )
-        return [
-            repre_doc["_id"]
-            for repre_doc in repre_docs
-        ]
+        return [repre_doc["_id"] for repre_doc in repre_docs]
 
     def _get_asset_box_values(self):
         asset_docs = io.find(
