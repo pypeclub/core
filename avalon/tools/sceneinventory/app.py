@@ -843,6 +843,39 @@ class ValidationState:
         )
 
 
+class ButtonWithMenu(QtWidgets.QToolButton):
+    def __init__(self, parent=None):
+        super(ButtonWithMenu, self).__init__(parent)
+
+        self.setObjectName("ButtonWithMenu")
+
+        self.setPopupMode(self.MenuButtonPopup)
+        menu = QtWidgets.QMenu(self)
+
+        self.setMenu(menu)
+
+        self._menu = menu
+        self._actions = []
+
+    def menu(self):
+        return self._menu
+
+    def clear_actions(self):
+        if self._menu is not None:
+            self._menu.clear()
+        self._actions = []
+
+    def add_action(self, action):
+        self._actions.append(action)
+        self._menu.addAction(action)
+
+    def _on_action_trigger(self):
+        action = self.sender()
+        if action not in self._actions:
+            return
+        action.trigger()
+
+
 class SwitchAssetDialog(QtWidgets.QDialog):
     """Widget to support asset switching"""
 
@@ -859,52 +892,46 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         # Force and keep focus dialog
         self.setModal(True)
 
-        self._assets_box = SearchComboBox(placeholder="<asset>")
-        self._subsets_box = SearchComboBox(placeholder="<subset>")
-        self._representations_box = SearchComboBox(
-            placeholder="<representation>"
-        )
+        assets_box = SearchComboBox(self, "<asset>")
+        subsets_box = SearchComboBox(self, "<subset>", )
+        representations_box = SearchComboBox(self, "<representation>")
 
-        self._asset_label = QtWidgets.QLabel("")
-        self._subset_label = QtWidgets.QLabel("")
-        self._repre_label = QtWidgets.QLabel("")
+        asset_label = QtWidgets.QLabel(self)
+        subset_label = QtWidgets.QLabel(self)
+        repre_label = QtWidgets.QLabel(self)
 
-        self.current_asset_btn = QtWidgets.QPushButton("Use current asset")
+        current_asset_btn = QtWidgets.QPushButton("Use current asset", self)
 
         main_layout = QtWidgets.QGridLayout(self)
 
         accept_icon = qtawesome.icon("fa.check", color="white")
-        accept_btn = QtWidgets.QPushButton()
+        accept_btn = ButtonWithMenu(self)
         accept_btn.setIcon(accept_icon)
-        accept_btn.setFixedWidth(24)
-        accept_btn.setFixedHeight(24)
-
-        loaders_menu = QtWidgets.QMenu(accept_btn)
 
         # Asset column
-        main_layout.addWidget(self.current_asset_btn, 0, 0)
-        main_layout.addWidget(self._assets_box, 1, 0)
-        main_layout.addWidget(self._asset_label, 2, 0)
+        main_layout.addWidget(current_asset_btn, 0, 0)
+        main_layout.addWidget(assets_box, 1, 0)
+        main_layout.addWidget(asset_label, 2, 0)
         # Subset column
-        main_layout.addWidget(self._subsets_box, 1, 1)
-        main_layout.addWidget(self._subset_label, 2, 1)
+        main_layout.addWidget(subsets_box, 1, 1)
+        main_layout.addWidget(subset_label, 2, 1)
         # Representation column
-        main_layout.addWidget(self._representations_box, 1, 2)
-        main_layout.addWidget(self._repre_label, 2, 2)
+        main_layout.addWidget(representations_box, 1, 2)
+        main_layout.addWidget(repre_label, 2, 2)
         # Btn column
         main_layout.addWidget(accept_btn, 1, 3)
 
-        self._assets_box.currentIndexChanged.connect(
+        assets_box.currentIndexChanged.connect(
             self._combobox_value_changed
         )
-        self._subsets_box.currentIndexChanged.connect(
+        subsets_box.currentIndexChanged.connect(
             self._combobox_value_changed
         )
-        self._representations_box.currentIndexChanged.connect(
+        representations_box.currentIndexChanged.connect(
             self._combobox_value_changed
         )
         accept_btn.clicked.connect(self._on_accept)
-        self.current_asset_btn.clicked.connect(self._on_current_asset)
+        current_asset_btn.clicked.connect(self._on_current_asset)
 
         self._init_asset_name = None
         self._init_subset_name = None
@@ -928,8 +955,16 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         self.archived_subsets = []
         self.archived_repres = []
 
+        self.current_asset_btn = current_asset_btn
+        self._assets_box = assets_box
+        self._subsets_box = subsets_box
+        self._representations_box = representations_box
+
+        self._asset_label = asset_label
+        self._subset_label = subset_label
+        self._repre_label = repre_label
+
         self._accept_btn = accept_btn
-        self._loaders_menu = loaders_menu
 
         self._items = items
         self._prepare_content_data()
@@ -1103,21 +1138,14 @@ class SwitchAssetDialog(QtWidgets.QDialog):
     def _build_loaders_menu(self):
         repre_ids = self._get_current_output_repre_ids()
         loaders = self._get_loaders(repre_ids)
-        if not loaders:
-            self._accept_btn.setMenu(None)
-            return
-
         # Get and destroy the action group
-        self._loaders_menu.clear()
+        self._accept_btn.clear_actions()
 
-        self._accept_btn.setMenu(self._loaders_menu)
+        if not loaders:
+            return
 
         # Build new action group
         group = QtWidgets.QActionGroup(self._accept_btn)
-
-        action = group.addAction("Use origin loader")
-        self._loaders_menu.addAction(action)
-        self._loaders_menu.addSeparator()
 
         for loader in loaders:
             # Label
@@ -1126,6 +1154,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                 label = loader.__name__
 
             action = group.addAction(label)
+            # action = QtWidgets.QAction(label)
             action.setData(loader)
 
             # Support font-awesome icons using the `.icon` and `.color`
@@ -1142,7 +1171,7 @@ class SwitchAssetDialog(QtWidgets.QDialog):
                         loader, str(exc)
                     ))
 
-            self._loaders_menu.addAction(action)
+            self._accept_btn.add_action(action)
 
         group.triggered.connect(self._on_action_clicked)
 
@@ -1190,13 +1219,6 @@ class SwitchAssetDialog(QtWidgets.QDialog):
         else:
             loaders = list(loaders)
 
-        # Remove loader if there is only one which is same as context loader
-        if len(loaders) == 1 and len(self.content_loaders) == 1:
-            loader = loaders[0]
-            loader_name = pipeline.get_loader_identifier(loader)
-            if loader_name in self.content_loaders:
-                loaders.remove(loader)
-
         return loaders
 
     def _fill_combobox(self, values, combobox_type):
@@ -1235,12 +1257,11 @@ class SwitchAssetDialog(QtWidgets.QDialog):
     def apply_validations(self, validation_state):
         error_msg = "*Please select"
         error_sheet = "border: 1px solid red;"
-        success_sheet = "border: 1px solid green;"
 
         asset_sheet = None
         subset_sheet = None
         repre_sheet = None
-        accept_sheet = None
+        accept_state = ""
         if validation_state.asset_ok is False:
             asset_sheet = error_sheet
             self._asset_label.setText(error_msg)
@@ -1252,14 +1273,21 @@ class SwitchAssetDialog(QtWidgets.QDialog):
             self._repre_label.setText(error_msg)
 
         if validation_state.all_ok:
-            accept_sheet = success_sheet
+            accept_state = "1"
 
         self._assets_box.setStyleSheet(asset_sheet or "")
         self._subsets_box.setStyleSheet(subset_sheet or "")
         self._representations_box.setStyleSheet(repre_sheet or "")
 
         self._accept_btn.setEnabled(validation_state.all_ok)
-        self._accept_btn.setStyleSheet(accept_sheet or "")
+        self._set_style_property(self._accept_btn, "state", accept_state)
+
+    def _set_style_property(self, widget, name, value):
+        cur_value = widget.property(name)
+        if cur_value == value:
+            return
+        widget.setProperty(name, value)
+        widget.style().polish(widget)
 
     def _get_current_output_repre_ids(self):
         # NOTE hero versions are not used because it is expected that
