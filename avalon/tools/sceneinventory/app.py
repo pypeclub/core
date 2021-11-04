@@ -160,7 +160,6 @@ class View(QtWidgets.QTreeView):
                     version_id_by_repre_id[repre_doc["_id"]] = version_id
                     if version_id not in version_ids:
                         version_ids.append(version_id)
-
                 hero_versions = io.find(
                     {
                         "_id": {"$in": version_ids},
@@ -168,17 +167,16 @@ class View(QtWidgets.QTreeView):
                     },
                     {"version_id": 1}
                 )
-
                 version_ids = set()
                 for hero_version in hero_versions:
                     version_id = hero_version["version_id"]
                     version_ids.add(version_id)
                     hero_version_id = hero_version["_id"]
-                    for _repre_id, _version_id in (
+                    for _repre_id, current_version_id in (
                         version_id_by_repre_id.items()
                     ):
-                        if _version_id == hero_version_id:
-                            version_id_by_repre_id[_repre_id] = _version_id
+                        if current_version_id == hero_version_id:
+                            version_id_by_repre_id[_repre_id] = version_id
 
                 version_docs = io.find(
                     {
@@ -189,7 +187,8 @@ class View(QtWidgets.QTreeView):
                 )
                 version_name_by_id = {}
                 for version_doc in version_docs:
-                    version_name_by_id[version["_id"]] = version_doc["name"]
+                    version_name_by_id[version_doc["_id"]] = \
+                        version_doc["name"]
 
                 for item in items:
                     repre_id = io.ObjectId(item["representation"])
