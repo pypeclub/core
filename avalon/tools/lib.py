@@ -51,26 +51,6 @@ def application():
         yield app
 
 
-def defer(delay, func):
-    """Append artificial delay to `func`
-
-    This aids in keeping the GUI responsive, but complicates logic
-    when producing tests. To combat this, the environment variable ensures
-    that every operation is synchonous.
-
-    Arguments:
-        delay (float): Delay multiplier; default 1, 0 means no delay
-        func (callable): Any callable
-
-    """
-
-    delay *= float(os.getenv("PYBLISH_DELAY", 1))
-    if delay > 0:
-        return QtCore.QTimer.singleShot(delay, func)
-    else:
-        return func()
-
-
 def schedule(func, time, channel="default"):
     """Run `func` at a later `time` in a dedicated `channel`
 
@@ -94,19 +74,6 @@ def schedule(func, time, channel="default"):
     self._jobs[channel] = timer
 
 
-@contextlib.contextmanager
-def dummy():
-    """Dummy context manager
-
-    Usage:
-        >> with some_context() if False else dummy():
-        ..   pass
-
-    """
-
-    yield
-
-
 def iter_model_rows(model, column, include_root=False):
     """Iterate over all row indices in a model"""
     indices = [QtCore.QModelIndex()]  # start iteration at root
@@ -122,76 +89,6 @@ def iter_model_rows(model, column, include_root=False):
             continue
 
         yield index
-
-
-@contextlib.contextmanager
-def preserve_states(tree_view,
-                    column=0,
-                    role=None,
-                    preserve_expanded=True,
-                    preserve_selection=True,
-                    expanded_role=QtCore.Qt.DisplayRole,
-                    selection_role=QtCore.Qt.DisplayRole):
-    """Preserves row selection in QTreeView by column's data role.
-    This function is created to maintain the selection status of
-    the model items. When refresh is triggered the items which are expanded
-    will stay expanded and vise versa.
-        tree_view (QWidgets.QTreeView): the tree view nested in the application
-        column (int): the column to retrieve the data from
-        role (int): the role which dictates what will be returned
-    Returns:
-        None
-    """
-    # When `role` is set then override both expanded and selection roles
-    if role:
-        expanded_role = role
-        selection_role = role
-
-    model = tree_view.model()
-    selection_model = tree_view.selectionModel()
-    flags = selection_model.Select | selection_model.Rows
-
-    expanded = set()
-
-    if preserve_expanded:
-        for index in iter_model_rows(
-            model, column=column, include_root=False
-        ):
-            if tree_view.isExpanded(index):
-                value = index.data(expanded_role)
-                expanded.add(value)
-
-    selected = None
-
-    if preserve_selection:
-        selected_rows = selection_model.selectedRows()
-        if selected_rows:
-            selected = set(row.data(selection_role) for row in selected_rows)
-
-    try:
-        yield
-    finally:
-        if expanded:
-            for index in iter_model_rows(
-                model, column=0, include_root=False
-            ):
-                value = index.data(expanded_role)
-                is_expanded = value in expanded
-                # skip if new index was created meanwhile
-                if is_expanded is None:
-                    continue
-                tree_view.setExpanded(index, is_expanded)
-
-        if selected:
-            # Go through all indices, select the ones with similar data
-            for index in iter_model_rows(
-                model, column=column, include_root=False
-            ):
-                value = index.data(selection_role)
-                state = value in selected
-                if state:
-                    tree_view.scrollTo(index)  # Ensure item is visible
-                    selection_model.select(index, flags)
 
 
 @contextlib.contextmanager
@@ -392,170 +289,6 @@ class FamilyConfigCache:
         return self.family_configs
 
 
-class GroupsConfig:
-    # Subset group item's default icon and order
-    _default_group_config = None
-
-    def __init__(self, dbcon):
-        self.dbcon = dbcon
-        self.groups = {}
-
-    @classmethod
-    def default_group_config(cls):
-        if cls._default_group_config is None:
-            cls._default_group_config = {
-                "icon": qtawesome.icon(
-                    "fa.object-group",
-                    color=style.colors.default
-                ),
-                "order": 0
-            }
-        return cls._default_group_config
-
-    def refresh(self):
-        """Get subset group configurations from the database
-
-        The 'group' configuration must be stored in the project `config` field.
-        See schema `config-1.0.json`
-
-        """
-        # Clear cached groups
-        self.groups.clear()
-
-        group_configs = []
-        project_name = self.dbcon.Session.get("AVALON_PROJECT")
-        if project_name:
-            # Get pre-defined group name and apperance from project config
-            project_doc = self.dbcon.find_one(
-                {"type": "project"},
-                projection={"config.groups": True}
-            )
-
-            if project_doc:
-                group_configs = project_doc["config"].get("groups") or []
-            else:
-                print("Project not found! \"{}\"".format(project_name))
-
-        # Build pre-defined group configs
-        for config in group_configs:
-            name = config["name"]
-            icon = "fa." + config.get("icon", "object-group")
-            color = config.get("color", style.colors.default)
-            order = float(config.get("order", 0))
-
-            self.groups[name] = {
-                "icon": qtawesome.icon(icon, color=color),
-                "order": order
-            }
-
-        return self.groups
-
-    def ordered_groups(self, group_names):
-        # default order zero included
-        _orders = set([0])
-        for config in self.groups.values():
-            _orders.add(config["order"])
-
-        # Remap order to list index
-        orders = sorted(_orders)
-
-        _groups = list()
-        for name in group_names:
-            # Get group config
-            config = self.groups.get(name) or self.default_group_config()
-            # Base order
-            remapped_order = orders.index(config["order"])
-
-            data = {
-                "name": name,
-                "icon": config["icon"],
-                "_order": remapped_order,
-            }
-
-            _groups.append(data)
-
-        # Sort by tuple (base_order, name)
-        # If there are multiple groups in same order, will sorted by name.
-        ordered_groups = sorted(
-            _groups, key=lambda _group: (_group.pop("_order"), _group["name"])
-        )
-
-        total = len(ordered_groups)
-        order_temp = "%0{}d".format(len(str(total)))
-
-        # Update sorted order to config
-        for index, group_data in enumerate(ordered_groups):
-            order = index
-            inverse_order = total - index
-
-            # Format orders into fixed length string for groups sorting
-            group_data["order"] = order_temp % order
-            group_data["inverseOrder"] = order_temp % inverse_order
-
-        return ordered_groups
-
-    def active_groups(self, asset_ids, include_predefined=True):
-        """Collect all active groups from each subset"""
-        # Collect groups from subsets
-        group_names = set(
-            self.dbcon.distinct(
-                "data.subsetGroup",
-                {"type": "subset", "parent": {"$in": asset_ids}}
-            )
-        )
-        if include_predefined:
-            # Ensure all predefined group configs will be included
-            group_names.update(self.groups.keys())
-
-        return self.ordered_groups(group_names)
-
-    def split_subsets_for_groups(self, subset_docs, grouping):
-        """Collect all active groups from each subset"""
-        subset_docs_without_group = collections.defaultdict(list)
-        subset_docs_by_group = collections.defaultdict(dict)
-        for subset_doc in subset_docs:
-            subset_name = subset_doc["name"]
-            if grouping:
-                group_name = subset_doc["data"].get("subsetGroup")
-                if group_name:
-                    if subset_name not in subset_docs_by_group[group_name]:
-                        subset_docs_by_group[group_name][subset_name] = []
-
-                    subset_docs_by_group[group_name][subset_name].append(
-                        subset_doc
-                    )
-                    continue
-
-            subset_docs_without_group[subset_name].append(subset_doc)
-
-        ordered_groups = self.ordered_groups(subset_docs_by_group.keys())
-
-        return ordered_groups, subset_docs_without_group, subset_docs_by_group
-
-
-def project_use_silo(project_doc):
-    """Check if templates of project document contain `{silo}`.
-
-    Args:
-        project_doc (dict): Project document queried from database.
-
-    Returns:
-        bool: True if any project's template contain "{silo}".
-    """
-    templates = project_doc["config"].get("template") or {}
-    for template in templates.values():
-        if "{silo}" in template:
-            return True
-    return False
-
-
-def create_qthread(func, *args, **kwargs):
-    class Thread(QtCore.QThread):
-        def run(self):
-            func(*args, **kwargs)
-    return Thread()
-
-
 def get_repre_icons():
     try:
         from openpype_modules import sync_server
@@ -629,15 +362,3 @@ def get_progress_for_repre(doc, active_site, remote_site):
     avg_progress[remote_site] = \
         progress[remote_site] / max(files[remote_site], 1)
     return avg_progress
-
-
-def is_sync_loader(loader):
-    return is_remove_site_loader(loader) or is_add_site_loader(loader)
-
-
-def is_remove_site_loader(loader):
-    return hasattr(loader, "remove_site_on_representation")
-
-
-def is_add_site_loader(loader):
-    return hasattr(loader, "add_site_to_representation")
