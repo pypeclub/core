@@ -870,6 +870,41 @@ class BaseCommunicator:
 
 
 class QtCommunicator(BaseCommunicator):
+    menu_definitions = {
+        "title": "OpenPype Tools",
+        "menu_items": [
+            {
+                "callback": "workfiles_tool",
+                "label": "Workfiles",
+                "help": "Open workfiles tool"
+            }, {
+                "callback": "loader_tool",
+                "label": "Load",
+                "help": "Open loader tool"
+            }, {
+                "callback": "creator_tool",
+                "label": "Create",
+                "help": "Open creator tool"
+            }, {
+                "callback": "scene_inventory_tool",
+                "label": "Scene inventory",
+                "help": "Open scene inventory tool"
+            }, {
+                "callback": "publish_tool",
+                "label": "Publish",
+                "help": "Open publisher"
+            }, {
+                "callback": "library_loader_tool",
+                "label": "Library",
+                "help": "Open library loader tool"
+            }, {
+                "callback": "subset_manager_tool",
+                "label": "Subset Manager",
+                "help": "Open subset manager tool"
+            }
+        ]
+    }
+
     def __init__(self, qt_app):
         super().__init__()
         self.callback_queue = Queue()
@@ -912,6 +947,15 @@ class QtCommunicator(BaseCommunicator):
         if self.callback_queue.empty():
             return None
         return self.callback_queue.get()
+
+    def _on_client_connect(self):
+        super()._on_client_connect()
+        self._build_menu()
+
+    def _build_menu(self):
+        self.send_request(
+            "define_menu", [self.menu_definitions]
+        )
 
     def _exit(self, *args, **kwargs):
         super()._exit(*args, **kwargs)
