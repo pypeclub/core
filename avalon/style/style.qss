@@ -1270,7 +1270,7 @@ QSplitter {
 }
 
 #ButtonWithMenu {
-    padding-right: 12px;
+    padding-right: 16px;
     border: 1px solid #4A4949;
     border-radius: 2px;
 }
