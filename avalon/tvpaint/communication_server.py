@@ -331,7 +331,8 @@ class QtTVPaintRpc(BaseTVPaintRpc):
             (route_name, self.subset_manager_tool),
             (route_name, self.publish_tool),
             (route_name, self.scene_inventory_tool),
-            (route_name, self.library_loader_tool)
+            (route_name, self.library_loader_tool),
+            (route_name, self.experimental_tools)
         )
 
     # Panel routes for tools
@@ -381,6 +382,12 @@ class QtTVPaintRpc(BaseTVPaintRpc):
     async def library_loader_tool(self):
         log.info("Triggering Library loader tool")
         item = MainThreadItem(self.tools_helper.show_library_loader)
+        self._execute_in_main_thread(item)
+        return
+
+    async def experimental_tools(self):
+        log.info("Triggering Library loader tool")
+        item = MainThreadItem(self.tools_helper.show_experimental_tools_dialog)
         self._execute_in_main_thread(item)
         return
 
@@ -901,6 +908,10 @@ class QtCommunicator(BaseCommunicator):
                 "callback": "subset_manager_tool",
                 "label": "Subset Manager",
                 "help": "Open subset manager tool"
+            }, {
+                "callback": "experimental_tools",
+                "label": "Experimental tools",
+                "help": "Open experimental tools dialog"
             }
         ]
     }
