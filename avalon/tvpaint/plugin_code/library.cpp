@@ -27,21 +27,34 @@
 
 // mReq Identification of the requester.  (=0 closed, !=0 requester ID)
 static struct {
+    bool firstParams;
     DWORD mReq;
     void* mLocalFile;
     PIFilter *current_filter;
     // Id counter for client requests
     int client_request_id;
+    // There are new menu items
+    bool newMenuItems;
+    // Menu item definitions received from connection
+    nlohmann::json menuItems;
+    // Menu items used in requester by their ID
+    nlohmann::json menuItemsById;
+    std::list<int> menuItemsIds;
     // Messages from server before processing.
     // - messages can't be process at the moment of recieve as client is running in thread
     std::queue<std::string> messages;
     // Responses to requests mapped by request id
     std::map<int, jsonrpcpp::Response> responses;
+
 } Data = {
+    true,
     0,
     nullptr,
     nullptr,
-    1
+    1,
+    false,
+    nlohmann::json::object(),
+    nlohmann::json::object()
 };
 
 // Json rpc 2.0 parser - for handling messages and callbacks
@@ -386,6 +399,36 @@ void Communicator::process_requests() {
     }
 }
 
+jsonrpcpp::response_ptr define_menu(const jsonrpcpp::Id &id, const jsonrpcpp::Parameter &params) {
+    /* Define plugin menu.
+
+    Menu is defined with json with "title" and "menu_items".
+    Each item in "menu_items" must have keys:
+    - "callback" - callback called with RPC when button is clicked
+    - "label" - label of button
+    - "help" - tooltip of button
+    ```
+    {
+        "title": "< Menu title>",
+        "menu_items": [
+            {
+                "callback": "workfiles_tool",
+                "label": "Workfiles",
+                "help": "Open workfiles tool"
+            },
+            ...
+        ]
+    }
+    ```
+    */
+    Data.menuItems = params.to_json()[0];
+    Data.newMenuItems = true;
+
+    std::string output;
+
+    return std::make_shared<jsonrpcpp::Response>(id, output);
+}
+
 jsonrpcpp::response_ptr execute_george(const jsonrpcpp::Id &id, const jsonrpcpp::Parameter &params) {
     const char *george_script;
     char cmd_output[1024] = {0};
@@ -411,6 +454,7 @@ jsonrpcpp::response_ptr execute_george(const jsonrpcpp::Id &id, const jsonrpcpp:
 }
 
 void register_callbacks(){
+    parser.register_request_callback("define_menu", define_menu);
     parser.register_request_callback("execute_george", execute_george);
 }
 
@@ -432,24 +476,6 @@ static char* GetLocalString( PIFilter* iFilter, int iNum, char* iDefault )
     return  str;
 }
 
-// sizes of some GUI components
-
-// 185 is the standard width of most requesters in Aura.
-// you should try to respect it, as this makes life easier for the end user
-// (for stacking several requesters, and so on...).
-#define REQUESTER_W  185
-#define REQUESTER_H  (18 * 7) + 5
-
-
-// ID's of GUI components
-#define ID_WORKFILES                10
-#define ID_LOADER                   20
-#define ID_CREATOR                  30
-#define ID_SCENE_INVENTORY          40
-#define ID_PUBLISH                  50
-#define ID_LIBRARY_LOADER           60
-#define ID_SUBSET_MANAGER           70
-
 /**************************************************************************************/
 //  Localisation
 
@@ -467,24 +493,7 @@ std::string label_from_evn()
 }
 std::string plugin_label = label_from_evn();
 
-#define TXT_REQUESTER               GetLocalString( iFilter, 100, "Avalon Tools" )
-
-#define TXT_WORKFILES               GetLocalString( iFilter, 10010, "Workfiles" )
-#define TXT_LOADER                  GetLocalString( iFilter, 10020, "Load")
-#define TXT_CREATOR                 GetLocalString( iFilter, 10030, "Create")
-#define TXT_SCENE_INVENTORY         GetLocalString( iFilter, 10040, "Scene inventory")
-#define TXT_PUBLISH                 GetLocalString( iFilter, 10050, "Publish")
-#define TXT_LIBRARY_LOADER          GetLocalString( iFilter, 10060, "Library")
-#define TXT_SUBSET_MANAGER          GetLocalString( iFilter, 10070, "Subset Manager")
-
-
-#define TXT_WORKFILES_HELP          GetLocalString( iFilter, 20010, "Open workfiles tool")
-#define TXT_LOADER_HELP             GetLocalString( iFilter, 20020, "Open loader tool")
-#define TXT_CREATOR_HELP            GetLocalString( iFilter, 20030, "Open creator tool")
-#define TXT_SCENE_INVENTORY_HELP    GetLocalString( iFilter, 20040, "Open scene inventory tool")
-#define TXT_PUBLISH_HELP            GetLocalString( iFilter, 20050, "Open publisher")
-#define TXT_LIBRARY_LOADER_HELP     GetLocalString( iFilter, 20060, "Open library loader tool")
-#define TXT_SUBSET_MANAGER_HELP     GetLocalString( iFilter, 20070, "Open subset manager tool")
+#define TXT_REQUESTER               GetLocalString( iFilter, 100, "OpenPype Tools" )
 
 #define TXT_REQUESTER_ERROR         GetLocalString( iFilter, 30001, "Can't Open Requester !" )
 
@@ -520,10 +529,6 @@ int FAR PASCAL PI_Open( PIFilter* iFilter )
 {
     Data.current_filter = iFilter;
     char  tmp[256];
-
-    // Load the .loc file.
-    // We don't really cares if it fails here, since we do care in GetLocalString()
-    Data.mLocalFile = TVOpenLocalFile( iFilter, "avalon.loc", 0 );
 
     strcpy( iFilter->PIName, plugin_label.c_str() );
     iFilter->PIVersion = 1;
@@ -566,36 +571,27 @@ int FAR PASCAL PI_Parameters( PIFilter* iFilter, char* iArg )
 {
     if( !iArg )
     {
-        // If the requester is not open, we open it.
-        if( Data.mReq == 0 )
-        {
-            // We use a variable to contains the vertical position of the buttons.
-            // Each time we create a button, we add its size to this variable.
-            // This makes it very easy to add/remove/displace buttons in a requester.
-            int y_pos = 5;
-            int y_offset = 20;
 
-            // Create the requester, without a "menu bar" 'coz we don't need it
-            // in this simple example.
-            // Also we give 'NULL' as the 'Message Function' for this requester,
-            // so all his messages will be sent to PI_Msg.
-            // This is an acceptable practice when there are just a few buttons.
+        // If the requester is not open, we open it.
+        if( Data.mReq == 0)
+        {
+            // Create empty requester because menu items are defined with
+            //  `define_menu` callback
             DWORD  req = TVOpenFilterReqEx(
-                iFilter,
-                REQUESTER_W,
-                REQUESTER_H,
-                NULL,
-                NULL,
-                PIRF_STANDARD_REQ | PIRF_COLLAPSABLE_REQ,
-                FILTERREQ_NO_TBAR
+                    iFilter,
+                    185,
+                    20,
+                    NULL,
+                    NULL,
+                    PIRF_STANDARD_REQ | PIRF_COLLAPSABLE_REQ,
+                    FILTERREQ_NO_TBAR
             );
             if( req == 0 )
             {
                 TVWarning( iFilter, TXT_REQUESTER_ERROR );
                 return  0;
             }
-            // Catch ticks
-            TVGrabTicks(iFilter, req, PITICKS_FLAG_ON);
+
 
             Data.mReq = req;
             // This is a very simple requester, so we create it's content right here instead
@@ -604,34 +600,8 @@ int FAR PASCAL PI_Parameters( PIFilter* iFilter, char* iArg )
 
             // Sets the title of the requester.
             TVSetReqTitle( iFilter, Data.mReq, TXT_REQUESTER );
-
-            // Creates a button in the requester (0 as height means use standard value).
-            // The ID of the button is ID_FLIPX.
-            // The type of the button is PIRBF_BUTTON_NORMAL.
-            // The string "Flip X" is written in the middle of the button.
-            TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_WORKFILES, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_WORKFILES );
-            y_pos += y_offset;
-            TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_LOADER, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_LOADER );
-            y_pos += y_offset;
-            TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_CREATOR, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_CREATOR );
-            y_pos += y_offset;
-            TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_SUBSET_MANAGER, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_SUBSET_MANAGER );
-            y_pos += y_offset;
-            TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_SCENE_INVENTORY, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_SCENE_INVENTORY );
-            y_pos += y_offset;
-            TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_PUBLISH, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_PUBLISH );
-            y_pos += y_offset;
-            TVAddButtonReq( iFilter, Data.mReq, 9, y_pos, REQUESTER_W-19, 0, ID_LIBRARY_LOADER, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, TXT_LIBRARY_LOADER );
-
-            // Put a help messages on it.
-            // Help Popup
-            TVSetButtonInfoText( iFilter, Data.mReq, ID_WORKFILES, TXT_WORKFILES_HELP );
-            TVSetButtonInfoText( iFilter, Data.mReq, ID_LOADER, TXT_LOADER_HELP );
-            TVSetButtonInfoText( iFilter, Data.mReq, ID_PUBLISH, TXT_PUBLISH_HELP );
-            TVSetButtonInfoText( iFilter, Data.mReq, ID_CREATOR, TXT_CREATOR_HELP );
-            TVSetButtonInfoText( iFilter, Data.mReq, ID_SUBSET_MANAGER, TXT_SUBSET_MANAGER_HELP );
-            TVSetButtonInfoText( iFilter, Data.mReq, ID_SCENE_INVENTORY, TXT_SCENE_INVENTORY_HELP );
-            TVSetButtonInfoText( iFilter, Data.mReq, ID_LIBRARY_LOADER, TXT_LIBRARY_LOADER_HELP );
+            // Request to listen to ticks
+            TVGrabTicks(iFilter, req, PITICKS_FLAG_ON);
         }
         else
         {
@@ -644,9 +614,89 @@ int FAR PASCAL PI_Parameters( PIFilter* iFilter, char* iArg )
 }
 
 
+int newMenuItemsProcess(PIFilter* iFilter) {
+    // Menu items defined with `define_menu` should be propagated.
+
+    // Change flag that there are new menu items (avoid infinite loop)
+    Data.newMenuItems = false;
+    // Skip if requester does not exists
+    if (Data.mReq == 0) {
+        return 0;
+    }
+    // Remove all previous menu items
+    for (int menu_id : Data.menuItemsIds)
+    {
+        TVRemoveButtonReq(iFilter, Data.mReq, menu_id);
+    }
+    // Clear caches
+    Data.menuItemsById.clear();
+    Data.menuItemsIds.clear();
+
+    // We use a variable to contains the vertical position of the buttons.
+    // Each time we create a button, we add its size to this variable.
+    // This makes it very easy to add/remove/displace buttons in a requester.
+    int x_pos = 9;
+    int y_pos = 5;
+
+    // Menu width
+    int menu_width = 185;
+    // Single menu item width
+    int btn_width = menu_width - 19;
+    // Single row height (btn height is 18)
+    int row_height = 20;
+    // Additional height to menu
+    int height_offset = 5;
+
+    // This is a very simple requester, so we create it's content right here instead
+    // of waiting for the PICBREQ_OPEN message...
+    // Not recommended for more complex requesters. (see the other examples)
+
+    const char *menu_title = TXT_REQUESTER;
+    if (Data.menuItems.contains("title"))
+    {
+        menu_title = Data.menuItems["title"].get<nlohmann::json::string_t*>()->c_str();
+    }
+    // Sets the title of the requester.
+    TVSetReqTitle( iFilter, Data.mReq, menu_title );
+
+    // Resize menu
+    // First get current position and sizes (we only need the position)
+    int current_x = 0;
+    int current_y = 0;
+    int current_width = 0;
+    int current_height = 0;
+    TVInfoReq(iFilter, Data.mReq, &current_x, &current_y, &current_width, &current_height);
+
+    // Calculate new height
+    int menu_height = (row_height * Data.menuItems["menu_items"].size()) + height_offset;
+    // Resize
+    TVResizeReq(iFilter, Data.mReq, current_x, current_y, menu_width, menu_height);
+
+    // Add menu items
+    int item_counter = 1;
+    for (auto& item : Data.menuItems["menu_items"].items())
+    {
+        int item_id = item_counter * 10;
+        item_counter ++;
+        std::string item_id_str = std::to_string(item_id);
+        nlohmann::json item_data = item.value();
+        const char *item_label = item_data["label"].get<nlohmann::json::string_t*>()->c_str();
+        const char *help_text = item_data["help"].get<nlohmann::json::string_t*>()->c_str();
+        std::string item_callback = item_data["callback"].get<std::string>();
+        TVAddButtonReq(iFilter, Data.mReq, x_pos, y_pos, btn_width, 0, item_id, PIRBF_BUTTON_NORMAL|PIRBF_BUTTON_ACTION, item_label);
+        TVSetButtonInfoText( iFilter, Data.mReq, item_id, help_text );
+        y_pos += row_height;
+
+        Data.menuItemsById[std::to_string(item_id)] = item_callback;
+        Data.menuItemsIds.push_back(item_id);
+    }
+
+    return 1;
+}
 /**************************************************************************************/
 // something happenned that needs our attention.
-
+// Global variable where current button up data are stored
+std::string button_up_item_id_str;
 int FAR PASCAL PI_Msg( PIFilter* iFilter, INTPTR iEvent, INTPTR iReq, INTPTR* iArgs )
 {
     Data.current_filter = iFilter;
@@ -655,52 +705,16 @@ int FAR PASCAL PI_Msg( PIFilter* iFilter, INTPTR iEvent, INTPTR iReq, INTPTR* iA
     {
         // The user just 'clicked' on a normal button
         case PICBREQ_BUTTON_UP:
-            switch( iArgs[0] )   // iArgs[0] is the ID of the selected button
+            button_up_item_id_str = std::to_string(iArgs[0]);
+            if (Data.menuItemsById.contains(button_up_item_id_str))
             {
-                // This call tells Aura to call the following functions in our plugin :
-                // PI_SequenceStart, PI_Start, PI_Work, PI_Finish and PI_SequenceFinish
-                // in the right order.
-                case ID_WORKFILES:
-                    communication.call_method("workfiles_tool", nlohmann::json::array());
-                    TVExecute( iFilter );
-                    break;
-
-                case ID_LOADER:
-                    communication.call_method("loader_tool", nlohmann::json::array());
-                    TVExecute( iFilter );
-                    break;
-
-                case ID_CREATOR:
-                    communication.call_method("creator_tool", nlohmann::json::array());
-                    TVExecute( iFilter );
-                    break;
-
-                case ID_SUBSET_MANAGER:
-                    communication.call_method("subset_manager_tool", nlohmann::json::array());
-                    TVExecute( iFilter );
-                    break;
-
-                case ID_SCENE_INVENTORY:
-                    communication.call_method("scene_inventory_tool", nlohmann::json::array());
-                    TVExecute( iFilter );
-                    break;
-
-                case ID_PUBLISH:
-                    communication.call_method("publish_tool", nlohmann::json::array());
-                    TVExecute( iFilter );
-                    break;
-
-                case ID_LIBRARY_LOADER:
-                    communication.call_method("library_loader_tool", nlohmann::json::array());
-                    TVExecute( iFilter );
-                    break;
-
-                default:
-                    break;
+                std::string callback_name = Data.menuItemsById[button_up_item_id_str].get<std::string>();
+                communication.call_method(callback_name, nlohmann::json::array());
             }
+            TVExecute( iFilter );
             break;
 
-        // The requester was just closed.
+            // The requester was just closed.
         case PICBREQ_CLOSE:
             // requester doesn't exists anymore
             Data.mReq = 0;
@@ -719,6 +733,10 @@ int FAR PASCAL PI_Msg( PIFilter* iFilter, INTPTR iEvent, INTPTR iReq, INTPTR* iA
             break;
 
         case PICBREQ_TICKS:
+            if (Data.newMenuItems)
+            {
+                newMenuItemsProcess(iFilter);
+            }
             communication.process_requests();
     }
 
