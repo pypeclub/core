@@ -331,7 +331,8 @@ class QtTVPaintRpc(BaseTVPaintRpc):
             (route_name, self.subset_manager_tool),
             (route_name, self.publish_tool),
             (route_name, self.scene_inventory_tool),
-            (route_name, self.library_loader_tool)
+            (route_name, self.library_loader_tool),
+            (route_name, self.experimental_tools)
         )
 
     # Panel routes for tools
@@ -381,6 +382,12 @@ class QtTVPaintRpc(BaseTVPaintRpc):
     async def library_loader_tool(self):
         log.info("Triggering Library loader tool")
         item = MainThreadItem(self.tools_helper.show_library_loader)
+        self._execute_in_main_thread(item)
+        return
+
+    async def experimental_tools(self):
+        log.info("Triggering Library loader tool")
+        item = MainThreadItem(self.tools_helper.show_experimental_tools_dialog)
         self._execute_in_main_thread(item)
         return
 
@@ -870,6 +877,45 @@ class BaseCommunicator:
 
 
 class QtCommunicator(BaseCommunicator):
+    menu_definitions = {
+        "title": "OpenPype Tools",
+        "menu_items": [
+            {
+                "callback": "workfiles_tool",
+                "label": "Workfiles",
+                "help": "Open workfiles tool"
+            }, {
+                "callback": "loader_tool",
+                "label": "Load",
+                "help": "Open loader tool"
+            }, {
+                "callback": "creator_tool",
+                "label": "Create",
+                "help": "Open creator tool"
+            }, {
+                "callback": "scene_inventory_tool",
+                "label": "Scene inventory",
+                "help": "Open scene inventory tool"
+            }, {
+                "callback": "publish_tool",
+                "label": "Publish",
+                "help": "Open publisher"
+            }, {
+                "callback": "library_loader_tool",
+                "label": "Library",
+                "help": "Open library loader tool"
+            }, {
+                "callback": "subset_manager_tool",
+                "label": "Subset Manager",
+                "help": "Open subset manager tool"
+            }, {
+                "callback": "experimental_tools",
+                "label": "Experimental tools",
+                "help": "Open experimental tools dialog"
+            }
+        ]
+    }
+
     def __init__(self, qt_app):
         super().__init__()
         self.callback_queue = Queue()
@@ -912,6 +958,15 @@ class QtCommunicator(BaseCommunicator):
         if self.callback_queue.empty():
             return None
         return self.callback_queue.get()
+
+    def _on_client_connect(self):
+        super()._on_client_connect()
+        self._build_menu()
+
+    def _build_menu(self):
+        self.send_request(
+            "define_menu", [self.menu_definitions]
+        )
 
     def _exit(self, *args, **kwargs):
         super()._exit(*args, **kwargs)
