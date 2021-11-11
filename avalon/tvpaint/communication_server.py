@@ -809,13 +809,13 @@ class BaseCommunicator:
 
     def _client(self):
         if not self.websocket_rpc:
-            self.log.warning("Communicator's server did not start yet.")
+            log.warning("Communicator's server did not start yet.")
             return None
 
         for client in self.websocket_rpc.clients:
             if not client.ws.closed:
                 return client
-        self.log.warning("Client is not yet connected to Communicator.")
+        log.warning("Client is not yet connected to Communicator.")
         return None
 
     def client(self):
