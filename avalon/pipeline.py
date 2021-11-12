@@ -99,7 +99,11 @@ def install(host):
         host.install()
 
     # Optional config.host.install()
-    host_name = host.__name__.rsplit(".", 1)[-1]
+    host_name_parts = host.__name__.split(".")
+    host_name = host_name_parts[-1]
+    # Go to second from end if last item name is named 'api'
+    if host_name == "api":
+        host_name = host_name_parts[-2]
     config_host = lib.find_submodule(config, host_name)
     if config_host != host:
         if hasattr(config_host, "install"):
