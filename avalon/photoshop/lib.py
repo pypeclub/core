@@ -211,20 +211,19 @@ def launch(*subprocess_args):
 
     ConsoleTrayApp.websocket_server = websocket_server
 
-    if os.environ.get("IS_HEADLESS"):
+    if os.environ.get("HEADLESS_PUBLISH"):
         # reusing ConsoleTrayApp approach as it was already implemented
         ConsoleTrayApp.execute_in_main_thread(headless_publish)
         return
 
     if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
-        if not os.environ.get("IS_HEADLESS"):
-            save = False
-            if os.getenv("WORKFILES_SAVE_AS"):
-                save = True
+        save = False
+        if os.getenv("WORKFILES_SAVE_AS"):
+            save = True
 
-            ConsoleTrayApp.execute_in_main_thread(
-                lambda: host_tools.show_workfiles(save=save)
-            )
+        ConsoleTrayApp.execute_in_main_thread(
+            lambda: host_tools.show_workfiles(save=save)
+        )
 
 
 def headless_publish():
