@@ -20,6 +20,8 @@ from avalon.tools.webserver.app import WebServerTool
 from openpype.tools.tray_app.app import ConsoleTrayApp
 from openpype.tools.utils import host_tools
 
+from openpype.lib.remote_publish import headless_publish
+
 from .ws_stub import AfterEffectsServerStub
 
 log = logging.getLogger(__name__)
@@ -207,7 +209,12 @@ def launch(*subprocess_args):
 
     ConsoleTrayApp.websocket_server = websocket_server
 
-    if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
+    if os.environ.get("HEADLESS_PUBLISH"):
+        # reusing ConsoleTrayApp approach as it was already implemented
+        ConsoleTrayApp.execute_in_main_thread(lambda: headless_publish(log))
+        return
+
+    if os.environ.get("AVALON_AFTEREFFECTS_WORKFILES_ON_LAUNCH", True):
         save = False
         if os.getenv("WORKFILES_SAVE_AS"):
             save = True

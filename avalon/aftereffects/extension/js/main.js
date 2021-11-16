@@ -268,6 +268,11 @@ function main(websocket_url){
             return result;
         });
     });
+
+     RPC.addRoute('AfterEffects.close', function (data) {
+        log.warn('Server called client route "close":', data);
+        return runEvalScript("close()");
+    });
 }
 
 /** main entry point **/
