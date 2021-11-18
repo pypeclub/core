@@ -211,7 +211,10 @@ def launch(*subprocess_args):
 
     if os.environ.get("IS_HEADLESS"):
         # reusing ConsoleTrayApp approach as it was already implemented
-        ConsoleTrayApp.execute_in_main_thread(lambda: headless_publish(log))
+        ConsoleTrayApp.execute_in_main_thread(lambda: headless_publish(
+            log,
+            "ClosePS",
+            os.environ.get("IS_TEST")))
         return
 
     if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
