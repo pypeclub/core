@@ -703,7 +703,8 @@ function render(target_folder){
 
 
 function close(){
-    executeAction(stringIDToTypeID("quit"), undefined, DialogModes.NO );
+    app.project.close(CloseOptions.DO_NOT_SAVE_CHANGES);
+    app.quit();
 }
  
 

@@ -211,7 +211,10 @@ def launch(*subprocess_args):
 
     if os.environ.get("HEADLESS_PUBLISH"):
         # reusing ConsoleTrayApp approach as it was already implemented
-        ConsoleTrayApp.execute_in_main_thread(lambda: headless_publish(log))
+        ConsoleTrayApp.execute_in_main_thread(lambda: headless_publish(
+            log,
+            "CloseAE",
+            os.environ.get("IS_TEST")))
         return
 
     if os.environ.get("AVALON_AFTEREFFECTS_WORKFILES_ON_LAUNCH", True):
