@@ -4,10 +4,8 @@ import os
 import sys
 import re
 import json
-import errno
 import types
 import copy
-import shutil
 import getpass
 import logging
 import weakref
@@ -99,7 +97,11 @@ def install(host):
         host.install()
 
     # Optional config.host.install()
-    host_name = host.__name__.rsplit(".", 1)[-1]
+    host_name_parts = host.__name__.split(".")
+    host_name = host_name_parts[-1]
+    # Go to second from end if last item name is named 'api'
+    if host_name == "api":
+        host_name = host_name_parts[-2]
     config_host = lib.find_submodule(config, host_name)
     if config_host != host:
         if hasattr(config_host, "install"):
@@ -286,6 +288,7 @@ class Creator(object):
     label = None
     family = None
     defaults = None
+    maintain_selection = True
 
     def __init__(self, name, asset, options=None, data=None):
         self.name = name  # For backwards compatibility
@@ -416,150 +419,6 @@ class InventoryAction(object):
 
         """
         return True
-
-
-class Application(Action):
-    """Default application launcher
-    This is a convenience application Action that when "config" refers to a
-    parsed application `.toml` this can launch the application.
-    """
-
-    config = None
-
-    def is_compatible(self, session):
-        required = ["AVALON_PROJECTS",
-                    "AVALON_PROJECT",
-                    "AVALON_ASSET",
-                    "AVALON_TASK"]
-        missing = [x for x in required if x not in session]
-        if missing:
-            self.log.debug("Missing keys: %s" % (missing,))
-            return False
-        return True
-
-    def environ(self, session):
-        """Build application environment"""
-
-        session = session.copy()
-        session["AVALON_APP"] = self.config["application_dir"]
-        session["AVALON_APP_NAME"] = self.name
-
-        # Compute work directory
-        project = io.find_one({"type": "project"})
-        template = project["config"]["template"]["work"]
-        workdir = _format_work_template(template, session)
-        session["AVALON_WORKDIR"] = os.path.normpath(workdir)
-
-        # Construct application environment from .toml config
-        app_environment = self.config.get("environment", {})
-        for key, value in app_environment.copy().items():
-            if isinstance(value, list):
-                # Treat list values as paths, e.g. PYTHONPATH=[]
-                app_environment[key] = os.pathsep.join(value)
-
-            elif isinstance(value, six.string_types):
-                if lib.PY2:
-                    # Protect against unicode in the environment
-                    encoding = sys.getfilesystemencoding()
-                    app_environment[key] = value.encode(encoding)
-                else:
-                    app_environment[key] = value
-            else:
-                log.error(
-                    "%s: Unsupported environment reference in %s for %s"
-                    % (value, self.name, key)
-                )
-
-        # Build environment
-        env = os.environ.copy()
-        env.update(session)
-        app_environment = self._format(app_environment, **env)
-        env.update(app_environment)
-
-        return env
-
-    def initialize(self, environment):
-        """Initialize work directory"""
-        # Create working directory
-        workdir = environment["AVALON_WORKDIR"]
-        workdir_existed = os.path.exists(workdir)
-        if not workdir_existed:
-            os.makedirs(workdir)
-            self.log.info("Creating working directory '%s'" % workdir)
-
-            # Create default directories from app configuration
-            default_dirs = self.config.get("default_dirs", [])
-            default_dirs = self._format(default_dirs, **environment)
-            if default_dirs:
-                self.log.debug("Creating default directories..")
-                for dirname in default_dirs:
-                    try:
-                        os.makedirs(os.path.join(workdir, dirname))
-                        self.log.debug(" - %s" % dirname)
-                    except OSError as e:
-                        # An already existing default directory is fine.
-                        if e.errno == errno.EEXIST:
-                            pass
-                        else:
-                            raise
-
-        # Perform application copy
-        for src, dst in self.config.get("copy", {}).items():
-            dst = os.path.join(workdir, dst)
-            # Expand env vars
-            src, dst = self._format([src, dst], **environment)
-
-            try:
-                self.log.info("Copying %s -> %s" % (src, dst))
-                shutil.copy(src, dst)
-            except OSError as e:
-                self.log.error("Could not copy application file: %s" % e)
-                self.log.error(" - %s -> %s" % (src, dst))
-
-    def launch(self, environment):
-
-        executable = lib.which(self.config["executable"])
-        if executable is None:
-            raise ValueError(
-                "'%s' not found on your PATH\n%s"
-                % (self.config["executable"], os.getenv("PATH"))
-            )
-
-        args = self.config.get("args", [])
-        return lib.launch(
-            executable=executable,
-            args=args,
-            environment=environment,
-            cwd=environment["AVALON_WORKDIR"]
-        )
-
-    def process(self, session, **kwargs):
-        """Process the full Application action"""
-
-        environment = self.environ(session)
-
-        if kwargs.get("initialize", True):
-            self.initialize(environment)
-
-        if kwargs.get("launch", True):
-            return self.launch(environment)
-
-    def _format(self, original, **kwargs):
-        """Utility recursive dict formatting that logs the error clearly."""
-
-        try:
-            return lib.dict_format(original, **kwargs)
-        except KeyError as e:
-            log.error(
-                "One of the {variables} defined in the application "
-                "definition wasn't found in this session.\n"
-                "The variable was %s " % e
-            )
-            log.error(json.dumps(kwargs, indent=4, sort_keys=True))
-
-            raise ValueError(
-                "This is typically a bug in the pipeline, "
-                "ask your developer.")
 
 
 @lib.log
@@ -1058,10 +917,15 @@ def create(Creator, name, asset, options=None, data=None):
 
     host = registered_host()
     plugin = Creator(name, asset, options, data)
-    with host.maintained_selection():
-        print("Running %s" % plugin)
-        instance = plugin.process()
 
+    if plugin.maintain_selection is True:
+        with host.maintained_selection():
+            print("Running %s with maintained selection" % plugin)
+            instance = plugin.process()
+        return instance
+
+    print("Running %s" % plugin)
+    instance = plugin.process()
     return instance
 
 
@@ -1612,15 +1476,25 @@ def load(Loader, representation, namespace=None, name=None, options=None,
     )
 
 
+def get_loader_identifier(loader):
+    """Loader identifier from loader plugin or object.
+
+    Identifier should be stored to container for future management.
+    """
+    if not inspect.isclass(loader):
+        loader = loader.__class__
+    return loader.__name__
+
+
 def _get_container_loader(container):
     """Return the Loader corresponding to the container"""
 
     loader = container["loader"]
     for Plugin in discover(Loader):
-
         # TODO: Ensure the loader is valid
-        if Plugin.__name__ == loader:
+        if get_loader_identifier(Plugin) == loader:
             return Plugin
+    return None
 
 
 def remove(container):
@@ -1692,7 +1566,7 @@ def update(container, version=-1):
     return loader.update(container, new_representation)
 
 
-def switch(container, representation):
+def switch(container, representation, loader_plugin=None):
     """Switch a container to representation
 
     Args:
@@ -1704,17 +1578,18 @@ def switch(container, representation):
     """
 
     # Get the Loader for this container
-    Loader = _get_container_loader(container)
+    if loader_plugin is None:
+        loader_plugin = _get_container_loader(container)
 
-    if not Loader:
+    if not loader_plugin:
         raise RuntimeError("Can't switch container. See log for details.")
 
-    if not hasattr(Loader, "switch"):
+    if not hasattr(loader_plugin, "switch"):
         # Backwards compatibility (classes without switch support
         # might be better to just have "switch" raise NotImplementedError
         # on the base class of Loader\
         raise RuntimeError("Loader '{}' does not support 'switch'".format(
-            Loader.label
+            loader_plugin.label
         ))
 
     # Get the new representation to switch to
@@ -1724,11 +1599,11 @@ def switch(container, representation):
     })
 
     new_context = get_representation_context(new_representation)
-    assert is_compatible_loader(Loader, new_context), ("Must be compatible "
-                                                       "Loader")
+    if not is_compatible_loader(loader_plugin, new_context):
+        raise AssertionError("Must be compatible Loader")
 
-    Loader = _make_backwards_compatible_loader(Loader)
-    loader = Loader(new_context)
+    loader_plugin = _make_backwards_compatible_loader(loader_plugin)
+    loader = loader_plugin(new_context)
 
     return loader.switch(container, new_representation)
 

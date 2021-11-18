@@ -38,7 +38,6 @@ __all__ = [
     "remove_instance",
     "containerise",
 
-    # workfiles
     "file_extensions",
     "has_unsaved_changes",
     "save_file",
@@ -50,6 +49,5 @@ __all__ = [
     "launch",
     "stub",
     "show",
-    "maintained_selection",
-    "execute_in_main_thread"
+    "maintained_selection"
 ]

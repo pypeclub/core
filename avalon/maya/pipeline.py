@@ -12,7 +12,6 @@ from pyblish import api as pyblish
 from . import lib, compat
 from ..lib import logger, find_submodule
 from .. import api
-from ..tools import workfiles
 from ..vendor.Qt import QtCore, QtWidgets
 
 from ..pipeline import AVALON_CONTAINER_ID
@@ -105,16 +104,8 @@ def uninstall():
 
 
 def _install_menu():
-    from ..tools import (
-        projectmanager,
-        creator,
-        publish,
-        sceneinventory
-    )
-    from openpype.tools import (
-        loader,
-        libraryloader
-    )
+    from openpype.tools.utils import host_tools
+    from ..tools import publish
 
     from . import interactive
 
@@ -143,45 +134,47 @@ def _install_menu():
         cmds.menuItem(divider=True)
 
         # Create default items
-        cmds.menuItem("Create...",
-                      command=lambda *args: creator.show(parent=self._parent))
+        cmds.menuItem(
+            "Create...",
+            command=lambda *args: host_tools.show_creator(parent=self._parent)
+        )
 
-        cmds.menuItem("Load...",
-                      command=lambda *args: loader.show(parent=self._parent,
-                                                        use_context=True))
+        cmds.menuItem(
+            "Load...",
+            command=lambda *args: host_tools.show_loader(
+                parent=self._parent,
+                use_context=True
+            )
+        )
 
-        cmds.menuItem("Publish...",
-                      command=lambda *args: publish.show(parent=self._parent),
-                      image=publish.ICON)
+        cmds.menuItem(
+            "Publish...",
+            command=lambda *args: host_tools.show_publish(parent=self._parent),
+            image=publish.ICON
+        )
 
-        cmds.menuItem("Manage...",
-                      command=lambda *args: sceneinventory.show(
-                          parent=self._parent))
+        cmds.menuItem(
+            "Manage...",
+            command=lambda *args: host_tools.show_scene_inventory(
+                parent=self._parent
+            )
+        )
 
-        cmds.menuItem("Library...", command=lambda *args: libraryloader.show(
-            parent=self._parent)
+        cmds.menuItem(
+            "Library...",
+            command=lambda *args: host_tools.show_library_loader(
+                parent=self._parent
+            )
         )
 
         cmds.menuItem(divider=True)
 
-        cmds.menuItem("Work Files", command=launch_workfiles_app)
-
-        system = cmds.menuItem("System",
-                               label="System",
-                               tearOff=True,
-                               subMenu=True,
-                               parent=self._menu)
-
-        cmds.menuItem("Project Manager",
-                      command=lambda *args: projectmanager.show(
-                        parent=self._parent))
-
-        cmds.menuItem("Reinstall Avalon",
-                      label="Reinstall Avalon",
-                      subMenu=True,
-                      parent=system)
-
-        cmds.menuItem("Confirm", command=reload_pipeline)
+        cmds.menuItem(
+            "Work Files",
+            command=lambda *args: host_tools.show_scene_inventory(
+                parent=self._parent
+            )
+        )
 
         cmds.setParent(self._menu, menu=True)
 
@@ -196,16 +189,6 @@ def _install_menu():
     # This is crucial with Maya 2020+ which initializes without UI
     # first as a QCoreApplication
     maya.utils.executeDeferred(deferred)
-
-
-def launch_workfiles_app(*args):
-    workfiles.show(
-        os.path.join(
-            cmds.workspace(query=True, rootDirectory=True),
-            cmds.workspace(fileRuleEntry="scene")
-        ),
-        parent=self._parent
-    )
 
 
 def reload_pipeline(*args):
@@ -228,19 +211,9 @@ def reload_pipeline(*args):
 
                    # NOTE(marcus): These have circular depenendencies
                    #               that is preventing reloadability
-                   # "avalon.tools.loader.delegates",
-                   # "avalon.tools.loader.model",
-                   # "avalon.tools.loader.widgets",
-                   # "avalon.tools.loader.app",
                    # "avalon.tools.sceneinventory.model",
                    # "avalon.tools.sceneinventory.proxy",
                    # "avalon.tools.sceneinventory.app",
-                   # "avalon.tools.projectmanager.dialogs",
-                   # "avalon.tools.projectmanager.lib",
-                   # "avalon.tools.projectmanager.model",
-                   # "avalon.tools.projectmanager.style",
-                   # "avalon.tools.projectmanager.widget",
-                   # "avalon.tools.projectmanager.app",
 
                    "mayalookassigner",
                    "avalon.api",

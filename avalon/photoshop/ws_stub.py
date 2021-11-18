@@ -3,9 +3,11 @@
     Used anywhere solution is calling client methods.
 """
 import json
-from avalon.tools.webserver.app import WebServerTool
+import sys
 from wsrpc_aiohttp import WebSocketAsync
 import attr
+
+from avalon.tools.webserver.app import WebServerTool
 
 
 @attr.s
@@ -25,6 +27,7 @@ class PSItem(object):
     # all imported elements, single for
     members = attr.ib(factory=list)
     long_name = attr.ib(default=None)
+    color_code = attr.ib(default=None)  # color code of layer
 
 
 class PhotoshopServerStub:
@@ -348,7 +351,7 @@ class PhotoshopServerStub:
 
         return layers_data
 
-    def import_smart_object(self, path, layer_name):
+    def import_smart_object(self, path, layer_name, as_reference=False):
         """
             Import the file at `path` as a smart object to active document.
 
@@ -356,11 +359,14 @@ class PhotoshopServerStub:
             path (str): File path to import.
             layer_name (str): Unique layer name to differentiate how many times
                 same smart object was loaded
+            as_reference (bool): pull in content or reference
         """
         enhanced_name = self.LOADED_ICON + layer_name
         res = self.websocketserver.call(self.client.call
                                         ('Photoshop.import_smart_object',
-                                         path=path, name=enhanced_name))
+                                         path=path, name=enhanced_name,
+                                         as_reference=as_reference
+                                         ))
         rec = self._to_records(res).pop()
         if rec:
             rec.name = rec.name.replace(self.LOADED_ICON, '')
@@ -418,7 +424,12 @@ class PhotoshopServerStub:
                                   )
 
     def close(self):
-        self.client.close()
+        """Shutting down PS and process too.
+
+            For webpublishing only.
+        """
+        # TODO change client.call to method with checks for client
+        self.websocketserver.call(self.client.call('Photoshop.close'))
 
     def _to_records(self, res):
         """
@@ -447,7 +458,8 @@ class PhotoshopServerStub:
                           d.get('visible'),
                           d.get('type'),
                           d.get('members'),
-                          d.get('long_name'))
+                          d.get('long_name'),
+                          d.get("color_code"))
 
             ret.append(item)
         return ret

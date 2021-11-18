@@ -1,7 +1,7 @@
 import avalon.api
 import avalon.fusion
-import avalon.tools.loader as tool
+from openpype.tools.utils import host_tools
 
 
 avalon.api.install(avalon.fusion)
-tool.show(use_context=True)
+host_tools.show_loader(use_context=True)

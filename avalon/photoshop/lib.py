@@ -18,12 +18,12 @@ from Qt import QtWidgets
 from avalon import api
 from avalon.tools.webserver.app import WebServerTool
 
-from openpype.tools import (
-    workfiles,
-    loader,
-    libraryloader
-)
+from openpype.tools.utils import host_tools
 from openpype.tools.tray_app.app import ConsoleTrayApp
+
+from openpype.lib.remote_publish import (
+    get_webpublish_conn, publish_and_log
+)
 
 from .ws_stub import PhotoshopServerStub
 
@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
 
-def show(module_name):
+def show(tool_name):
     """Call show on "module_name".
 
     This allows to make a QApplication ahead of time and always "exec_" to
@@ -40,24 +40,11 @@ def show(module_name):
     Args:
         module_name (str): Name of module to call "show" on.
     """
-    if module_name == "workfiles":
-        # Use Pype's workfiles tool
-        tool_module = workfiles
+    kwargs = {}
+    if tool_name == "loader":
+        kwargs["use_context"] = True
 
-    elif module_name == "loader":
-        tool_module = loader
-
-    elif module_name == "libraryloader":
-        tool_module = libraryloader
-
-    else:
-        # Import and show tool.
-        tool_module = importlib.import_module("avalon.tools." + module_name)
-
-    if "loader" in module_name:
-        tool_module.show(use_context=True)
-    else:
-        tool_module.show()
+    host_tools.show_tool_by_name(tool_name, **kwargs)
 
 
 class ConnectionNotEstablishedYet(Exception):
@@ -129,6 +116,9 @@ class PhotoshopRoute(WebSocketRoute):
 
     async def subsetmanager_route(self):
         self._tool_route("subsetmanager")
+
+    async def experimental_tools_route(self):
+        self._tool_route("experimental_tools")
 
     def _tool_route(self, tool_name):
         """The address accessed when clicking on the buttons."""
@@ -221,12 +211,34 @@ def launch(*subprocess_args):
 
     ConsoleTrayApp.websocket_server = websocket_server
 
+    if os.environ.get("HEADLESS_PUBLISH"):
+        # reusing ConsoleTrayApp approach as it was already implemented
+        ConsoleTrayApp.execute_in_main_thread(headless_publish)
+        return
+
     if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
         save = False
         if os.getenv("WORKFILES_SAVE_AS"):
             save = True
 
-        ConsoleTrayApp.execute_in_main_thread(lambda: workfiles.show(save))
+        ConsoleTrayApp.execute_in_main_thread(
+            lambda: host_tools.show_workfiles(save=save)
+        )
+
+
+def headless_publish():
+    """Runs publish in a opened host with a context and closes Python process.
+
+        Host is being closed via ClosePS pyblish plugin which triggers 'exit'
+        method in ConsoleTrayApp.
+    """
+    dbcon = get_webpublish_conn()
+    _id = os.environ.get("BATCH_LOG_ID")
+    if not _id:
+        log.warning("Unable to store log records, batch will be unfinished!")
+        return
+
+    publish_and_log(dbcon, _id, log, 'ClosePS')
 
 
 @contextlib.contextmanager

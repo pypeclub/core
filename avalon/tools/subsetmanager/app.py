@@ -25,6 +25,10 @@ class Window(QtWidgets.QDialog):
         super(Window, self).__init__(parent=parent)
         self.setWindowTitle("Subset Manager 0.1")
         self.setObjectName("SubsetManager")
+        if not parent:
+            self.setWindowFlags(
+                self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint
+            )
 
         self.resize(780, 430)
 

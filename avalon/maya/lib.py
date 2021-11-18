@@ -2,6 +2,8 @@
 
 import contextlib
 
+import six
+
 from maya import cmds, mel
 from maya.api import OpenMaya as om
 
@@ -144,7 +146,7 @@ def export_alembic(nodes,
         ("frameRange", "%s %s" % frame_range),
     ] + [("root", mesh) for mesh in nodes]
 
-    if isinstance(attribute_prefix, basestring):
+    if isinstance(attribute_prefix, six.string_types):
         # Include all attributes prefixed with "mb"
         # TODO(marcus): This would be a good candidate for
         #   external registration, so that the developer
@@ -215,7 +217,7 @@ def imprint(node, data):
         if isinstance(value, bool):
             add_type = {"attributeType": "bool"}
             set_type = {"keyable": False, "channelBox": True}
-        elif isinstance(value, basestring):
+        elif isinstance(value, six.string_types):
             add_type = {"dataType": "string"}
             set_type = {"type": "string"}
         elif isinstance(value, int):

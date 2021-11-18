@@ -18,8 +18,8 @@ from Qt import QtWidgets
 
 from .server import Server
 
-from openpype.tools import workfiles
 from openpype.tools.tray_app.app import ConsoleTrayApp
+from openpype.tools.utils import host_tools
 from ..toonboom import setup_startup_scripts, check_libs
 
 self = sys.modules[__name__]
@@ -98,7 +98,7 @@ def launch(application_path, *args):
     check_libs()
 
     if os.environ.get("AVALON_HARMONY_WORKFILES_ON_LAUNCH", False):
-        workfiles.show(save=False)
+        host_tools.show_workfiles(save=False)
 
     # No launch through Workfiles happened.
     if not self.workfile_path:
@@ -262,14 +262,20 @@ def show(module_name):
     # requests to be received properly.
     time.sleep(1)
 
-    # Import and show tool.
-    module = importlib.import_module(module_name)
+    # Get tool name from module name
+    # TODO this is for backwards compatibility not sure if `TB_sceneOpened.js`
+    #   is automatically updated.
+    # Previous javascript sent 'module_name' which contained whole tool import
+    #   string e.g. "avalon.tools.workfiles" now it should be only "workfiles"
+    tool_name = module_name.split(".")[-1]
 
-    use_context = False
-    if "loader" in module_name:
-        use_context = True
+    kwargs = {}
+    if tool_name == "loader":
+        kwargs["use_context"] = True
 
-    ConsoleTrayApp.execute_in_main_thread(lambda: module.show(use_context))
+    ConsoleTrayApp.execute_in_main_thread(
+        lambda: host_tools.show_tool_by_name(tool_name, **kwargs)
+    )
 
     # Required return statement.
     return "nothing"
