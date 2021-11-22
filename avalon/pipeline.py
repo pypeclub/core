@@ -1181,7 +1181,8 @@ def template_data_from_session(session):
         # Optional
         "silo": session.get("AVALON_SILO"),
         "user": session.get("AVALON_USER", getpass.getuser()),
-        "hierarchy": hierarchy
+        "hierarchy": hierarchy,
+        "parent": asset_parents[-1] or project_name,
     }
 
 
