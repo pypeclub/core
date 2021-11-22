@@ -276,32 +276,32 @@ def _install_menu():
     )
     context_action = menu.addCommand(label)
     context_action.setEnabled(False)
-
+    parent_window = get_main_window()
     menu.addSeparator()
     menu.addCommand(
         "Create...",
-        lambda: host_tools.show_creator(parent=get_main_window())
+        lambda: host_tools.show_creator(parent=parent_window)
     )
     menu.addCommand(
         "Load...",
         lambda: host_tools.show_loader(
-            parent=get_main_window(),
+            parent=parent_window,
             use_context=True
         )
     )
     menu.addCommand(
         "Publish...",
-        lambda: host_tools.show_publish(parent=get_main_window())
+        lambda: host_tools.show_publish(parent=parent_window)
     )
     menu.addCommand(
         "Manage...",
-        lambda: host_tools.show_scene_inventory(parent=get_main_window())
+        lambda: host_tools.show_scene_inventory(parent=parent_window)
     )
 
     menu.addSeparator()
     menu.addCommand(
         "Work Files...",
-        lambda: host_tools.show_workfiles(parent=get_main_window())
+        lambda: host_tools.show_workfiles(parent=parent_window)
     )
 
     menu.addSeparator()
