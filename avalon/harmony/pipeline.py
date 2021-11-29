@@ -44,6 +44,8 @@ def ls():
         if "container" not in data.get("id"):
             continue
 
+        if not data.get("objectName"):  # backward compatibility
+            data["objectName"] = data["name"]
         yield data
 
 
