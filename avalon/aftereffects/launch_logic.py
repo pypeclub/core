@@ -49,6 +49,7 @@ def show_tool_by_name(tool_name):
 
     host_tools.show_tool_by_name(tool_name, **kwargs)
 
+
 class ProcessLauncher(QtCore.QObject):
     route_name = "AfterEffects"
     _main_thread_callbacks = collections.deque()
@@ -82,7 +83,8 @@ class ProcessLauncher(QtCore.QObject):
         if self._log is None:
             from openpype.api import Logger
 
-            self._log = Logger.get_logger("{}-launcher".format(self.route_name))
+            self._log = Logger.get_logger("{}-launcher".format(
+                self.route_name))
         return self._log
 
     @property
@@ -180,7 +182,6 @@ class ProcessLauncher(QtCore.QObject):
         if self.is_host_connected:
             self._start_process_timer.stop()
             self._loop_timer.start()
-
         elif (
             not self.is_process_running
             or not self.websocket_server_is_running
@@ -194,7 +195,7 @@ class ProcessLauncher(QtCore.QObject):
         self.log.debug(
             "Initialization of websocket server for host communication"
         )
-       
+
         self._websocket_server = websocket_server = WebServerTool()
         if websocket_server.port_occupied(
             websocket_server.host_name,
@@ -305,7 +306,7 @@ class AfterEffectsRoute(WebSocketRoute):
     def _tool_route(self, _tool_name):
         """The address accessed when clicking on the buttons."""
 
-        partial_method = functools.partial(show_tool_by_name, 
+        partial_method = functools.partial(show_tool_by_name,
                                            _tool_name)
 
         ProcessLauncher.execute_in_main_thread(partial_method)

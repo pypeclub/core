@@ -2,13 +2,9 @@ import os
 import sys
 import contextlib
 import logging
-import functools
 import traceback
 
-
 from Qt import QtWidgets
-
-from avalon import api
 
 from openpype.tools.utils import host_tools
 
