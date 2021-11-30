@@ -18,6 +18,8 @@ from contextlib import closing
 from ..tools import publish
 from ..vendor.Qt import QtCore
 from avalon import api, tvpaint
+import pyblish.util
+import pyblish.api
 
 from aiohttp import web
 from aiohttp_json_rpc import JsonRpc
@@ -32,6 +34,8 @@ log.setLevel(logging.DEBUG)
 # Filename of localization file for avalon plugin
 # - localization file may be used to modify labels in plugin
 LOCALIZATION_FILENAME = "avalon.loc"
+
+HEADLESS = bool(os.environ.get("AVALON_TVPAINT_HEADLESS"))
 
 
 class CommunicationWrapper:
@@ -100,9 +104,19 @@ class CommunicationWrapper:
     @classmethod
     def execute_george(cls, george_script):
         """Execute passed goerge script in TVPaint."""
+        validate_george(george_script)
         return cls.send_request(
             "execute_george", [george_script]
         )
+
+
+def validate_george(george_script):
+    if HEADLESS and "tv_writetextfile" in george_script:
+        msg = (
+            "It is not possible to write to a text file from TVPaint "
+            "while in headless mode. George script:\n{}"
+        )
+        raise PermissionError(msg.format(george_script))
 
 
 def register_localization_file(filepath):
@@ -652,6 +666,7 @@ class Communicator:
         self.websocket_route = None
         self.websocket_server = None
         self.websocket_rpc = None
+        self.errored = False
 
     def execute_in_main_thread(self, main_thread_item, wait=True):
         """Add `MainThreadItem` to callback queue and wait for result."""
@@ -671,6 +686,10 @@ class Communicator:
         # check if host still running
         if self.process.poll() is not None:
             self.websocket_server.stop()
+
+            if self.errored:
+                return self.qt_app.exit(1)
+
             return self.qt_app.quit()
 
         if self.callback_queue.empty():
@@ -877,8 +896,7 @@ class Communicator:
 
     def _launch_tv_paint(self, launch_args):
         flags = (
-            subprocess.DETACHED_PROCESS
-            | subprocess.CREATE_NEW_PROCESS_GROUP
+            subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
         )
         env = os.environ.copy()
         # Remove QuickTime from PATH on windows
@@ -950,7 +968,39 @@ class Communicator:
         api.emit("application.launched")
 
     def on_client_connect(self):
+        if HEADLESS:
+            self._publish()
+            return
+
         self._initial_textfile_write()
+
+    def _check_results(self, context):
+        import traceback
+
+        success = True
+        for result in context.data["results"]:
+            if not result["success"]:
+                print(result)
+                print(
+                    "".join(traceback.format_tb(result["error"].__traceback__))
+                )
+                print(result["error"])
+                success = False
+
+        if not success:
+            self.errored = True
+            self.process.kill()
+
+    def _publish(self):
+        context = pyblish.api.Context()
+        stages = [
+            pyblish.util.collect, pyblish.util.extract, pyblish.util.integrate
+        ]
+        for stage in stages:
+            stage(context)
+            self._check_results(context)
+
+        self.process.kill()
 
     def _initial_textfile_write(self):
         """Show popup about Write to file at start of TVPaint."""

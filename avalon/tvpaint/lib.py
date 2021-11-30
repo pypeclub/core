@@ -1,7 +1,7 @@
 import os
 import tempfile
 
-from . import CommunicationWrapper
+from . import CommunicationWrapper, validate_george
 
 
 def execute_george(george_script):
@@ -20,6 +20,8 @@ def execute_george_through_file(george_script):
     Args:
         george_script (str): George script to execute. May be multilined.
     """
+    validate_george(george_script)
+
     temporary_file = tempfile.NamedTemporaryFile(
         mode="w", prefix="a_tvp_", suffix=".grg", delete=False
     )
@@ -207,7 +209,7 @@ def get_layers_pre_post_behavior(layer_ids):
     Example output:
     ```json
     {
-        0: {
+        "0": {
             "pre": "none",
             "post": "loop"
         }
@@ -268,7 +270,7 @@ def get_layers_pre_post_behavior(layer_ids):
         if len(parts) != 3:
             continue
         layer_id, pre_beh, post_beh = parts
-        output[int(layer_id)] = {
+        output[layer_id] = {
             "pre": pre_beh.lower(),
             "post": post_beh.lower()
         }

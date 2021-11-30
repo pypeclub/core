@@ -1,7 +1,6 @@
 import os
 import sys
 import signal
-import time
 import traceback
 import ctypes
 import platform
