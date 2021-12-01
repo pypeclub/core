@@ -1298,11 +1298,17 @@ def template_data_from_session(session):
             "name": session["AVALON_ASSET"]
         },
         {
+            "data.tasks": True,
             "data.parents": True
         }
     )
     asset_parents = asset_doc["data"].get("parents") or []
     hierarchy = "/".join(asset_parents)
+
+    task_name = session["AVALON_TASK"]
+    task_type = asset_doc["data"]["tasks"].get(task_name, {}).get("type")
+    project_task_types = project_doc["config"]["tasks"]
+    task_short = project_task_types.get(task_type, {}).get("short_name")
 
     return {
         "root": registered_root(),
@@ -1311,7 +1317,11 @@ def template_data_from_session(session):
             "code": project_doc["data"].get("code") or "",
         },
         "asset": session["AVALON_ASSET"],
-        "task": session["AVALON_TASK"],
+        "task": {
+            "name": task_name,
+            "type": task_type,
+            "short": task_short
+        },
         "app": session["AVALON_APP"],
 
         # Optional
