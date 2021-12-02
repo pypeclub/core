@@ -176,8 +176,8 @@ class WebServerThread(threading.Thread):
 
             self.loop.run_until_complete(self.start_server())
 
-            websocket_url = "ws://localhost:{}".format(self.port)
-            os.environ["WEBSOCKET_URL"] = websocket_url
+            websocket_url = "ws://localhost:{}/ws".format(self.port)
+
             log.debug(
                 "Running Websocket server on URL: \"{}\"".format(websocket_url)
             )

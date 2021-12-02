@@ -36,10 +36,13 @@ def open_file(filepath):
 
 def current_file():
     try:
-        return os.path.normpath(lib.stub().get_active_document_full_name()).\
-                                replace("\\", "/")
+        full_name = lib.stub().get_active_document_full_name()
+        if full_name and full_name != "null":
+            return os.path.normpath(full_name).replace("\\", "/")
     except Exception:
-        return None
+        pass
+
+    return None
 
 
 def work_root(session):
