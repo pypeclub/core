@@ -209,12 +209,6 @@ def reload_pipeline(*args):
                    "avalon.maya.lib",
                    "avalon.tools.creator.app",
 
-                   # NOTE(marcus): These have circular depenendencies
-                   #               that is preventing reloadability
-                   # "avalon.tools.sceneinventory.model",
-                   # "avalon.tools.sceneinventory.proxy",
-                   # "avalon.tools.sceneinventory.app",
-
                    "mayalookassigner",
                    "avalon.api",
                    "avalon.tools",
