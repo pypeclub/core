@@ -437,7 +437,7 @@ class AfterEffectsServerStub():
         return res
 
     def close(self):
-        self.client.close()
+        self.websocketserver.call(self.client.call('AfterEffects.close'))
 
     def import_background(self, comp_id, comp_name, files):
         """

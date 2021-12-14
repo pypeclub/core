@@ -8,9 +8,7 @@ from Qt import QtWidgets
 
 from openpype.tools.utils import host_tools
 
-from openpype.lib.remote_publish import (
-    get_webpublish_conn, publish_and_log
-)
+from openpype.lib.remote_publish import headless_publish
 
 from .launch_logic import ProcessLauncher, stub
 
@@ -37,9 +35,10 @@ def main(*subprocess_args):
     launcher.start()
 
     if os.environ.get("HEADLESS_PUBLISH"):
-        # reusing ConsoleTrayApp approach as it was already implemented
-        launcher.execute_in_main_thread(headless_publish)
-
+        launcher.execute_in_main_thread(lambda: headless_publish(
+            log,
+            "ClosePS",
+            os.environ.get("IS_TEST")))
     elif os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
         save = False
         if os.getenv("WORKFILES_SAVE_AS"):
@@ -50,21 +49,6 @@ def main(*subprocess_args):
         )
 
     sys.exit(app.exec_())
-
-
-def headless_publish():
-    """Runs publish in a opened host with a context and closes Python process.
-
-        Host is being closed via ClosePS pyblish plugin which triggers 'exit'
-        method in ConsoleTrayApp.
-    """
-    dbcon = get_webpublish_conn()
-    _id = os.environ.get("BATCH_LOG_ID")
-    if not _id:
-        log.warning("Unable to store log records, batch will be unfinished!")
-        return
-
-    publish_and_log(dbcon, _id, log, 'ClosePS')
 
 
 @contextlib.contextmanager
