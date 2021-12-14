@@ -1167,6 +1167,9 @@ def template_data_from_session(session):
     )
     asset_parents = asset_doc["data"].get("parents") or []
     hierarchy = "/".join(asset_parents)
+    parent_name = project_name
+    if asset_parents:
+        parent_name = asset_parents[-1]
 
     return {
         "root": registered_root(),
@@ -1182,7 +1185,7 @@ def template_data_from_session(session):
         "silo": session.get("AVALON_SILO"),
         "user": session.get("AVALON_USER", getpass.getuser()),
         "hierarchy": hierarchy,
-        "parent": asset_parents[-1] or project_name,
+        "parent": parent_name
     }
 
 
