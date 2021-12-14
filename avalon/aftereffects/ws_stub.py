@@ -436,9 +436,6 @@ class AfterEffectsServerStub():
 
         return res
 
-    def close(self):
-        self.websocketserver.call(self.client.call('AfterEffects.close'))
-
     def import_background(self, comp_id, comp_name, files):
         """
             Imports backgrounds images to existing or new composition.
@@ -532,6 +529,14 @@ class AfterEffectsServerStub():
         self.websocketserver.call(self.client.call
                                   ('AfterEffects.render',
                                    folder_url=folder_url))
+
+    def get_extension_version(self):
+        """Returns version number of installed extension."""
+        return self.websocketserver.call(self.client.call(
+            'AfterEffects.get_extension_version'))
+
+    def close(self):
+        self.websocketserver.call(self.client.call('AfterEffects.close'))
 
     def _to_records(self, res):
         """

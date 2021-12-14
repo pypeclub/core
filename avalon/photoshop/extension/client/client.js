@@ -39,6 +39,30 @@
         // run rest only after resolved promise
         main(res);
     }
+
+    function get_extension_version(){
+        /** Returns version number from extension manifest.xml **/
+        log.debug("get_extension_version")
+        var path = csInterface.getSystemPath(SystemPath.EXTENSION);
+        log.debug("extension path " + path);
+    
+        var result = window.cep.fs.readFile(path + "/CSXS/manifest.xml");
+        var version = undefined;
+        if(result.err === 0){
+            if (window.DOMParser) {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(result.data.toString(), 'text/xml');
+                const children = xmlDoc.children;
+        
+                for (let i = 0; i <= children.length; i++) {
+                    if (children[i] && children[i].getAttribute('ExtensionBundleVersion')) {
+                        version = children[i].getAttribute('ExtensionBundleVersion');
+                    }
+                }
+            }
+        }
+        return version
+    }
              
     function main(websocket_url){
       // creates connection to 'websocket_url', registers routes    
@@ -249,10 +273,15 @@
                   });
       });
 
+      RPC.addRoute('Photoshop.get_extension_version', function (data) {
+        log.warn('Server called client route "get_extension_version":', data);
+        return get_extension_version();
+      });
+
       RPC.addRoute('Photoshop.close', function (data) {
         log.warn('Server called client route "close":', data);
         return runEvalScript("close()");
-});
+      });
         
       RPC.call('Photoshop.ping').then(function (data) {
           log.warn('Result for calling server route "ping": ', data);

@@ -423,6 +423,11 @@ class PhotoshopServerStub:
                                   ('Photoshop.imprint', payload=payload)
                                   )
 
+    def get_extension_version(self):
+        """Returns version number of installed extension."""
+        return self.websocketserver.call(self.client.call
+                                         ('Photoshop.get_extension_version'))
+
     def close(self):
         """Shutting down PS and process too.
 

@@ -244,6 +244,10 @@ For easier debugging of Javascript:
 https://community.adobe.com/t5/download-install/adobe-extension-debuger-problem/td-p/10911704?page=1
 Add --enable-blink-features=ShadowDOMV0,CustomElementsV0 when starting Chrome
 then localhost:8078 (port set in `photoshop\extension\.debug`)
+
+Or use Visual Studio Code https://medium.com/adobetech/extendscript-debugger-for-visual-studio-code-public-release-a2ff6161fa01 
+
+Or install CEF client from https://github.com/Adobe-CEP/CEP-Resources/tree/master/CEP_9.x
 ## Resources
   - https://github.com/lohriialo/photoshop-scripting-python
   - https://www.adobe.com/devnet/photoshop/scripting.html
