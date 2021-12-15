@@ -235,6 +235,40 @@ def show_experimental_tools():
     host_tools.show_experimental_tools_dialog()
 
 
+def start_render():
+    ar = unreal.AssetRegistryHelpers.get_asset_registry()
+
+    subsystem = unreal.get_editor_subsystem(unreal.MoviePipelineQueueSubsystem)
+    pipelineQueue = subsystem.get_queue()
+
+    sel_objs = unreal.EditorUtilityLibrary.get_selected_assets()
+
+    instances = []
+    for asset in sel_objs:
+        family = unreal.EditorAssetLibrary.get_metadata_tag(asset, "family")
+        if (asset.get_class().get_name() == 'AvalonPublishInstance' and
+                family == 'render'):
+            instances.append(asset)
+
+    for i in instances:
+        sequence = unreal.EditorAssetLibrary.get_metadata_tag(i, "sequence")
+        asset = ar.get_asset_by_object_path(sequence).get_asset()
+        sop = ar.get_asset_by_object_path(sequence).to_soft_object_path()
+
+        # job = unreal.MoviePipelineExecutorJob()
+        job = pipelineQueue.allocate_new_job(unreal.MoviePipelineExecutorJob)
+        map = unreal.EditorLevelLibrary.get_editor_world().get_path_name()
+        map_sop = ar.get_asset_by_object_path(map).to_soft_object_path()
+        job.set_editor_property("map", map_sop)
+        job.set_editor_property("sequence", sop)
+
+        # unreal.MoviePipelineQueue.allocate_new_job(job)
+
+    executor = unreal.MoviePipelinePIEExecutor()
+    # executor.on_executor_finished_delegate.add_callable_unique(...)
+    # executor.on_individual_job_finished_delegate.add_callable_unique(...)
+    executor.execute(pipelineQueue)
+
 # TODO remove this function from unreal integration
 def show_project_manager():
     pass
