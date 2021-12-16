@@ -155,8 +155,8 @@ class ProcessLauncher(QtCore.QObject):
             self.log.info("Host process is not running. Closing")
             self.exit()
 
-        elif not self.is_host_connected:
-            self.log.info("Host is not connected. Closing")
+        elif not self.websocket_server_is_running:
+            self.log.info("Websocket server is not running. Closing")
             self.exit()
 
     def _on_start_process_timer(self):
