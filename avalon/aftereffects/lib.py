@@ -4,16 +4,12 @@ import contextlib
 import traceback
 import logging
 
-from wsrpc_aiohttp import (
-    WebSocketRoute,
-    WebSocketAsync
-)
-
 from Qt import QtWidgets
+
+from openpype.lib.remote_publish import headless_publish
 
 from openpype.tools.utils import host_tools
 from .launch_logic import ProcessLauncher, stub
-
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
@@ -37,8 +33,13 @@ def main(*subprocess_args):
     launcher = ProcessLauncher(subprocess_args)
     launcher.start()
 
-    # Launch aftereffects and the websocket server.
-    if os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
+    if os.environ.get("HEADLESS_PUBLISH"):
+        # reusing ConsoleTrayApp approach as it was already implemented
+        launcher.execute_in_main_thread(lambda: headless_publish(
+            log,
+            "CloseAE",
+            os.environ.get("IS_TEST")))
+    elif os.environ.get("AVALON_PHOTOSHOP_WORKFILES_ON_LAUNCH", True):
         save = False
         if os.getenv("WORKFILES_SAVE_AS"):
             save = True

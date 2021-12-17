@@ -28,6 +28,33 @@ async function startUp(url){
     main(res);
 }
 
+function get_extension_version(){
+    /** Returns version number from extension manifest.xml **/
+    log.debug("get_extension_version")
+    var path = csInterface.getSystemPath(SystemPath.EXTENSION);
+    log.debug("extension path " + path);
+
+    var result = window.cep.fs.readFile(path + "/CSXS/manifest.xml");
+    var version = undefined;
+    if(result.err === 0){
+        if (window.DOMParser) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(result.data.toString(),
+                                                  'text/xml');
+            const children = xmlDoc.children;
+
+            for (let i = 0; i <= children.length; i++) {
+                if (children[i] &&
+                children[i].getAttribute('ExtensionBundleVersion')) {
+                    version =
+                        children[i].getAttribute('ExtensionBundleVersion');
+                }
+            }
+        }
+    }
+    return version
+}
+
 function main(websocket_url){
     // creates connection to 'websocket_url', registers routes      
     var default_url = 'ws://localhost:8099/ws/';
@@ -267,6 +294,16 @@ function main(websocket_url){
             log.warn("render: " + result);
             return result;
         });
+    });
+
+    RPC.addRoute('AfterEffects.get_extension_version', function (data) {
+      log.warn('Server called client route "get_extension_version":', data);
+      return get_extension_version();
+    });
+
+     RPC.addRoute('AfterEffects.close', function (data) {
+        log.warn('Server called client route "close":', data);
+        return runEvalScript("close()");
     });
 }
 
