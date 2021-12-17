@@ -18,6 +18,8 @@ from .pipeline import (
     show_manager,
     show_project_manager,
     show_experimental_tools,
+    show_tools_dialog,
+    show_tools_popup,
     instantiate,
 )
 
@@ -37,6 +39,8 @@ __all__ = [
     "show_manager",
     "show_project_manager",
     "show_experimental_tools",
+    "show_tools_dialog",
+    "show_tools_popup",
     "maintained_selection",
     "instantiate",
 ]

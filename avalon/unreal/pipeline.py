@@ -215,6 +215,26 @@ def imprint(node, data):
         unreal.EditorAssetLibrary.save_asset(node)
 
 
+def show_tools_popup():
+    """Show popup with tools.
+
+    Popup will disappear on click or loosing focus.
+    """
+    from openpype.hosts.unreal.api import tools_ui
+
+    tools_ui.show_tools_popup()
+
+
+def show_tools_dialog():
+    """Show dialog with tools.
+
+    Dialog will stay visible.
+    """
+    from openpype.hosts.unreal.api import tools_ui
+
+    tools_ui.show_tools_dialog()
+
+
 def show_creator():
     host_tools.show_creator()
 
