@@ -18,6 +18,7 @@ from .pipeline import (
     show_manager,
     show_project_manager,
     show_experimental_tools,
+    start_render,
     instantiate,
 )
 
