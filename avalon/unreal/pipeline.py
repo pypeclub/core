@@ -231,6 +231,10 @@ def show_manager():
     host_tools.show_scene_inventory()
 
 
+def show_experimental_tools():
+    host_tools.show_experimental_tools_dialog()
+
+
+# TODO remove this function from unreal integration
 def show_project_manager():
-    # TODO remove this function from unreal integration
     pass

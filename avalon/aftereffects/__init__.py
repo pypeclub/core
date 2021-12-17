@@ -23,11 +23,10 @@ from .workio import (
 )
 
 from .lib import (
-    launch,
-    stub,
-    show,
     maintained_selection
 )
+
+from .launch_logic import stub
 
 __all__ = [
     # pipeline
@@ -46,8 +45,7 @@ __all__ = [
     "work_root",
 
     # lib
-    "launch",
-    "stub",
-    "show",
-    "maintained_selection"
+    "maintained_selection",
+    # launch_logic
+    "stub"
 ]

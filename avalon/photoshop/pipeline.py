@@ -47,7 +47,7 @@ def ls():
             continue
 
         # Append transient data
-        data["objectName"] = layer.namespace.replace(stub.LOADED_ICON, '')
+        data["objectName"] = layer.name.replace(stub.LOADED_ICON, '')
         data["layer"] = layer
 
         yield data

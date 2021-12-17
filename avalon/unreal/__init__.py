@@ -17,6 +17,7 @@ from .pipeline import (
     show_publisher,
     show_manager,
     show_project_manager,
+    show_experimental_tools,
     instantiate,
 )
 
@@ -35,6 +36,7 @@ __all__ = [
     "show_publisher",
     "show_manager",
     "show_project_manager",
+    "show_experimental_tools",
     "maintained_selection",
     "instantiate",
 ]

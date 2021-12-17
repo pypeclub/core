@@ -700,6 +700,12 @@ function render(target_folder){
     }
     app.project.renderQueue.render();
 }
+
+
+function close(){
+    app.project.close(CloseOptions.DO_NOT_SAVE_CHANGES);
+    app.quit();
+}
  
 
 
