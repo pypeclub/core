@@ -449,7 +449,7 @@ function start() {
     /**
       * Show Subset Manager
       */
-    self.onManage = function() {
+    self.onSubsetManage = function() {
         app.avalonClient.send({
             'module': 'avalon.harmony.lib',
             'method': 'show',
@@ -459,7 +459,7 @@ function start() {
     // add Subset Manager item to menu
     if (app.avalonMenu == null) {
         action = menu.addAction('Subset Manager...');
-        action.triggered.connect(self.onManage);
+        action.triggered.connect(self.onSubsetManage);
     }
 
     // FIXME(antirotor): We need to disable `on_file_changed` now as is wreak
