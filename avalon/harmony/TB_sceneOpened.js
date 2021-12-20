@@ -462,6 +462,22 @@ function start() {
         action.triggered.connect(self.onSubsetManage);
     }
 
+    /**
+      * Show Experimental dialog
+      */
+    self.onExperimentalTools = function() {
+        app.avalonClient.send({
+            'module': 'avalon.harmony.lib',
+            'method': 'show',
+            'args': ['experimental_tools']
+        }, false);
+    };
+    // add Subset Manager item to menu
+    if (app.avalonMenu == null) {
+        action = menu.addAction('Experimental Tools...');
+        action.triggered.connect(self.onExperimentalTools);
+    }
+
     // FIXME(antirotor): We need to disable `on_file_changed` now as is wreak
     // havoc when "Save" is called multiple times and zipping didn't finished yet
     /*
