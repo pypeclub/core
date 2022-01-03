@@ -124,6 +124,9 @@ class PhotoshopRoute(WebSocketRoute):
     async def publish_route(self):
         self._tool_route("publish")
 
+    async def buildworkfile_route(self):
+        self._tool_route("buildworkfile")
+
     async def sceneinventory_route(self):
         self._tool_route("sceneinventory")
 
