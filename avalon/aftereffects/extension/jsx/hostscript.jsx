@@ -3,6 +3,7 @@ indent: 4, maxerr: 50 */
 /*global $, Folder*/
 #include "../js/libs/json.js";
 
+/* All public API function should return JSON! */
 
 app.preferences.savePrefAsBool("General Section", "Show Welcome Screen", false) ;
 
@@ -45,7 +46,7 @@ function getMetadata(){
         return prop.value;
     }
 
-    return null;
+    return _prepareError("No metadata found");
 
 }
 
@@ -69,6 +70,7 @@ function imprint(payload){
     meta.setProperty(schemaNS, label, payload);
     
     app.project.xmpPacket = meta.serialize();
+
 }
 
 
@@ -90,7 +92,7 @@ function getActiveDocumentName(){
         return file.name;   
     }
 
-    return null;
+    return _prepareError("No file open currently");
 }
 
 function getActiveDocumentFullName(){
@@ -107,7 +109,7 @@ function getActiveDocumentFullName(){
         return path;   
     }
 
-    return null;
+    return _prepareError("No file open currently");
 }
 
 function getItems(comps, folders, footages){
@@ -172,19 +174,19 @@ function _getItem(item, comps, folders, footages){
     if (item instanceof FolderItem){
         item_type = 'folder';
         if (!folders){
-            return null;
+            return "{}";
         }
     }
     if (item instanceof FootageItem){
         item_type = 'footage';
         if (!footages){
-            return null;
+            return "{}";
         }
     }
     if (item instanceof CompItem){
         item_type = 'comp';
         if (!comps){
-            return null;
+            return "{}";
         }
     }
         
@@ -210,7 +212,7 @@ function importFile(path, item_name, import_options){
     try{
         import_options = JSON.parse(import_options);
     } catch (e){
-        alert("Couldn't parse import options " + import_options);
+        return _prepareError("Couldn't parse import options " + import_options);
     }
 
     app.beginUndoGroup("Import File");
@@ -246,7 +248,7 @@ function importFile(path, item_name, import_options){
                  comp.parentFolder = app.project.selection[0]   
             }
         } catch (error) {
-            alert(error.toString() + importOptions.file.fsName, scriptName);
+            return _prepareError(error.toString() + importOptions.file.fsName);
         } finally {
             fp.close();
         }
@@ -272,7 +274,7 @@ function setLabelColor(comp_id, color_idx){
     if (item){
         item.label = color_idx;
     }else{
-        alert("There is no composition with "+ comp_id);
+        return _prepareError("There is no composition with "+ comp_id);
     }
 }
 
@@ -299,12 +301,12 @@ function replaceItem(comp_id, path, item_name){
             
             item.name = item_name;
         } catch (error) {
-            alert(error.toString() + path, scriptName);
+            return _prepareError(error.toString() + path);
         } finally {
             fp.close();
         }
     }else{
-        alert("There is no composition with "+ comp_id);
+        return _prepareError("There is no composition with "+ comp_id);
     }
     app.endUndoGroup();
 }
@@ -321,7 +323,7 @@ function renameItem(item_id, new_name){
     if (item){
         item.name = new_name;
     }else{
-        alert("There is no composition with "+ item_id);
+        return _prepareError("There is no composition with "+ comp_id);
     }
 }
 
@@ -336,8 +338,8 @@ function deleteItem(item_id){
     if (item){
         item.remove();
     }else{
-        alert("There is no composition with "+ item_id);
-    }  
+        return _prepareError("There is no composition with "+ comp_id);
+    }
 }
 
 function getWorkArea(comp_id){
@@ -356,8 +358,8 @@ function getWorkArea(comp_id){
             "workAreaDuration": item.duration,
             "frameRate": item.frameRate});
     }else{
-        alert("There is no composition with "+ comp_id);
-    }  
+        return _prepareError("There is no composition with "+ comp_id);
+    }
 }
 
 function setWorkArea(comp_id, workAreaStart, workAreaDuration, frameRate){
@@ -370,22 +372,22 @@ function setWorkArea(comp_id, workAreaStart, workAreaDuration, frameRate){
         item.duration = workAreaDuration;
         item.frameRate = frameRate;
     }else{
-        alert("There is no composition with "+ comp_id);
-    } 
+        return _prepareError("There is no composition with "+ comp_id);
+    }
 }
 
 function save(){
     /**
      * Saves current project
      */
-    return app.project.save();  //TODO path is wrong, File instead
+    app.project.save();  //TODO path is wrong, File instead
 }
 
 function saveAs(path){
     /**
      *   Saves current project as 'path'
      * */
-    return app.project.save(fp = new File(path));
+    app.project.save(fp = new File(path));
 }
 
 function getRenderInfo(){
@@ -405,7 +407,7 @@ function getRenderInfo(){
         render_item.render = true; // always set render queue to render
         var item = render_item.outputModule(1);
     } catch (error) {
-        alert("There is no render queue, create one.");
+        return _prepareError("There is no render queue, create one");
     }
     var file_url = item.file.toString();
 
@@ -436,7 +438,7 @@ function getAudioUrlForComp(comp_id){
 
         }
     }else{
-        alert("There is no composition with "+ comp_id);
+        return _prepareError("There is no composition with "+ comp_id);
     }
 
 }
@@ -458,10 +460,10 @@ function addItemAsLayerToComp(comp_id, item_id, found_comp){
         if (item){
             comp.layers.add(item);
         }else{
-            alert("There is no item with " + item_id);
+            return _prepareError("There is no item with " + item_id);
         }
     }else{
-        alert("There is no composition with "+ comp_id);
+        return _prepareError("There is no composition with "+ comp_id);
     }
 }
 
@@ -490,8 +492,8 @@ function importBackground(comp_id, composition_name, files_to_import){
         folder = comp.parentFolder;
     }else{
         if (app.project.selection.length > 1){
-            alert("Too many items selected, select only target composition!");
-            return false;
+            return _prepareError(
+                "Too many items selected, select only target composition!");
         }else{
             selected_item = app.project.activeItem;
             if (selected_item instanceof Folder){
@@ -505,8 +507,9 @@ function importBackground(comp_id, composition_name, files_to_import){
         for (i = 0; i < files_to_import.length; ++i){
             item = _importItem(files_to_import[i]);
             if (!item){
-                alert("No item for " + item_json["id"] + ". Import failed.");
-                return false;
+                return _prepareError(
+                    "No item for " + item_json["id"] +
+                    ". Import background failed.")
             }
             if (!comp){
                 folder = app.project.items.addFolder(composition_name);
@@ -584,8 +587,9 @@ function reloadBackground(comp_id, composition_name, files_to_import){
             }else{ // new layer
                 item = _importItem(files_to_import[i]);
                 if (!item){
-                    alert("No item for " + files_to_import[i] + ". Import failed.");
-                    return false;
+                    return _prepareError(
+                        "No item for " + files_to_import[i] +
+                        ". Reload background failed.");
                 }
                 imported_ids.push(item.id);
                 item.parentFolder = folder;
@@ -701,46 +705,11 @@ function render(target_folder){
     app.project.renderQueue.render();
 }
 
-
 function close(){
     app.project.close(CloseOptions.DO_NOT_SAVE_CHANGES);
     app.quit();
 }
- 
 
-
-// var img = 'c:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\image\\imageBG\\v013\\petr_test_Jungle_imageBG_v013.jpg';
-// var psd = 'c:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\workfile\\workfileArt\\v013\\petr_test_Jungle_workfileArt_v013.psd';
-// var mov = 'c:\\Users\\petrk\\Downloads\\Samples\\sample_iTunes.mov';
-// var wav = 'c:\\Users\\petrk\\Downloads\\Samples\\africa-toto.wav';
-
-// var inop = JSON.stringify({sequence: true});
-// $.writeln(inop);
-// importFile(mov, "mov", inop); // should be able to import PSD and all its layers
-//importFile(mov, "new_wav");
-// $.writeln(app.project.selection);
-// for (i = 1; i <= app.project.selection.length; ++i){
-//     var sel = app.project.selection[i];
-//     $.writeln(sel);
-//     $.writeln(app.project.selection[0] instanceof FolderItem);
-//}
-
-//addItemAsLayerToComp(60, 1);
-//$.writeln(importBackground(null, 'New comp', [img]));
-
-//deleteItem(600);
-//    'C:/projects/petr_test/assets/locations/Jungle/publish/background/backgroundComp/v002/03_FG_01_Layer_1.png',
-// files_to_import =[
-
-//     'C:/projects/petr_test/assets/locations/Jungle/publish/background/backgroundComp/v002/03_FG_02_Layer_2.png'
-// ]
-// reloadBackground(1067, 'Jungle_backgroundComp_001', files_to_import);
-
-// replaceItem(15, "C:\\projects\\petr_test\\assets\\locations\\Jungle\\publish\\render\\renderCompositingCompositing\\v004\\petr_test_Jungle_renderCompositingCompositing_v004.0003.png",
-// "▼Jungle_renderCompositingCompositing_001")
-// app.project.renderQueue.canQueueInAME;
-// for (i = 1; i <= app.project.renderQueue.numItems; ++i){
-//     var sel = app.project.renderQueue.item(i);
-//     $.writeln("Huu");
-// }
-// app.project.renderQueue.render();
+function _prepareError(error_msg){
+    return JSON.stringify({"error": error_msg})
+}
