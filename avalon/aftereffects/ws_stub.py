@@ -561,7 +561,8 @@ class AfterEffectsServerStub():
             if first_item:
                 if first_item.get("error"):
                     raise ValueError(first_item["error"])
-                if first_item.get("result"):  # singular values (file name etc)
+                # singular values (file name etc)
+                if first_item.get("result") is not None:
                     return first_item["result"]
             return parsed  # parsed
         return res
