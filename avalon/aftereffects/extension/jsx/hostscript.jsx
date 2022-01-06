@@ -252,6 +252,8 @@ function importFile(path, item_name, import_options){
         } finally {
             fp.close();
         }
+    }else{
+	    return _prepareError("File " + path + " not found.");
     }
     if (comp){
         comp.name = item_name;
@@ -290,6 +292,9 @@ function replaceItem(comp_id, path, item_name){
     app.beginUndoGroup("Replace File");
     
     fp = new File(path);
+    if (!fp.exists){
+        return _prepareError("File " + path + " not found.");
+    }
     var item = app.project.itemByID(comp_id);
     if (item){
         try{

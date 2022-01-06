@@ -138,7 +138,7 @@ function main(websocket_url){
                                          "'" + JSON.stringify(
                                          data.import_options) + "')")
             .then(function(result){
-                log.warn("open: " + result);
+                log.warn("importFile: " + result);
                 return result;
             });
     });
