@@ -46,7 +46,7 @@ function getMetadata(){
         return prop.value;
     }
 
-    return _prepareError("No metadata found");
+    return _prepareSingleValue([]);
 
 }
 
@@ -79,7 +79,7 @@ function fileOpen(path){
      * Opens (project) file on 'path'
      */
     fp = new File(path);
-    return app.open(fp);
+    return _prepareSingleValue(app.open(fp))
 }
 
 function getActiveDocumentName(){
@@ -89,7 +89,7 @@ function getActiveDocumentName(){
     var file = app.project.file;
 
     if (file){
-        return file.name;   
+        return _prepareSingleValue(file.name)
     }
 
     return _prepareError("No file open currently");
@@ -106,7 +106,7 @@ function getActiveDocumentFullName(){
         var path = f.fsName;
         f.close();
 
-        return path;   
+        return _prepareSingleValue(path)
     }
 
     return _prepareError("No file open currently");
@@ -715,6 +715,9 @@ function close(){
     app.quit();
 }
 
+function _prepareSingleValue(value){
+    return JSON.stringify({"result": value})
+}
 function _prepareError(error_msg){
     return JSON.stringify({"error": error_msg})
 }

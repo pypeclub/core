@@ -545,17 +545,25 @@ class AfterEffectsServerStub():
 
     def _handle_return(self, res):
         """Wraps return, throws ValueError if 'error' key is present."""
-        if res and isinstance(res, str) and '{' in res:
+        if res and isinstance(res, str) and res != "undefined":
             try:
-                res = json.loads(res)
+                parsed = json.loads(res)
             except json.decoder.JSONDecodeError:
                 raise ValueError("Received broken JSON {}".format(res))
 
-            first_item = res
-            if isinstance(res, list):
-                first_item = res[0]
-            if first_item and first_item.get("error"):
-                raise ValueError(res["error"])
+            if not parsed:  # empty list
+                return parsed
+
+            first_item = parsed
+            if isinstance(parsed, list):
+                first_item = parsed[0]
+
+            if first_item:
+                if first_item.get("error"):
+                    raise ValueError(first_item["error"])
+                if first_item.get("result"):  # singular values (file name etc)
+                    return first_item["result"]
+            return parsed  # parsed
         return res
 
     def _to_records(self, payload):
@@ -569,7 +577,7 @@ class AfterEffectsServerStub():
         if not payload:
             return []
 
-        if isinstance(payload, str):
+        if isinstance(payload, str):  # safety fallback
             try:
                 payload = json.loads(payload)
             except json.decoder.JSONDecodeError:
@@ -581,6 +589,8 @@ class AfterEffectsServerStub():
         ret = []
         # convert to AEItem to use dot donation
         for d in payload:
+            if not d:
+                continue
             # currently implemented and expected fields
             item = AEItem(d.get('id'),
                           d.get('name'),

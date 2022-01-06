@@ -52,7 +52,7 @@ function get_extension_version(){
             }
         }
     }
-    return version
+    return '{"result":"' + version + '"}'
 }
 
 function main(websocket_url){
