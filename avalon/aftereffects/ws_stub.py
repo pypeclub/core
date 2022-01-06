@@ -68,9 +68,10 @@ class AfterEffectsServerStub():
             path(string): file path locally
         Returns: None
         """
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.open', path=path)
-                                  )
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.open', path=path))
+
+        return self._handle_return(res)
 
     def get_metadata(self):
         """
@@ -84,12 +85,9 @@ class AfterEffectsServerStub():
             (list)
         """
         res = self.websocketserver.call(self.client.call
-                                        ('AfterEffects.get_metadata')
-                                        )
-        try:
-            metadata = json.loads(res)
-        except json.decoder.JSONDecodeError:
-            raise ValueError("Unparsable metadata {}".format(res))
+                                        ('AfterEffects.get_metadata'))
+        metadata = self._handle_return(res)
+
         return metadata or []
 
     def read(self, item, layers_meta=None):
@@ -163,8 +161,10 @@ class AfterEffectsServerStub():
 
         payload = json.dumps(cleaned_data, indent=4)
 
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.imprint', payload=payload))
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.imprint',
+                                         payload=payload))
+        return self._handle_return(res)
 
     def get_active_document_full_name(self):
         """
@@ -174,7 +174,7 @@ class AfterEffectsServerStub():
         res = self.websocketserver.call(self.client.call(
             'AfterEffects.get_active_document_full_name'))
 
-        return res
+        return self._handle_return(res)
 
     def get_active_document_name(self):
         """
@@ -184,7 +184,7 @@ class AfterEffectsServerStub():
         res = self.websocketserver.call(self.client.call(
             'AfterEffects.get_active_document_name'))
 
-        return res
+        return self._handle_return(res)
 
     def get_items(self, comps, folders=False, footages=False):
         """
@@ -209,7 +209,7 @@ class AfterEffectsServerStub():
                              folders=folders,
                              footages=footages)
               )
-        return self._to_records(res)
+        return self._to_records(self._handle_return(res))
 
     def get_selected_items(self, comps, folders=False, footages=False):
         """
@@ -229,7 +229,7 @@ class AfterEffectsServerStub():
                                          folders=folders,
                                          footages=footages)
                                         )
-        return self._to_records(res)
+        return self._to_records(self._handle_return(res))
 
     def get_item(self, item_id):
         """
@@ -260,11 +260,9 @@ class AfterEffectsServerStub():
                              item_name=item_name,
                              import_options=import_options)
             )
-        records = self._to_records(res)
+        records = self._to_records(self._handle_return(res))
         if records:
             return records.pop()
-
-        log.debug("Couldn't import {} file".format(path))
 
     def replace_item(self, item_id, path, item_name):
         """ Replace FootageItem with new file
@@ -275,10 +273,12 @@ class AfterEffectsServerStub():
                 item_name (string): label on item in Project list
 
         """
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.replace_item',
-                                   item_id=item_id,
-                                   path=path, item_name=item_name))
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.replace_item',
+                                         item_id=item_id,
+                                         path=path, item_name=item_name))
+
+        return self._handle_return(res)
 
     def rename_item(self, item_id, item_name):
         """ Replace item with item_name
@@ -288,10 +288,12 @@ class AfterEffectsServerStub():
                 item_name (string): label on item in Project list
 
         """
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.rename_item',
-                                   item_id=item_id,
-                                   item_name=item_name))
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.rename_item',
+                                         item_id=item_id,
+                                         item_name=item_name))
+
+        return self._handle_return(res)
 
     def delete_item(self, item_id):
         """ Deletes *Item in a file
@@ -299,10 +301,11 @@ class AfterEffectsServerStub():
                 item_id (int):
 
         """
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.delete_item',
-                                   item_id=item_id
-                                   ))
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.delete_item',
+                                         item_id=item_id))
+
+        return self._handle_return(res)
 
     def remove_instance(self, instance_id):
         """
@@ -324,9 +327,11 @@ class AfterEffectsServerStub():
                 cleaned_data.append(instance)
 
         payload = json.dumps(cleaned_data, indent=4)
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.imprint', payload=payload)
-                                  )
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.imprint',
+                                         payload=payload))
+
+        return self._handle_return(res)
 
     def is_saved(self):
         # TODO
@@ -340,11 +345,12 @@ class AfterEffectsServerStub():
             item_id (int):
             color_idx (int): 0-16 Label colors from AE Project view
         """
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.set_label_color',
-                                   item_id=item_id,
-                                   color_idx=color_idx
-                                   ))
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.set_label_color',
+                                         item_id=item_id,
+                                         color_idx=color_idx))
+
+        return self._handle_return(res)
 
     def get_work_area(self, item_id):
         """ Get work are information for render purposes
@@ -360,11 +366,9 @@ class AfterEffectsServerStub():
                                          item_id=item_id
                                          ))
 
-        records = self._to_records(res)
+        records = self._to_records(self._handle_return(res))
         if records:
             return records.pop()
-
-        log.debug("Couldn't get work area")
 
     def set_work_area(self, item, start, duration, frame_rate):
         """
@@ -378,21 +382,23 @@ class AfterEffectsServerStub():
             duration (float): in seconds
             frame_rate (float): frames in seconds
         """
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.set_work_area',
-                                   item_id=item.id,
-                                   start=start,
-                                   duration=duration,
-                                   frame_rate=frame_rate
-                                   ))
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.set_work_area',
+                                         item_id=item.id,
+                                         start=start,
+                                         duration=duration,
+                                         frame_rate=frame_rate))
+        return self._handle_return(res)
 
     def save(self):
         """
             Saves active document
         Returns: None
         """
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.save'))
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.save'))
+
+        return self._handle_return(res)
 
     def saveAs(self, project_path, as_copy):
         """
@@ -402,10 +408,12 @@ class AfterEffectsServerStub():
             as_copy: <boolean>
         Returns: None
         """
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.saveAs',
-                                   image_path=project_path,
-                                   as_copy=as_copy))
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.saveAs',
+                                         image_path=project_path,
+                                         as_copy=as_copy))
+
+        return self._handle_return(res)
 
     def get_render_info(self):
         """ Get render queue info for render purposes
@@ -416,11 +424,9 @@ class AfterEffectsServerStub():
         res = self.websocketserver.call(self.client.call
                                         ('AfterEffects.get_render_info'))
 
-        records = self._to_records(res)
+        records = self._to_records(self._handle_return(res))
         if records:
             return records.pop()
-
-        log.debug("Render queue needs to have file extension in 'Output to'")
 
     def get_audio_url(self, item_id):
         """ Get audio layer absolute url for comp
@@ -434,7 +440,7 @@ class AfterEffectsServerStub():
                                         ('AfterEffects.get_audio_url',
                                          item_id=item_id))
 
-        return res
+        return self._handle_return(res)
 
     def import_background(self, comp_id, comp_name, files):
         """
@@ -464,11 +470,9 @@ class AfterEffectsServerStub():
                                          comp_name=comp_name,
                                          files=files))
 
-        records = self._to_records(res)
+        records = self._to_records(self._handle_return(res))
         if records:
             return records.pop()
-
-        log.debug("Import background failed.")
 
     def reload_background(self, comp_id, comp_name, files):
         """
@@ -492,11 +496,9 @@ class AfterEffectsServerStub():
                                          comp_name=comp_name,
                                          files=files))
 
-        records = self._to_records(res)
+        records = self._to_records(self._handle_return(res))
         if records:
             return records.pop()
-
-        log.debug("Reload of background failed.")
 
     def add_item_as_layer(self, comp_id, item_id):
         """
@@ -513,11 +515,9 @@ class AfterEffectsServerStub():
                                          comp_id=comp_id,
                                          item_id=item_id))
 
-        records = self._to_records(res)
+        records = self._to_records(self._handle_return(res))
         if records:
             return records.pop()
-
-        log.debug("Adding new layer failed.")
 
     def render(self, folder_url):
         """
@@ -526,40 +526,72 @@ class AfterEffectsServerStub():
             folder_url(string): local folder path for collecting
         Returns: None
         """
-        self.websocketserver.call(self.client.call
-                                  ('AfterEffects.render',
-                                   folder_url=folder_url))
+        res = self.websocketserver.call(self.client.call
+                                        ('AfterEffects.render',
+                                         folder_url=folder_url))
+        return self._handle_return(res)
 
     def get_extension_version(self):
         """Returns version number of installed extension."""
-        return self.websocketserver.call(self.client.call(
+        res = self.websocketserver.call(self.client.call(
             'AfterEffects.get_extension_version'))
 
-    def close(self):
-        self.websocketserver.call(self.client.call('AfterEffects.close'))
+        return self._handle_return(res)
 
-    def _to_records(self, res):
+    def close(self):
+        res = self.websocketserver.call(self.client.call('AfterEffects.close'))
+
+        return self._handle_return(res)
+
+    def _handle_return(self, res):
+        """Wraps return, throws ValueError if 'error' key is present."""
+        if res and isinstance(res, str) and res != "undefined":
+            try:
+                parsed = json.loads(res)
+            except json.decoder.JSONDecodeError:
+                raise ValueError("Received broken JSON {}".format(res))
+
+            if not parsed:  # empty list
+                return parsed
+
+            first_item = parsed
+            if isinstance(parsed, list):
+                first_item = parsed[0]
+
+            if first_item:
+                if first_item.get("error"):
+                    raise ValueError(first_item["error"])
+                # singular values (file name etc)
+                if first_item.get("result") is not None:
+                    return first_item["result"]
+            return parsed  # parsed
+        return res
+
+    def _to_records(self, payload):
         """
             Converts string json representation into list of AEItem
             dot notation access to work.
         Returns: <list of AEItem>
-            res(string): - json representation
+            payload(dict): - dictionary from json representation, expected to
+                come from _handle_return
         """
-        if not res:
+        if not payload:
             return []
 
-        try:
-            layers_data = json.loads(res)
-        except json.decoder.JSONDecodeError:
-            raise ValueError("Received broken JSON {}".format(res))
-        if not layers_data:
-            return []
+        if isinstance(payload, str):  # safety fallback
+            try:
+                payload = json.loads(payload)
+            except json.decoder.JSONDecodeError:
+                raise ValueError("Received broken JSON {}".format(payload))
+
+        if isinstance(payload, dict):
+            payload = [payload]
 
         ret = []
         # convert to AEItem to use dot donation
-        if isinstance(layers_data, dict):
-            layers_data = [layers_data]
-        for d in layers_data:
+        for d in payload:
+            if not d:
+                continue
             # currently implemented and expected fields
             item = AEItem(d.get('id'),
                           d.get('name'),

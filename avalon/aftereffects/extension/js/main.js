@@ -52,7 +52,7 @@ function get_extension_version(){
             }
         }
     }
-    return version
+    return '{"result":"' + version + '"}'
 }
 
 function main(websocket_url){
@@ -138,7 +138,7 @@ function main(websocket_url){
                                          "'" + JSON.stringify(
                                          data.import_options) + "')")
             .then(function(result){
-                log.warn("open: " + result);
+                log.warn("importFile: " + result);
                 return result;
             });
     });
