@@ -69,7 +69,7 @@ def unique_namespace(namespace, format="%02d", prefix="", suffix=""):
     # within "current namespace". We need all because the namespace could
     # also clash with a node name. To be truly unique and valid one needs to
     # check against all.
-    existing = set(cmds.namespaceInfo(listNamespace=True))
+    existing = set(cmds.namespaceInfo(listNamespace=True) or [])
     while unique in existing:
         iteration += 1
         unique = prefix + (namespace + format % iteration) + suffix
