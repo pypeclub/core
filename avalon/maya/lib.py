@@ -477,7 +477,7 @@ def lsattrs(attrs):
     dag_fn = om.MFnDagNode()
     selection_list = om.MSelectionList()
 
-    first_attr = attrs.iterkeys().next()
+    first_attr = next(iter(attrs))
 
     try:
         selection_list.add("*.{0}".format(first_attr),
