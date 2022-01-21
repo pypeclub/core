@@ -199,7 +199,11 @@ def ls():
     if hasattr(config_host, "collect_container_metadata"):
         has_metadata_collector = True
 
-    for container in sorted(containers):
+    for container in sorted(containers,
+                            # Hou 19+ Python 3 hou.ObjNode are not
+                            # sortable due to not supporting greater
+                            # than comparisons
+                            key=lambda node: node.path()):
         data = parse_container(container)
 
         # Collect custom data if attribute is present
