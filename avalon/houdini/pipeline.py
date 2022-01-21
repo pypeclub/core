@@ -145,7 +145,7 @@ def containerise(name,
     # Create proper container name
     container_name = "{}_{}".format(name, suffix or "CON")
     container = hou.node("/obj/{}".format(name))
-    container.setName(container_name)
+    container.setName(container_name, unique_name=True)
 
     data = {
         "schema": "openpype:container-2.0",
