@@ -33,6 +33,9 @@ from . import (
 
 from .vendor import six
 from openpype.lib import Anatomy
+from openpype.settings import (
+    get_system_settings
+)
 
 self = sys.modules[__name__]
 self._is_installed = False
@@ -1177,6 +1180,10 @@ def template_data_from_session(session):
     project_task_types = project_doc["config"]["tasks"]
     task_short = project_task_types.get(task_type, {}).get("short_name")
 
+    system_settings = get_system_settings()
+    studio_name = system_settings["general"]["studio_name"]
+    studio_code = system_settings["general"]["studio_code"]
+
     return {
         "root": registered_root(),
         "project": {
@@ -1195,7 +1202,11 @@ def template_data_from_session(session):
         "silo": session.get("AVALON_SILO"),
         "user": session.get("AVALON_USER", getpass.getuser()),
         "hierarchy": hierarchy,
-        "parent": parent_name
+        "parent": parent_name,
+        "studio": {
+            "name": studio_name,
+            "code": studio_code
+        }
     }
 
 
