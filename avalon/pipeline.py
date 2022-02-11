@@ -1363,31 +1363,9 @@ def _format_work_template(template, session=None):
     return template.format(**fill_data)
 
 
-def _make_backwards_compatible_loader(Loader):
-    """Convert a old-style Loaders with `process` method to new-style Loader
-
-    This will make a dynamic class inheriting the old-style loader together
-    with a BackwardsCompatibleLoader. This backwards compatible loader will
-    expose `load`, `remove` and `update` in the same old way for Maya loaders.
-
-    The `load` method will then call `process()` just like before.
-
-    """
-
-    # Assume new-style loader when no `process` method is exposed
-    # then we don't swap the loader with a backwards compatible one.
-    if not hasattr(Loader, "process"):
-        return Loader
-
-    log.warning("Making loader backwards compatible: %s", Loader.__name__)
-    from avalon.maya.compat import BackwardsCompatibleLoader
-    return type(Loader.__name__, (BackwardsCompatibleLoader, Loader), {})
-
-
 def load_with_repre_context(
     Loader, repre_context, namespace=None, name=None, options=None, **kwargs
 ):
-    Loader = _make_backwards_compatible_loader(Loader)
 
     # Ensure the Loader is compatible for the representation
     if not is_compatible_loader(Loader, repre_context):
@@ -1420,7 +1398,6 @@ def load_with_repre_context(
 def load_with_subset_context(
     Loader, subset_context, namespace=None, name=None, options=None, **kwargs
 ):
-    Loader = _make_backwards_compatible_loader(Loader)
 
     # Ensure options is a dictionary when no explicit options provided
     if options is None:
@@ -1445,7 +1422,6 @@ def load_with_subset_context(
 def load_with_subset_contexts(
     Loader, subset_contexts, namespace=None, name=None, options=None, **kwargs
 ):
-    Loader = _make_backwards_compatible_loader(Loader)
 
     # Ensure options is a dictionary when no explicit options provided
     if options is None:
@@ -1529,8 +1505,6 @@ def remove(container):
     if not Loader:
         raise RuntimeError("Can't remove container. See log for details.")
 
-    Loader = _make_backwards_compatible_loader(Loader)
-
     loader = Loader(get_representation_context(container["representation"]))
     return loader.remove(container)
 
@@ -1585,8 +1559,6 @@ def update(container, version=-1):
     if not Loader:
         raise RuntimeError("Can't update container. See log for details.")
 
-    Loader = _make_backwards_compatible_loader(Loader)
-
     loader = Loader(get_representation_context(container["representation"]))
     return loader.update(container, new_representation)
 
@@ -1627,7 +1599,6 @@ def switch(container, representation, loader_plugin=None):
     if not is_compatible_loader(loader_plugin, new_context):
         raise AssertionError("Must be compatible Loader")
 
-    loader_plugin = _make_backwards_compatible_loader(loader_plugin)
     loader = loader_plugin(new_context)
 
     return loader.switch(container, new_representation)
