@@ -7,14 +7,13 @@ import zipfile
 import signal
 import threading
 import subprocess
-import importlib
 import logging
 import filecmp
 from uuid import uuid4
 
 from .server import Server
 from openpype.tools.utils import host_tools
-from ..vendor.Qt import QtWidgets
+from Qt import QtWidgets
 
 self = sys.modules[__name__]
 self.server = None

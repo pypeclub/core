@@ -3,8 +3,7 @@ import logging
 import platform
 import os
 
-from ..vendor.Qt import (
-    QtCore,
+from Qt import (
     QtGui,
     __binding__
 )

@@ -1,10 +1,9 @@
-import os
 import sys
 import contextlib
 
-from .. import io, api, style
+from Qt import QtWidgets, QtCore
 
-from ..vendor.Qt import QtWidgets, QtCore, QtGui
+from .. import io, api, style
 
 
 def format_version(value, hero_version=False):

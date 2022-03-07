@@ -18,7 +18,7 @@ import re
 import json
 import logging
 
-from .vendor import jsonschema
+import jsonschema
 
 log_ = logging.getLogger(__name__)
 
