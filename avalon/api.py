@@ -45,7 +45,6 @@ from .pipeline import (
 
     data,
 
-    update_current_task,
     get_representation_path,
     loaders_from_representation,
 
@@ -68,11 +67,6 @@ from .pipeline import (
     format_template_with_optional_keys,
     last_workfile_with_version,
     last_workfile
-)
-
-from .lib import (
-    time,
-    logger,
 )
 
 
@@ -110,7 +104,6 @@ __all__ = [
 
     "data",
 
-    "update_current_task",
     "get_representation_path",
     "loaders_from_representation",
 
@@ -133,7 +126,4 @@ __all__ = [
     "format_template_with_optional_keys",
     "last_workfile_with_version",
     "last_workfile",
-
-    "logger",
-    "time",
 ]

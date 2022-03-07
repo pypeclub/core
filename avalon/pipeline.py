@@ -16,6 +16,7 @@ import importlib
 
 from collections import OrderedDict
 
+import six
 from . import (
     io,
     lib,
@@ -31,7 +32,6 @@ from . import (
     _registered_event_handlers,
 )
 
-from .vendor import six
 from openpype.lib import Anatomy
 
 self = sys.modules[__name__]
