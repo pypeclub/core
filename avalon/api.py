@@ -18,11 +18,8 @@ from .pipeline import (
     install,
     uninstall,
 
-    CreatorError,
-
     Loader,
     SubsetLoader,
-    Creator,
     Action,
     InventoryAction,
     discover,
@@ -37,7 +34,6 @@ from .pipeline import (
     emit,
 
     publish,
-    create,
     load,
     update,
     switch,
@@ -85,11 +81,8 @@ __all__ = [
 
     "schema",
 
-    "CreatorError",
-
     "Loader",
     "SubsetLoader",
-    "Creator",
     "Action",
     "InventoryAction",
     "discover",
@@ -102,7 +95,6 @@ __all__ = [
     "emit",
 
     "publish",
-    "create",
     "load",
     "update",
     "switch",
