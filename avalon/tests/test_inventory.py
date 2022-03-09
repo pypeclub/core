@@ -6,8 +6,8 @@ import tempfile
 import subprocess
 import contextlib
 
+import toml
 from avalon import io, inventory, schema
-from avalon.vendor import toml
 
 from nose.tools import (
     assert_equals,

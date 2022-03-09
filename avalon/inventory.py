@@ -19,8 +19,8 @@ import os
 import sys
 import copy
 
+import toml
 from avalon import schema, io
-from avalon.vendor import toml
 
 self = sys.modules[__name__]
 self.collection = None

@@ -8,8 +8,8 @@ import logging
 import tempfile
 import contextlib
 
+import requests
 from . import schema, Session
-from .vendor import requests
 from .mongodb import AvalonMongoDB, session_data_from_environment
 
 # Third-party dependencies

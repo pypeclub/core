@@ -10,8 +10,9 @@ import subprocess
 import types
 import numbers
 
+import six
+import toml
 from . import schema
-from .vendor import six, toml
 
 PY2 = sys.version_info[0] == 2
 

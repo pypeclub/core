@@ -15,6 +15,7 @@ import platform
 import importlib
 
 from collections import OrderedDict
+import six
 
 from . import (
     io,
@@ -31,7 +32,6 @@ from . import (
     _registered_event_handlers,
 )
 
-from .vendor import six
 from openpype.lib import Anatomy
 from openpype.settings import (
     get_system_settings
