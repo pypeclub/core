@@ -1,8 +1,8 @@
 import re
 import logging
 
-from ..vendor.Qt import QtCore, QtGui
-from ..vendor import Qt
+import Qt
+from Qt import QtCore
 
 log = logging.getLogger(__name__)
 

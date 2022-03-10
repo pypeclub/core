@@ -15,6 +15,7 @@ import platform
 import importlib
 
 from collections import OrderedDict
+import six
 
 import six
 from . import (
@@ -297,73 +298,6 @@ class SubsetLoader(Loader):
     """
 
     def __init__(self, context):
-        pass
-
-
-class CreatorError(Exception):
-    """Should be raised when creator failed because of known issue.
-
-    Message of error should be user readable.
-    """
-
-    def __init__(self, message):
-        super(CreatorError, self).__init__(message)
-
-
-@add_class_log
-class Creator(object):
-    """Determine how assets are created"""
-    label = None
-    family = None
-    defaults = None
-    maintain_selection = True
-
-    def __init__(self, name, asset, options=None, data=None):
-        self.name = name  # For backwards compatibility
-        self.options = options
-
-        # Default data
-        self.data = OrderedDict()
-        self.data["id"] = "pyblish.avalon.instance"
-        self.data["family"] = self.family
-        self.data["asset"] = asset
-        self.data["subset"] = name
-        self.data["active"] = True
-
-        self.data.update(data or {})
-
-    @classmethod
-    def get_subset_name(
-        cls, variant, task_name, asset_id, project_name, host_name=None
-    ):
-        """Return subset name created with entered arguments.
-
-        Logic extracted from Creator tool. This method should give ability
-        to get subset name without the tool.
-
-        TODO: Maybe change `variant` variable.
-
-        By default is output concatenated family with user text.
-
-        Args:
-            variant (str): What is entered by user in creator tool.
-            task_name (str): Context's task name.
-            asset_id (ObjectId): Mongo ID of context's asset.
-            project_name (str): Context's project name.
-            host_name (str): Name of host.
-
-        Returns:
-            str: Formatted subset name with entered arguments. Should match
-                config's logic.
-        """
-        # Capitalize first letter of user input
-        if variant:
-            variant = variant[0].capitalize() + variant[1:]
-
-        family = cls.family.rsplit(".", 1)[-1]
-        return "{}{}".format(family, variant)
-
-    def process(self):
         pass
 
 
@@ -913,48 +847,6 @@ def debug_host():
     })
 
     return host
-
-
-def create(Creator, name, asset, options=None, data=None):
-    """Create a new instance
-
-    Associate nodes with a subset and family. These nodes are later
-    validated, according to their `family`, and integrated into the
-    shared environment, relative their `subset`.
-
-    Data relative each family, along with default data, are imprinted
-    into the resulting objectSet. This data is later used by extractors
-    and finally asset browsers to help identify the origin of the asset.
-
-    Arguments:
-        Creator (Creator): Class of creator
-        name (str): Name of subset
-        asset (str): Name of asset
-        options (dict, optional): Additional options from GUI
-        data (dict, optional): Additional data from GUI
-
-    Raises:
-        NameError on `subset` already exists
-        KeyError on invalid dynamic property
-        RuntimeError on host error
-
-    Returns:
-        Name of instance
-
-    """
-
-    host = registered_host()
-    plugin = Creator(name, asset, options, data)
-
-    if plugin.maintain_selection is True:
-        with host.maintained_selection():
-            print("Running %s with maintained selection" % plugin)
-            instance = plugin.process()
-        return instance
-
-    print("Running %s" % plugin)
-    instance = plugin.process()
-    return instance
 
 
 def get_repres_contexts(representation_ids, dbcon=None):
