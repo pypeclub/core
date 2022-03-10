@@ -17,7 +17,6 @@ import importlib
 from collections import OrderedDict
 import six
 
-import six
 from . import (
     io,
     lib,
