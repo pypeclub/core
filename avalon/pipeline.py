@@ -33,9 +33,6 @@ from . import (
 )
 
 from openpype.lib import Anatomy
-from openpype.settings import (
-    get_system_settings
-)
 
 self = sys.modules[__name__]
 self._is_installed = False
@@ -63,6 +60,34 @@ HOST_WORKFILE_EXTENSIONS = {
     "resolve": [".drp"],
     "aftereffects": [".aep"]
 }
+
+
+def add_class_log(cls):
+    """Decorator for attaching a logger to the class `cls`
+
+    Loggers inherit the syntax {module}.{submodule}
+
+    Example
+        >>> @add_class_log
+        ... class MyClass(object):
+        ...     pass
+        >>>
+        >>> myclass = MyClass()
+        >>> myclass.log.info('Hello World')
+
+    """
+
+    module = cls.__module__
+    name = cls.__name__
+
+    # Package name appended, for filtering of LogRecord instances
+    logname = "%s.%s" % (module, name)
+    cls.log = logging.getLogger(logname)
+
+    # All messages are handled by root-logger
+    cls.log.propagate = True
+
+    return cls
 
 
 class IncompatibleLoaderError(ValueError):
@@ -178,7 +203,7 @@ def publish():
     return util.publish()
 
 
-@lib.log
+@add_class_log
 class Loader(list):
     """Load representation into host application
 
@@ -262,7 +287,7 @@ class Loader(list):
         return cls.options or []
 
 
-@lib.log
+@add_class_log
 class SubsetLoader(Loader):
     """Load subset into host application
     Arguments:
@@ -275,7 +300,7 @@ class SubsetLoader(Loader):
         pass
 
 
-@lib.log
+@add_class_log
 class Action(object):
     """A custom action available"""
     name = None
@@ -357,7 +382,7 @@ class InventoryAction(object):
         return True
 
 
-@lib.log
+@add_class_log
 class ThumbnailResolver(object):
     """Determine how to get data from thumbnail entity.
 
@@ -1032,226 +1057,6 @@ def get_representation_context(representation):
     }
 
     return context
-
-
-def template_data_from_session(session):
-    """ Return dictionary with template from session keys.
-
-    Args:
-        session (dict, Optional): The Session to use. If not provided use the
-            currently active global Session.
-    Returns:
-        dict: All available data from session.
-    """
-    if session is None:
-        session = Session
-
-    project_name = session["AVALON_PROJECT"]
-    project_doc = io._database[project_name].find_one(
-        {"type": "project"}
-    )
-    asset_doc = io._database[project_name].find_one(
-        {
-            "type": "asset",
-            "name": session["AVALON_ASSET"]
-        },
-        {
-            "data.tasks": True,
-            "data.parents": True
-        }
-    )
-    asset_parents = asset_doc["data"].get("parents") or []
-    hierarchy = "/".join(asset_parents)
-    parent_name = project_name
-    if asset_parents:
-        parent_name = asset_parents[-1]
-
-    task_name = session["AVALON_TASK"]
-    task_type = asset_doc["data"]["tasks"].get(task_name, {}).get("type")
-    project_task_types = project_doc["config"]["tasks"]
-    task_short = project_task_types.get(task_type, {}).get("short_name")
-
-    system_settings = get_system_settings()
-    studio_name = system_settings["general"]["studio_name"]
-    studio_code = system_settings["general"]["studio_code"]
-
-    return {
-        "root": registered_root(),
-        "project": {
-            "name": project_doc.get("name", project_name),
-            "code": project_doc["data"].get("code") or "",
-        },
-        "asset": session["AVALON_ASSET"],
-        "task": {
-            "name": task_name,
-            "type": task_type,
-            "short": task_short
-        },
-        "app": session["AVALON_APP"],
-
-        # Optional
-        "silo": session.get("AVALON_SILO"),
-        "user": session.get("AVALON_USER", getpass.getuser()),
-        "hierarchy": hierarchy,
-        "parent": parent_name,
-        "studio": {
-            "name": studio_name,
-            "code": studio_code
-        }
-    }
-
-
-def compute_session_changes(
-    session, task=None, asset=None, app=None, template_key=None
-):
-    """Compute the changes for a Session object on asset, task or app switch
-
-    This does *NOT* update the Session object, but returns the changes
-    required for a valid update of the Session.
-
-    Args:
-        session (dict): The initial session to compute changes to.
-            This is required for computing the full Work Directory, as that
-            also depends on the values that haven't changed.
-        task (str, Optional): Name of task to switch to.
-        asset (str or dict, Optional): Name of asset to switch to.
-            You can also directly provide the Asset dictionary as returned
-            from the database to avoid an additional query. (optimization)
-        app (str, Optional): Name of app to switch to.
-
-    Returns:
-        dict: The required changes in the Session dictionary.
-
-    """
-
-    changes = dict()
-
-    # If no changes, return directly
-    if not any([task, asset, app]):
-        return changes
-
-    # Get asset document and asset
-    asset_document = None
-    asset_tasks = None
-    if isinstance(asset, dict):
-        # Assume asset database document
-        asset_document = asset
-        asset_tasks = asset_document.get("data", {}).get("tasks")
-        asset = asset["name"]
-
-    if not asset_document or not asset_tasks:
-        # Assume asset name
-        asset_document = io.find_one(
-            {
-                "name": asset,
-                "type": "asset"
-            },
-            {
-                "silo": True,
-                "data.tasks": True
-            }
-        )
-        assert asset_document, "Asset must exist"
-
-    # Detect any changes compared session
-    mapping = {
-        "AVALON_ASSET": asset,
-        "AVALON_TASK": task,
-        "AVALON_APP": app,
-    }
-    changes = {
-        key: value
-        for key, value in mapping.items()
-        if value and value != session.get(key)
-    }
-    if not changes:
-        return changes
-
-    # Update silo and hierarchy when asset changed
-    if "AVALON_ASSET" in changes:
-
-        # Update silo
-        changes["AVALON_SILO"] = asset_document.get("silo") or ""
-
-    # Compute work directory (with the temporary changed session so far)
-    project_doc = io.find_one(
-        {"type": "project"},
-        {"name": True}
-    )
-    _session = session.copy()
-    _session.update(changes)
-
-    anatomy = Anatomy(project_doc["name"])
-    template_data = template_data_from_session(_session)
-    anatomy_filled = anatomy.format(template_data)
-
-    if not template_key:
-        from openpype.lib import get_workfile_template_key
-
-        task_info = asset_tasks.get(task) or {}
-        task_type = task_info.get("type")
-        template_key = get_workfile_template_key(
-            task_type,
-            app,
-            project_name=session["AVALON_PROJECT"]
-        )
-    changes["AVALON_WORKDIR"] = anatomy_filled[template_key]["folder"]
-
-    return changes
-
-
-def update_current_task(task=None, asset=None, app=None, template_key=None):
-    """Update active Session to a new task work area.
-
-    This updates the live Session to a different `asset`, `task` or `app`.
-
-    Args:
-        task (str): The task to set.
-        asset (str): The asset to set.
-        app (str): The app to set.
-
-    Returns:
-        dict: The changed key, values in the current Session.
-
-    """
-
-    changes = compute_session_changes(
-        Session, task=task, asset=asset, app=app, template_key=template_key
-    )
-
-    # Update the Session and environments. Pop from environments all keys with
-    # value set to None.
-    for key, value in changes.items():
-        Session[key] = value
-        if value is None:
-            os.environ.pop(key, None)
-        else:
-            os.environ[key] = value
-
-    # Emit session change
-    emit("taskChanged", changes.copy())
-
-    return changes
-
-
-def _format_work_template(template, session=None):
-    """Return a formatted configuration template with a Session.
-    Note: This *cannot* format the templates for published files since the
-        session does not hold the context for a published file. Instead use
-        `get_representation_path` to parse the full path to a published file.
-    Args:
-        template (str): The template to format.
-        session (dict, Optional): The Session to use. If not provided use the
-            currently active global Session.
-    Returns:
-        str: The fully formatted path.
-    """
-    if session is None:
-        session = Session
-
-    fill_data = template_data_from_session(session)
-
-    return template.format(**fill_data)
 
 
 def load_with_repre_context(
