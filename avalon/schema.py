@@ -13,17 +13,19 @@ Resources:
 """
 
 import os
-import sys
 import re
 import json
 import logging
 
 import jsonschema
+import six
 
 log_ = logging.getLogger(__name__)
 
 ValidationError = jsonschema.ValidationError
 SchemaError = jsonschema.SchemaError
+
+_CACHED = False
 
 
 def get_schema_version(schema_name):
@@ -65,6 +67,8 @@ def validate(data, schema=None):
         ValidationError on invalid schema
 
     """
+    if not _CACHED:
+        _precache()
 
     root, schema = data["schema"].rsplit(":", 1)
     # assert root in (
@@ -73,7 +77,7 @@ def validate(data, schema=None):
     #     "pype"
     # )
 
-    if isinstance(schema, basestring):
+    if isinstance(schema, six.string_types):
         schema = _cache[schema + ".json"]
 
     resolver = jsonschema.RefResolver(
@@ -88,15 +92,6 @@ def validate(data, schema=None):
                         types={"array": (list, tuple)},
                         resolver=resolver)
 
-
-if sys.version_info[0] == 3:
-    basestring = str
-
-if os.environ.get('AVALON_SCHEMA'):
-    _SCHEMA_DIR = os.environ['AVALON_SCHEMA']
-else:
-    _MODULE_DIR = os.path.dirname(__file__)
-    _SCHEMA_DIR = os.path.join(_MODULE_DIR, "schema")
 
 _cache = {
     # A mock schema for docstring tests
@@ -123,17 +118,23 @@ _cache = {
 
 
 def _precache():
+    global _CACHED
+
+    if os.environ.get('AVALON_SCHEMA'):
+        schema_dir = os.environ['AVALON_SCHEMA']
+    else:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        schema_dir = os.path.join(current_dir, "schema")
+
     """Store available schemas in-memory for reduced disk access"""
-    for schema in os.listdir(_SCHEMA_DIR):
+    for schema in os.listdir(schema_dir):
         if schema.startswith(("_", ".")):
             continue
         if not schema.endswith(".json"):
             continue
-        if not os.path.isfile(os.path.join(_SCHEMA_DIR, schema)):
+        if not os.path.isfile(os.path.join(schema_dir, schema)):
             continue
-        with open(os.path.join(_SCHEMA_DIR, schema)) as f:
+        with open(os.path.join(schema_dir, schema)) as f:
             log_.debug("Installing schema '%s'.." % schema)
             _cache[schema] = json.load(f)
-
-
-_precache()
+    _CACHED = True
