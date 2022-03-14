@@ -3,8 +3,6 @@ import contextlib
 
 from Qt import QtWidgets, QtCore
 
-from .. import io, api, style
-
 
 def format_version(value, hero_version=False):
     """Formats integer to displayable version name"""
