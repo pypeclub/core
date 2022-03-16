@@ -18,8 +18,6 @@ from .pipeline import (
     install,
     uninstall,
 
-    Loader,
-    SubsetLoader,
     Action,
     InventoryAction,
     discover,
@@ -34,15 +32,8 @@ from .pipeline import (
     emit,
 
     publish,
-    load,
-    update,
-    switch,
-    remove,
 
     data,
-
-    get_representation_path,
-    loaders_from_representation,
 
     register_root,
     register_host,
@@ -75,8 +66,6 @@ __all__ = [
 
     "schema",
 
-    "Loader",
-    "SubsetLoader",
     "Action",
     "InventoryAction",
     "discover",
@@ -89,15 +78,8 @@ __all__ = [
     "emit",
 
     "publish",
-    "load",
-    "update",
-    "switch",
-    "remove",
 
     "data",
-
-    "get_representation_path",
-    "loaders_from_representation",
 
     "register_host",
     "register_plugin_path",
