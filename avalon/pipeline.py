@@ -7,7 +7,6 @@ import json
 import types
 import copy
 import logging
-import weakref
 import inspect
 import traceback
 import platform
@@ -24,7 +23,6 @@ from . import (
     _registered_config,
     _registered_plugins,
     _registered_plugin_paths,
-    _registered_event_handlers,
 )
 
 
@@ -421,69 +419,6 @@ def plugin_from_module(superclass, module):
         types.append(obj)
 
     return types
-
-
-def on(event, callback):
-    """Call `callback` on `event`
-
-    Register `callback` to be run when `event` occurs.
-
-    Example:
-        >>> def on_init():
-        ...    print("Init happened")
-        ...
-        >>> on("init", on_init)
-        >>> del on_init
-
-    Arguments:
-        event (str): Name of event
-        callback (callable): Any callable
-
-    """
-
-    if event not in _registered_event_handlers:
-        _registered_event_handlers[event] = weakref.WeakSet()
-
-    events = _registered_event_handlers[event]
-    events.add(callback)
-
-
-def before(event, callback):
-    """Convenience to `on()` for before-events"""
-    on("before_" + event, callback)
-
-
-def after(event, callback):
-    """Convenience to `on()` for after-events"""
-    on("after_" + event, callback)
-
-
-def emit(event, args=None):
-    """Trigger an `event`
-
-    Example:
-        >>> def on_init():
-        ...    print("Init happened")
-        ...
-        >>> on("init", on_init)
-        >>> emit("init")
-        Init happened
-        >>> del on_init
-
-    Arguments:
-        event (str): Name of event
-        args (list, optional): List of arguments passed to callback
-
-    """
-
-    callbacks = _registered_event_handlers.get(event, set())
-    args = args or list()
-
-    for callback in callbacks:
-        try:
-            callback(*args)
-        except Exception:
-            log.warning(traceback.format_exc())
 
 
 def register_plugin(superclass, obj):

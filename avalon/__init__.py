@@ -12,6 +12,5 @@ _registered_plugin_paths = dict()
 _registered_root = {"_": ""}
 _registered_host = {"_": None}
 _registered_config = {"_": None}
-_registered_event_handlers = dict()
 
 Session = {}
