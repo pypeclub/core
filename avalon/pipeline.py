@@ -36,22 +36,6 @@ self.last_discovered_plugins = {}
 
 log = logging.getLogger(__name__)
 
-HOST_WORKFILE_EXTENSIONS = {
-    "blender": [".blend"],
-    "celaction": [".scn"],
-    "tvpaint": [".tvpp"],
-    "fusion": [".comp"],
-    "harmony": [".zip"],
-    "houdini": [".hip", ".hiplc", ".hipnc"],
-    "maya": [".ma", ".mb"],
-    "nuke": [".nk"],
-    "hiero": [".hrox"],
-    "photoshop": [".psd", ".psb"],
-    "premiere": [".prproj"],
-    "resolve": [".drp"],
-    "aftereffects": [".aep"]
-}
-
 
 def add_class_log(cls):
     """Decorator for attaching a logger to the class `cls`
