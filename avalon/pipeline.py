@@ -7,7 +7,6 @@ import json
 import types
 import copy
 import logging
-import weakref
 import inspect
 import traceback
 import platform
@@ -24,7 +23,6 @@ from . import (
     _registered_config,
     _registered_plugins,
     _registered_plugin_paths,
-    _registered_event_handlers,
 )
 
 
@@ -236,69 +234,6 @@ def plugin_from_module(superclass, module):
         types.append(obj)
 
     return types
-
-
-def on(event, callback):
-    """Call `callback` on `event`
-
-    Register `callback` to be run when `event` occurs.
-
-    Example:
-        >>> def on_init():
-        ...    print("Init happened")
-        ...
-        >>> on("init", on_init)
-        >>> del on_init
-
-    Arguments:
-        event (str): Name of event
-        callback (callable): Any callable
-
-    """
-
-    if event not in _registered_event_handlers:
-        _registered_event_handlers[event] = weakref.WeakSet()
-
-    events = _registered_event_handlers[event]
-    events.add(callback)
-
-
-def before(event, callback):
-    """Convenience to `on()` for before-events"""
-    on("before_" + event, callback)
-
-
-def after(event, callback):
-    """Convenience to `on()` for after-events"""
-    on("after_" + event, callback)
-
-
-def emit(event, args=None):
-    """Trigger an `event`
-
-    Example:
-        >>> def on_init():
-        ...    print("Init happened")
-        ...
-        >>> on("init", on_init)
-        >>> emit("init")
-        Init happened
-        >>> del on_init
-
-    Arguments:
-        event (str): Name of event
-        args (list, optional): List of arguments passed to callback
-
-    """
-
-    callbacks = _registered_event_handlers.get(event, set())
-    args = args or list()
-
-    for callback in callbacks:
-        try:
-            callback(*args)
-        except Exception:
-            log.warning(traceback.format_exc())
 
 
 def register_plugin(superclass, obj):
@@ -549,148 +484,3 @@ def debug_host():
     })
 
     return host
-
-
-def format_template_with_optional_keys(data, template):
-    # Remove optional missing keys
-    pattern = re.compile(r"(<.*?[^{0]*>)[^0-9]*?")
-    invalid_optionals = []
-    for group in pattern.findall(template):
-        try:
-            group.format(**data)
-        except KeyError:
-            invalid_optionals.append(group)
-
-    for group in invalid_optionals:
-        template = template.replace(group, "")
-
-    work_file = template.format(**data)
-
-    # Remove optional symbols
-    work_file = work_file.replace("<", "")
-    work_file = work_file.replace(">", "")
-
-    # Remove double dots when dot for extension is in template
-    work_file = work_file.replace("..", ".")
-
-    return work_file
-
-
-def last_workfile_with_version(workdir, file_template, fill_data, extensions):
-    """Return last workfile version.
-
-    Args:
-        workdir(str): Path to dir where workfiles are stored.
-        file_template(str): Template of file name.
-        fill_data(dict): Data for filling template.
-        extensions(list, tuple): All allowed file extensions of workfile.
-
-    Returns:
-        tuple: Last workfile<str> with version<int> if there is any otherwise
-            returns (None, None).
-    """
-    if not os.path.exists(workdir):
-        return None, None
-
-    # Fast match on extension
-    filenames = [
-        filename
-        for filename in os.listdir(workdir)
-        if os.path.splitext(filename)[1] in extensions
-    ]
-
-    # Build template without optionals, version to digits only regex
-    # and comment to any definable value.
-    _ext = []
-    for ext in extensions:
-        if not ext.startswith("."):
-            ext = "." + ext
-        # Escape dot for regex
-        ext = "\\" + ext
-        _ext.append(ext)
-    ext_expression = "(?:" + "|".join(_ext) + ")"
-
-    # Replace `.{ext}` with `{ext}` so we are sure there is not dot at the end
-    file_template = re.sub(r"\.?{ext}", ext_expression, file_template)
-    # Replace optional keys with optional content regex
-    file_template = re.sub(r"<.*?>", r".*?", file_template)
-    # Replace `{version}` with group regex
-    file_template = re.sub(r"{version.*?}", r"([0-9]+)", file_template)
-    file_template = re.sub(r"{comment.*?}", r".+?", file_template)
-    file_template = format_template_with_optional_keys(
-        fill_data,
-        file_template
-    )
-
-    # Match with ignore case on Windows due to the Windows
-    # OS not being case-sensitive. This avoids later running
-    # into the error that the file did exist if it existed
-    # with a different upper/lower-case.
-    kwargs = {}
-    if platform.system().lower() == "windows":
-        kwargs["flags"] = re.IGNORECASE
-
-    # Get highest version among existing matching files
-    version = None
-    output_filenames = []
-    for filename in sorted(filenames):
-        match = re.match(file_template, filename, **kwargs)
-        if not match:
-            continue
-
-        file_version = int(match.group(1))
-        if version is None or file_version > version:
-            output_filenames[:] = []
-            version = file_version
-
-        if file_version == version:
-            output_filenames.append(filename)
-
-    output_filename = None
-    if output_filenames:
-        if len(output_filenames) == 1:
-            output_filename = output_filenames[0]
-        else:
-            last_time = None
-            for _output_filename in output_filenames:
-                full_path = os.path.join(workdir, _output_filename)
-                mod_time = os.path.getmtime(full_path)
-                if last_time is None or last_time < mod_time:
-                    output_filename = _output_filename
-                    last_time = mod_time
-
-    return output_filename, version
-
-
-def last_workfile(
-    workdir, file_template, fill_data, extensions, full_path=False
-):
-    """Return last workfile filename.
-
-    Returns file with version 1 if there is not workfile yet.
-
-    Args:
-        workdir(str): Path to dir where workfiles are stored.
-        file_template(str): Template of file name.
-        fill_data(dict): Data for filling template.
-        extensions(list, tuple): All allowed file extensions of workfile.
-        full_path(bool): Full path to file is returned if set to True.
-
-    Returns:
-        str: Last or first workfile as filename of full path to filename.
-    """
-    filename, version = last_workfile_with_version(
-        workdir, file_template, fill_data, extensions
-    )
-    if filename is None:
-        data = copy.deepcopy(fill_data)
-        data["version"] = 1
-        data.pop("comment", None)
-        if not data.get("ext"):
-            data["ext"] = extensions[0]
-        filename = format_template_with_optional_keys(data, file_template)
-
-    if full_path:
-        return os.path.normpath(os.path.join(workdir, filename))
-
-    return filename

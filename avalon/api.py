@@ -24,11 +24,6 @@ from .pipeline import (
     # Deprecated
     Session as session,
 
-    on,
-    after,
-    before,
-    emit,
-
     publish,
 
     data,
@@ -49,9 +44,6 @@ from .pipeline import (
     deregister_plugin_path,
 
     HOST_WORKFILE_EXTENSIONS,
-    format_template_with_optional_keys,
-    last_workfile_with_version,
-    last_workfile
 )
 
 
@@ -67,11 +59,6 @@ __all__ = [
     "discover",
     "Session",
     "session",
-
-    "on",
-    "after",
-    "before",
-    "emit",
 
     "publish",
 
@@ -93,7 +80,4 @@ __all__ = [
     "deregister_plugin_path",
 
     "HOST_WORKFILE_EXTENSIONS",
-    "format_template_with_optional_keys",
-    "last_workfile_with_version",
-    "last_workfile",
 ]
