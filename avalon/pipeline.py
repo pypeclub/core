@@ -27,7 +27,6 @@ from . import (
     _registered_event_handlers,
 )
 
-
 self = sys.modules[__name__]
 self._is_installed = False
 self._config = None
@@ -36,8 +35,6 @@ self.data = {}
 self.last_discovered_plugins = {}
 
 log = logging.getLogger(__name__)
-
-AVALON_CONTAINER_ID = "pyblish.avalon.container"
 
 HOST_WORKFILE_EXTENSIONS = {
     "blender": [".blend"],

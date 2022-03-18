@@ -136,7 +136,6 @@ def session_data_from_environment(context_keys=False):
 
         # Unique identifier for instances in working files
         ("AVALON_INSTANCE_ID", "avalon.instance"),
-        ("AVALON_CONTAINER_ID", "avalon.container"),
 
         # Enable debugging
         ("AVALON_DEBUG", None)
