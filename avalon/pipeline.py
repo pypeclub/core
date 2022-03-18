@@ -56,34 +56,6 @@ HOST_WORKFILE_EXTENSIONS = {
 }
 
 
-def add_class_log(cls):
-    """Decorator for attaching a logger to the class `cls`
-
-    Loggers inherit the syntax {module}.{submodule}
-
-    Example
-        >>> @add_class_log
-        ... class MyClass(object):
-        ...     pass
-        >>>
-        >>> myclass = MyClass()
-        >>> myclass.log.info('Hello World')
-
-    """
-
-    module = cls.__module__
-    name = cls.__name__
-
-    # Package name appended, for filtering of LogRecord instances
-    logname = "%s.%s" % (module, name)
-    cls.log = logging.getLogger(logname)
-
-    # All messages are handled by root-logger
-    cls.log.propagate = True
-
-    return cls
-
-
 def install(host):
     """Install `host` into the running Python session.
     Arguments:
