@@ -26,11 +26,6 @@ from .pipeline import (
     # Deprecated
     Session as session,
 
-    on,
-    after,
-    before,
-    emit,
-
     publish,
 
     data,
@@ -71,11 +66,6 @@ __all__ = [
     "discover",
     "Session",
     "session",
-
-    "on",
-    "after",
-    "before",
-    "emit",
 
     "publish",
 
