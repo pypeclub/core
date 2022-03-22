@@ -44,8 +44,6 @@ from .pipeline import (
 
     deregister_plugin,
     deregister_plugin_path,
-
-    HOST_WORKFILE_EXTENSIONS,
 )
 
 
@@ -82,6 +80,4 @@ __all__ = [
 
     "deregister_plugin",
     "deregister_plugin_path",
-
-    "HOST_WORKFILE_EXTENSIONS",
 ]

@@ -25,7 +25,6 @@ from . import (
     _registered_plugin_paths,
 )
 
-
 self = sys.modules[__name__]
 self._is_installed = False
 self._config = None
@@ -34,24 +33,6 @@ self.data = {}
 self.last_discovered_plugins = {}
 
 log = logging.getLogger(__name__)
-
-AVALON_CONTAINER_ID = "pyblish.avalon.container"
-
-HOST_WORKFILE_EXTENSIONS = {
-    "blender": [".blend"],
-    "celaction": [".scn"],
-    "tvpaint": [".tvpp"],
-    "fusion": [".comp"],
-    "harmony": [".zip"],
-    "houdini": [".hip", ".hiplc", ".hipnc"],
-    "maya": [".ma", ".mb"],
-    "nuke": [".nk"],
-    "hiero": [".hrox"],
-    "photoshop": [".psd", ".psb"],
-    "premiere": [".prproj"],
-    "resolve": [".drp"],
-    "aftereffects": [".aep"]
-}
 
 
 def add_class_log(cls):
