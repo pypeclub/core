@@ -18,8 +18,6 @@ from .pipeline import (
     install,
     uninstall,
 
-    Action,
-    InventoryAction,
     discover,
     Session,
 
@@ -56,8 +54,6 @@ __all__ = [
 
     "schema",
 
-    "Action",
-    "InventoryAction",
     "discover",
     "Session",
     "session",
