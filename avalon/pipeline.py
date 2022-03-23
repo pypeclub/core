@@ -2,14 +2,10 @@
 
 import os
 import sys
-import re
 import json
 import types
-import copy
 import logging
 import inspect
-import traceback
-import platform
 import importlib
 
 from . import (
@@ -21,8 +17,6 @@ from . import (
     _registered_host,
     _registered_root,
     _registered_config,
-    _registered_plugins,
-    _registered_plugin_paths,
 )
 
 self = sys.modules[__name__]
@@ -30,7 +24,6 @@ self._is_installed = False
 self._config = None
 self.data = {}
 # The currently registered plugins from the last `discover` call.
-self.last_discovered_plugins = {}
 
 log = logging.getLogger(__name__)
 
@@ -143,34 +136,6 @@ def publish():
     return util.publish()
 
 
-def discover(superclass):
-    """Find and return subclasses of `superclass`"""
-
-    registered = _registered_plugins.get(superclass, list())
-    plugins = dict()
-
-    # Include plug-ins from registered paths
-    for path in _registered_plugin_paths.get(superclass, list()):
-        for module in lib.modules_from_path(path):
-            for plugin in plugin_from_module(superclass, module):
-                if plugin.__name__ in plugins:
-                    print("Duplicate plug-in found: %s" % plugin)
-                    continue
-
-                plugins[plugin.__name__] = plugin
-
-    for plugin in registered:
-        if plugin.__name__ in plugins:
-            print("Warning: Overwriting %s" % plugin.__name__)
-        plugins[plugin.__name__] = plugin
-
-    sorted_plugins = sorted(
-        plugins.values(), key=lambda Plugin: Plugin.__name__
-    )
-    self.last_discovered_plugins[superclass.__name__] = sorted_plugins
-    return sorted_plugins
-
-
 def plugin_from_module(superclass, module):
     """Return plug-ins from module
 
@@ -215,61 +180,6 @@ def plugin_from_module(superclass, module):
         types.append(obj)
 
     return types
-
-
-def register_plugin(superclass, obj):
-    """Register an individual `obj` of type `superclass`
-
-    Arguments:
-        superclass (type): Superclass of plug-in
-        obj (object): Subclass of `superclass`
-
-    """
-
-    if superclass not in _registered_plugins:
-        _registered_plugins[superclass] = list()
-
-    if obj not in _registered_plugins[superclass]:
-        _registered_plugins[superclass].append(obj)
-
-
-def register_plugin_path(superclass, path):
-    """Register a directory of one or more plug-ins
-
-    Arguments:
-        superclass (type): Superclass of plug-ins to look for during discovery
-        path (str): Absolute path to directory in which to discover plug-ins
-
-    """
-
-    if superclass not in _registered_plugin_paths:
-        _registered_plugin_paths[superclass] = list()
-
-    path = os.path.normpath(path)
-    if path not in _registered_plugin_paths[superclass]:
-        _registered_plugin_paths[superclass].append(path)
-
-
-def registered_plugin_paths():
-    """Return all currently registered plug-in paths"""
-
-    # Prohibit editing in-place
-    duplicate = {
-        superclass: paths[:]
-        for superclass, paths in _registered_plugin_paths.items()
-    }
-
-    return duplicate
-
-
-def deregister_plugin(superclass, plugin):
-    """Oppsite of `register_plugin()`"""
-    _registered_plugins[superclass].remove(plugin)
-
-
-def deregister_plugin_path(superclass, path):
-    """Oppsite of `register_plugin_path()`"""
-    _registered_plugin_paths[superclass].remove(path)
 
 
 def register_root(path):
