@@ -10,7 +10,6 @@ import importlib
 
 from . import (
     io,
-    lib,
 
     Session,
 
@@ -26,6 +25,37 @@ self.data = {}
 # The currently registered plugins from the last `discover` call.
 
 log = logging.getLogger(__name__)
+
+
+def find_submodule(module, submodule):
+    """Find and return submodule of the module.
+
+    Args:
+        module (types.ModuleType): The module to search in.
+        submodule (str): The submodule name to find.
+
+    Returns:
+        types.ModuleType or None: The module, if found.
+
+    """
+    templates = (
+        "{0}.hosts.{1}.api",
+        "{0}.hosts.{1}",
+        "{0}.{1}"
+    )
+    for template in templates:
+        try:
+            name = template.format(module.__name__, submodule)
+            return importlib.import_module(name)
+        except ImportError:
+            log.warning(
+                "Could not find \"{}\".".format(name),
+                exc_info=True
+            )
+
+    log.warning(
+        "Could not find '%s' in module: %s", submodule, module
+    )
 
 
 def install(host):
@@ -63,7 +93,7 @@ def install(host):
     # Go to second from end if last item name is named 'api'
     if host_name == "api":
         host_name = host_name_parts[-2]
-    config_host = lib.find_submodule(config, host_name)
+    config_host = find_submodule(config, host_name)
     if config_host != host:
         if hasattr(config_host, "install"):
             config_host.install()
@@ -97,7 +127,7 @@ def uninstall():
 
     # Optional config.host.uninstall()
     host_name = host.__name__.rsplit(".", 1)[-1]
-    config_host = lib.find_submodule(config, host_name)
+    config_host = find_submodule(config, host_name)
     if hasattr(config_host, "uninstall"):
         config_host.uninstall()
 
