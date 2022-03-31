@@ -18,7 +18,6 @@ from .pipeline import (
     install,
     uninstall,
 
-    discover,
     Session,
 
     # Deprecated
@@ -30,18 +29,10 @@ from .pipeline import (
 
     register_root,
     register_host,
-    register_plugin_path,
-    register_plugin,
 
     registered_host,
     registered_config,
-    registered_plugin_paths,
     registered_root,
-
-    last_discovered_plugins,
-
-    deregister_plugin,
-    deregister_plugin_path,
 )
 
 
@@ -54,7 +45,6 @@ __all__ = [
 
     "schema",
 
-    "discover",
     "Session",
     "session",
 
@@ -63,17 +53,9 @@ __all__ = [
     "data",
 
     "register_host",
-    "register_plugin_path",
-    "register_plugin",
     "register_root",
 
-    "last_discovered_plugins",
-
     "registered_root",
-    "registered_plugin_paths",
     "registered_host",
     "registered_config",
-
-    "deregister_plugin",
-    "deregister_plugin_path",
 ]

@@ -2,27 +2,20 @@
 
 import os
 import sys
-import re
 import json
 import types
-import copy
 import logging
 import inspect
-import traceback
-import platform
 import importlib
 
 from . import (
     io,
-    lib,
 
     Session,
 
     _registered_host,
     _registered_root,
     _registered_config,
-    _registered_plugins,
-    _registered_plugin_paths,
 )
 
 self = sys.modules[__name__]
@@ -30,9 +23,39 @@ self._is_installed = False
 self._config = None
 self.data = {}
 # The currently registered plugins from the last `discover` call.
-self.last_discovered_plugins = {}
 
 log = logging.getLogger(__name__)
+
+
+def find_submodule(module, submodule):
+    """Find and return submodule of the module.
+
+    Args:
+        module (types.ModuleType): The module to search in.
+        submodule (str): The submodule name to find.
+
+    Returns:
+        types.ModuleType or None: The module, if found.
+
+    """
+    templates = (
+        "{0}.hosts.{1}.api",
+        "{0}.hosts.{1}",
+        "{0}.{1}"
+    )
+    for template in templates:
+        try:
+            name = template.format(module.__name__, submodule)
+            return importlib.import_module(name)
+        except ImportError:
+            log.warning(
+                "Could not find \"{}\".".format(name),
+                exc_info=True
+            )
+
+    log.warning(
+        "Could not find '%s' in module: %s", submodule, module
+    )
 
 
 def install(host):
@@ -70,7 +93,7 @@ def install(host):
     # Go to second from end if last item name is named 'api'
     if host_name == "api":
         host_name = host_name_parts[-2]
-    config_host = lib.find_submodule(config, host_name)
+    config_host = find_submodule(config, host_name)
     if config_host != host:
         if hasattr(config_host, "install"):
             config_host.install()
@@ -104,7 +127,7 @@ def uninstall():
 
     # Optional config.host.uninstall()
     host_name = host.__name__.rsplit(".", 1)[-1]
-    config_host = lib.find_submodule(config, host_name)
+    config_host = find_submodule(config, host_name)
     if hasattr(config_host, "uninstall"):
         config_host.uninstall()
 
@@ -141,34 +164,6 @@ def publish():
     """Shorthand to publish from within host"""
     from pyblish import util
     return util.publish()
-
-
-def discover(superclass):
-    """Find and return subclasses of `superclass`"""
-
-    registered = _registered_plugins.get(superclass, list())
-    plugins = dict()
-
-    # Include plug-ins from registered paths
-    for path in _registered_plugin_paths.get(superclass, list()):
-        for module in lib.modules_from_path(path):
-            for plugin in plugin_from_module(superclass, module):
-                if plugin.__name__ in plugins:
-                    print("Duplicate plug-in found: %s" % plugin)
-                    continue
-
-                plugins[plugin.__name__] = plugin
-
-    for plugin in registered:
-        if plugin.__name__ in plugins:
-            print("Warning: Overwriting %s" % plugin.__name__)
-        plugins[plugin.__name__] = plugin
-
-    sorted_plugins = sorted(
-        plugins.values(), key=lambda Plugin: Plugin.__name__
-    )
-    self.last_discovered_plugins[superclass.__name__] = sorted_plugins
-    return sorted_plugins
 
 
 def plugin_from_module(superclass, module):
@@ -215,61 +210,6 @@ def plugin_from_module(superclass, module):
         types.append(obj)
 
     return types
-
-
-def register_plugin(superclass, obj):
-    """Register an individual `obj` of type `superclass`
-
-    Arguments:
-        superclass (type): Superclass of plug-in
-        obj (object): Subclass of `superclass`
-
-    """
-
-    if superclass not in _registered_plugins:
-        _registered_plugins[superclass] = list()
-
-    if obj not in _registered_plugins[superclass]:
-        _registered_plugins[superclass].append(obj)
-
-
-def register_plugin_path(superclass, path):
-    """Register a directory of one or more plug-ins
-
-    Arguments:
-        superclass (type): Superclass of plug-ins to look for during discovery
-        path (str): Absolute path to directory in which to discover plug-ins
-
-    """
-
-    if superclass not in _registered_plugin_paths:
-        _registered_plugin_paths[superclass] = list()
-
-    path = os.path.normpath(path)
-    if path not in _registered_plugin_paths[superclass]:
-        _registered_plugin_paths[superclass].append(path)
-
-
-def registered_plugin_paths():
-    """Return all currently registered plug-in paths"""
-
-    # Prohibit editing in-place
-    duplicate = {
-        superclass: paths[:]
-        for superclass, paths in _registered_plugin_paths.items()
-    }
-
-    return duplicate
-
-
-def deregister_plugin(superclass, plugin):
-    """Oppsite of `register_plugin()`"""
-    _registered_plugins[superclass].remove(plugin)
-
-
-def deregister_plugin_path(superclass, path):
-    """Oppsite of `register_plugin_path()`"""
-    _registered_plugin_paths[superclass].remove(path)
 
 
 def register_root(path):
