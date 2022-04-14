@@ -7,4 +7,4 @@ the currently held state of avalon-core.
 
 """
 
-Session = {}
+from openpype.pipeline.legacy_io import Session

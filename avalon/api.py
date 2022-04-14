@@ -9,16 +9,12 @@ and likely **unreliable** for use outside of the codebase itself.
 
 """
 
-from . import (
-    schema,
-    Session,
-)
-from . mongodb import (
+from openpype.pipeline import schema
+from openpype.pipeline.mongodb import (
     AvalonMongoDB,
-    session_data_from_environment
+    session_data_from_environment,
 )
-
-session = Session
+from openpype.pipeline.legacy_io import Session
 
 
 __all__ = [
