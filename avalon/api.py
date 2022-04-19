@@ -9,53 +9,23 @@ and likely **unreliable** for use outside of the codebase itself.
 
 """
 
-from . import schema
+from . import (
+    schema,
+    Session,
+)
 from . mongodb import (
     AvalonMongoDB,
     session_data_from_environment
 )
-from .pipeline import (
-    install,
-    uninstall,
 
-    Session,
-
-    # Deprecated
-    Session as session,
-
-    publish,
-
-    data,
-
-    register_root,
-    register_host,
-
-    registered_host,
-    registered_config,
-    registered_root,
-)
+session = Session
 
 
 __all__ = [
-    "AvalonMongoDB",
-    "session_data_from_environment",
-
-    "install",
-    "uninstall",
-
     "schema",
-
     "Session",
     "session",
 
-    "publish",
-
-    "data",
-
-    "register_host",
-    "register_root",
-
-    "registered_root",
-    "registered_host",
-    "registered_config",
+    "AvalonMongoDB",
+    "session_data_from_environment",
 ]
